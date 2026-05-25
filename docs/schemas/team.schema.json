@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agents-company.local/schemas/team.schema.json",
+  "title": "Agents Company Team Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "team_id",
+    "departments",
+    "agents",
+    "discussion_policy",
+    "pipeline_policy",
+    "review_policy"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "team_id": { "type": "string", "minLength": 1 },
+    "team_name": { "type": "string" },
+    "departments": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/department" }
+    },
+    "agents": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/agent" }
+    },
+    "discussion_policy": { "$ref": "#/$defs/discussion_policy" },
+    "pipeline_policy": { "$ref": "#/$defs/pipeline_policy" },
+    "memory_policy": { "$ref": "#/$defs/memory_policy" },
+    "review_policy": { "$ref": "#/$defs/review_policy" }
+  },
+  "$defs": {
+    "department": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["department_id", "name", "mission", "decision_scope", "agents"],
+      "properties": {
+        "department_id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "mission": { "type": "string", "minLength": 1 },
+        "decision_scope": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "agents": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "handoff_contracts": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent_id",
+        "department_id",
+        "role",
+        "model",
+        "responsibilities",
+        "input_contract",
+        "output_contract"
+      ],
+      "properties": {
+        "agent_id": { "type": "string", "minLength": 1 },
+        "department_id": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "responsibilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "input_contract": { "type": "string", "minLength": 1 },
+        "output_contract": { "type": "string", "minLength": 1 },
+        "skills": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "mcp_servers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "memory_access_policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "discussion_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "max_rounds", "conflict_resolution", "required_outputs"],
+      "properties": {
+        "mode": {
+          "enum": ["supervisor_led", "sequential_handoff", "parallel_review"]
+        },
+        "max_rounds": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "supervisor_agent_id": { "type": "string" },
+        "conflict_resolution": {
+          "enum": ["supervisor_decision", "owner_decision", "block_and_escalate"]
+        },
+        "required_outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "pipeline_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "one_pipeline_per_ticket",
+        "dag_required",
+        "step_owner_required",
+        "review_before_handoff"
+      ],
+      "properties": {
+        "one_pipeline_per_ticket": { "const": true },
+        "dag_required": { "const": true },
+        "step_owner_required": { "type": "boolean" },
+        "review_before_handoff": { "type": "boolean" }
+      }
+    },
+    "memory_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retrieval_mode",
+        "indexed_object_types",
+        "retrieval_profiles",
+        "evidence_required_for_outputs",
+        "conflict_strategy"
+      ],
+      "properties": {
+        "retrieval_mode": {
+          "enum": ["standard_rag", "hybrid_vector_graph"]
+        },
+        "vector_store": { "type": "string", "minLength": 1 },
+        "graph_store": { "type": "string", "minLength": 1 },
+        "indexed_object_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "memory_object",
+              "topic",
+              "decision",
+              "ticket",
+              "pipeline",
+              "handoff",
+              "review_result",
+              "audit_event"
+            ]
+          }
+        },
+        "retrieval_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/memory_retrieval_profile" }
+        },
+        "evidence_required_for_outputs": {
+          "type": "array",
+          "items": {
+            "enum": ["decision", "ticket", "handoff", "review_result"]
+          }
+        },
+        "conflict_strategy": {
+          "enum": [
+            "return_conflicts_to_review",
+            "prefer_reviewed_latest",
+            "block_on_conflict"
+          ]
+        }
+      }
+    },
+    "memory_retrieval_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "allowed_scopes",
+        "max_results",
+        "max_graph_hops",
+        "require_reviewed_memory"
+      ],
+      "properties": {
+        "profile_id": { "type": "string", "minLength": 1 },
+        "allowed_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["system", "session", "topic", "ticket"] }
+        },
+        "max_results": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "max_graph_hops": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "require_reviewed_memory": { "type": "boolean" }
+      }
+    },
+    "review_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ticket_admission", "step_completion", "allowed_results"],
+      "properties": {
+        "ticket_admission": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["logic_review", "quality_review"] }
+        },
+        "step_completion": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["logic_review", "quality_review"] }
+        },
+        "allowed_results": {
+          "type": "array",
+          "items": { "enum": ["pass", "revise", "block"] }
+        }
+      }
+    }
+  }
+}
