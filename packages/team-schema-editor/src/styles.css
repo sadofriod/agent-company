@@ -1,0 +1,30 @@
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.react-flow__node {
+  min-width: 180px;
+  border-radius: 18px;
+  border: 1px solid rgba(28, 42, 35, 0.12);
+  background: #fffdf8;
+  box-shadow: 0 18px 40px rgba(38, 49, 44, 0.08);
+}
+
+.react-flow__node-default {
+  padding: 14px 16px;
+}
+
+.react-flow__node-default.selected,
+.react-flow__node-default:focus {
+  box-shadow: 0 0 0 2px rgba(217, 108, 63, 0.28), 0 18px 40px rgba(38, 49, 44, 0.08);
+}

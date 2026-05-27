@@ -12,6 +12,7 @@ Discussion And Decision 模块负责在任务尚不能直接执行时，按 Team
 - `supervisor_led`、`sequential_handoff`、`parallel_review` 三种拓扑执行。
 - Topic、Subtopic、Decision、Ticket Draft 的结构化生成。
 - 冲突识别、轮次控制和退出条件。
+- 面向讨论拓扑的可视化编辑数据模型输出。
 
 本模块不负责：
 
@@ -48,6 +49,9 @@ Discussion And Decision 模块负责在任务尚不能直接执行时，按 Team
 - `DISC-010`：一个 Topic 若产生多个执行事项，必须拆分为多个 Ticket Draft。
 - `DISC-011`：每个 Ticket Draft 必须具备单一目标、候选 Owner、验收标准和失败处理草案。
 - `DISC-012`：发现 Owner 冲突或跨部门边界冲突时，必须进入冲突处理，不得静默选择一方。
+- `DISC-013`：系统必须提供可被编辑模式消费的讨论拓扑结构，支持节点、连线、参与角色和交接关系的可视化编辑。
+- `DISC-014`：编辑模式对讨论拓扑的修改必须回写为结构化配置，不得保存为不可校验的自由文本。
+- `DISC-015`：编辑模式保存讨论拓扑前，必须至少校验参与角色合法性、连线完整性和退出条件可达性。
 
 ## 业务规则
 
@@ -67,3 +71,4 @@ Discussion And Decision 模块负责在任务尚不能直接执行时，按 Team
 - 三种拓扑均能产出 Topic、Decision 和 Ticket Draft。
 - 无限讨论在达到 `max_rounds` 后停止。
 - Owner 冲突不会进入 Pipeline。
+- 讨论拓扑可以被可视化编辑，并且编辑结果仍满足既有讨论模式约束。

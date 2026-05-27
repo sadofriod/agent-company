@@ -23,12 +23,10 @@ MVP 技术目标：
 
 ### 核心依赖建议
 
-- `ajv`：执行 Draft 2020-12 JSON Schema 校验。
-- `ajv-formats`：补充标准格式校验。
+- `zod`：执行 Team Schema 的运行时校验与 JSON 到领域对象的解析转换。
 - `tsx`：本地开发执行 TypeScript 脚本。
 - `vitest`：单元测试与集成测试。
 - `pino`：结构化日志。
-- `zod` 可选：仅用于内部开发体验较强的局部运行时解析，不替代 Team Schema。
 
 ### 可插拔依赖
 
@@ -201,7 +199,7 @@ MVP 中领域对象应尽量保持扁平。复杂关系通过 ID 引用表达，
 ### 加载流程
 
 1. 读取 Team Schema JSON。
-2. 使用 Ajv 校验 `schemas/team.schema.json`。
+2. 使用 Zod 校验 JSON 结构，并将 snake_case 字段映射到领域对象。
 3. 执行引用完整性校验，包括部门引用、Agent 引用、Supervisor 引用和 Memory Profile 引用。
 4. 生成 `TeamDefinition`。
 5. 创建 `RuntimePlan`。
@@ -458,7 +456,7 @@ export type RuntimeError =
 
 ### Milestone 1: Schema Runtime
 
-- 实现 Team Schema 读取和 Ajv 校验。
+- 实现 Team Schema 读取和 Zod 校验。
 - 实现跨字段引用完整性校验。
 - 生成不可变 RuntimePlan。
 
