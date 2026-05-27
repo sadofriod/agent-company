@@ -19,8 +19,8 @@ import {
   updateDiscussionField as updateDiscussionFieldAction,
   updateDiscussionNumber as updateDiscussionNumberAction,
   updateTeamField as updateTeamFieldAction,
-} from '../state/editorSlice';
-import { useAppDispatch, useAppSelector } from '../state/editorHooks';
+} from '../state/core/editorSlice';
+import { useAppDispatch, useAppSelector } from '../state/core/editorHooks';
 import type { GraphNodeData, Selection, TeamSchemaDocument, ValidationIssue } from '../model/types';
 
 export const useTeamEditor = (): {
