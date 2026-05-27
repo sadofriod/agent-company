@@ -37,6 +37,7 @@ const agentMetadataSchema = z
     allowed_commands: stringArraySchema.default([]),
     required_commands: stringArraySchema.default([]),
   })
+  .strict()
   .transform(
     (value): AgentMetadata => ({
       name: value.name,
@@ -56,9 +57,10 @@ const departmentSchema = z
     name: nonEmptyStringSchema,
     mission: nonEmptyStringSchema,
     decision_scope: stringArraySchema,
-    agents: stringArraySchema,
+    agents: stringArraySchema.min(1),
     handoff_contracts: stringArraySchema.default([]),
   })
+  .strict()
   .transform(
     (value): Department => ({
       departmentId: value.department_id as Department['departmentId'],
@@ -76,7 +78,7 @@ const agentSchema = z
     department_id: nonEmptyStringSchema,
     role: nonEmptyStringSchema,
     model: nonEmptyStringSchema,
-    responsibilities: stringArraySchema,
+    responsibilities: stringArraySchema.min(1),
     input_contract: nonEmptyStringSchema,
     output_contract: nonEmptyStringSchema,
     skills: stringArraySchema.default([]),
@@ -86,6 +88,7 @@ const agentSchema = z
     metadata: agentMetadataSchema.optional(),
     description: nonEmptyStringSchema.optional(),
   })
+  .strict()
   .transform(
     (value): AgentDefinition => ({
       agentId: value.agent_id as AgentDefinition['agentId'],
@@ -107,11 +110,12 @@ const agentSchema = z
 const discussionPolicySchema = z
   .object({
     mode: discussionModeSchema,
-    max_rounds: integerSchema,
+    max_rounds: integerSchema.min(1).max(10),
     supervisor_agent_id: nonEmptyStringSchema.optional(),
     conflict_resolution: conflictResolutionSchema,
-    required_outputs: stringArraySchema,
+    required_outputs: stringArraySchema.min(1),
   })
+  .strict()
   .transform(
     (value): DiscussionPolicy => ({
       mode: value.mode,
@@ -129,6 +133,7 @@ const pipelinePolicySchema = z
     step_owner_required: z.boolean(),
     review_before_handoff: z.boolean(),
   })
+  .strict()
   .transform(
     (value): PipelinePolicy => ({
       onePipelinePerTicket: value.one_pipeline_per_ticket,
@@ -141,11 +146,12 @@ const pipelinePolicySchema = z
 const memoryRetrievalProfileSchema = z
   .object({
     profile_id: nonEmptyStringSchema,
-    allowed_scopes: z.array(memoryScopeSchema),
-    max_results: integerSchema,
-    max_graph_hops: integerSchema,
+    allowed_scopes: z.array(memoryScopeSchema).min(1),
+    max_results: integerSchema.min(1).max(50),
+    max_graph_hops: integerSchema.min(0).max(3),
     require_reviewed_memory: z.boolean(),
   })
+  .strict()
   .transform(
     (value): MemoryRetrievalProfile => ({
       profileId: value.profile_id as MemoryRetrievalProfile['profileId'],
@@ -161,11 +167,12 @@ const memoryPolicySchema = z
     retrieval_mode: retrievalModeSchema,
     vector_store: nonEmptyStringSchema.optional(),
     graph_store: nonEmptyStringSchema.optional(),
-    indexed_object_types: z.array(indexedObjectTypeSchema),
-    retrieval_profiles: z.array(memoryRetrievalProfileSchema),
+    indexed_object_types: z.array(indexedObjectTypeSchema).min(1),
+    retrieval_profiles: z.array(memoryRetrievalProfileSchema).min(1),
     evidence_required_for_outputs: z.array(evidenceRequiredOutputSchema),
     conflict_strategy: memoryConflictStrategySchema,
   })
+  .strict()
   .transform(
     (value): MemoryPolicy => ({
       retrievalMode: value.retrieval_mode,
@@ -180,10 +187,11 @@ const memoryPolicySchema = z
 
 const reviewPolicySchema = z
   .object({
-    ticket_admission: z.array(reviewerKindSchema),
-    step_completion: z.array(reviewerKindSchema),
+    ticket_admission: z.array(reviewerKindSchema).min(1),
+    step_completion: z.array(reviewerKindSchema).min(1),
     allowed_results: z.array(reviewStatusSchema),
   })
+  .strict()
   .transform(
     (value): ReviewPolicy => ({
       ticketAdmission: value.ticket_admission,
@@ -197,13 +205,14 @@ export const teamSchema = z
     schema_version: nonEmptyStringSchema,
     team_id: nonEmptyStringSchema,
     team_name: nonEmptyStringSchema.optional(),
-    departments: z.array(departmentSchema),
-    agents: z.array(agentSchema),
+    departments: z.array(departmentSchema).min(1),
+    agents: z.array(agentSchema).min(1),
     discussion_policy: discussionPolicySchema,
     pipeline_policy: pipelinePolicySchema,
     memory_policy: memoryPolicySchema.optional(),
     review_policy: reviewPolicySchema,
   })
+  .strict()
   .transform(
     (value): TeamDefinition => ({
       schemaVersion: value.schema_version,

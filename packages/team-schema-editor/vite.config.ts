@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 
 const editorDirectory = fileURLToPath(new URL('.', import.meta.url));
+const exposeDevServer = process.env.VITE_EDITOR_EXPOSE_HOST === 'true';
 
 export default defineConfig({
   plugins: [react()],
@@ -13,7 +14,7 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0',
+    host: exposeDevServer ? '0.0.0.0' : 'localhost',
     fs: {
       allow: [resolve(editorDirectory, '..')],
     },

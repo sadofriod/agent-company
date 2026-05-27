@@ -27,6 +27,7 @@ export const applyJson: CaseReducer<EditorState> = (state): EditorState => {
     return {
       ...state,
       parseError: error instanceof Error ? error.message : 'Invalid JSON',
+      validationIssues: [],
     };
   }
 };
