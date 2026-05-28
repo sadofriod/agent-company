@@ -1,14 +1,15 @@
 import { loadTeamSchema } from '@agents-team/service/schema/loadTeamSchema';
 
-import { sampleTeamSchema } from '../../model/sampleTeamSchema';
 import type { AgentDocument, DepartmentDocument, Selection, TeamSchemaDocument, ValidationIssue } from '../../model/types';
+
+export type SchemaLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export type EditorState = {
   readonly schema: TeamSchemaDocument;
-  readonly jsonValue: string;
-  readonly parseError: string | null;
   readonly validationIssues: readonly ValidationIssue[];
   readonly selection: Selection;
+  readonly schemaLoadStatus: SchemaLoadStatus;
+  readonly schemaLoadError: string | null;
 };
 
 export type SchemaField = 'team_name' | 'team_id' | 'schema_version';
@@ -66,20 +67,16 @@ export const formatIssues = (issues: readonly ValidationIssue[]): string =>
     })
     .join('\n');
 
-export const validateEditorState = (schema: TeamSchemaDocument): Pick<EditorState, 'jsonValue' | 'parseError' | 'validationIssues'> => {
+export const validateEditorState = (schema: TeamSchemaDocument): Pick<EditorState, 'validationIssues'> => {
   const validation = validateSchemaDocument(schema);
 
   if (validation.ok) {
     return {
-      jsonValue: JSON.stringify(schema, null, 2),
-      parseError: null,
       validationIssues: [],
     };
   }
 
   return {
-    jsonValue: JSON.stringify(schema, null, 2),
-    parseError: formatIssues(validation.issues),
     validationIssues: validation.issues,
   };
 };
@@ -110,8 +107,59 @@ export const withSchema = (state: EditorState, schema: TeamSchemaDocument): Edit
   ...validateEditorState(schema),
 });
 
+export const createPendingTeamSchema = (): TeamSchemaDocument => ({
+  schema_version: '0.1.0',
+  team_id: 'loading-team-schema',
+  team_name: 'Loading Team Schema',
+  departments: [
+    {
+      department_id: 'loading',
+      name: 'Loading',
+      mission: 'Load the team schema from the service.',
+      decision_scope: ['loading'],
+      agents: ['loading_agent'],
+      handoff_contracts: [],
+    },
+  ],
+  agents: [
+    {
+      agent_id: 'loading_agent',
+      department_id: 'loading',
+      role: 'Schema Loader',
+      model: 'default-model',
+      description: 'Loads the editable team schema from the service.',
+      responsibilities: ['load_schema'],
+      input_contract: 'service_request',
+      output_contract: 'team_schema',
+      skills: [],
+      mcp_servers: [],
+      tools: [],
+    },
+  ],
+  discussion_policy: {
+    mode: 'supervisor_led',
+    max_rounds: 1,
+    supervisor_agent_id: 'loading_agent',
+    conflict_resolution: 'supervisor_decision',
+    required_outputs: ['team_schema'],
+  },
+  pipeline_policy: {
+    one_pipeline_per_ticket: true,
+    dag_required: true,
+    step_owner_required: true,
+    review_before_handoff: true,
+  },
+  review_policy: {
+    ticket_admission: ['logic_review'],
+    step_completion: ['quality_review'],
+    allowed_results: ['pass', 'revise', 'block'],
+  },
+});
+
 export const initialState: EditorState = {
-  schema: sampleTeamSchema,
+  schema: createPendingTeamSchema(),
   selection: { kind: 'team' },
-  ...validateEditorState(sampleTeamSchema),
+  validationIssues: [],
+  schemaLoadStatus: 'idle',
+  schemaLoadError: null,
 };

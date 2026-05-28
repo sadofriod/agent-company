@@ -1,4 +1,4 @@
-import type { RuntimePlan } from '../domain/runtime';
+import type { RuntimePlan } from '../../domain/runtime';
 import type { MemoryProfilesById } from './types';
 
 export const resolveMemoryProfilesById = (runtimePlan: RuntimePlan): MemoryProfilesById =>

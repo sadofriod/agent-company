@@ -1,5 +1,5 @@
-import type { AgentId } from '../domain/base';
-import type { RuntimePlan } from '../domain/runtime';
+import type { AgentId } from '../../domain/base';
+import type { RuntimePlan } from '../../domain/runtime';
 import { createCapabilityIndex, resolveAgentCapabilities } from './resolveAgentCapabilities';
 import { resolveMemoryProfilesById } from './resolveMemoryProfilesById';
 import type {

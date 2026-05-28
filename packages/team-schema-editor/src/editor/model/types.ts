@@ -1,3 +1,5 @@
+import type { Node } from '@xyflow/react';
+
 export type AgentMetadataDocument = {
   readonly name: string;
   readonly description: string;
@@ -85,14 +87,27 @@ export type TeamSchemaDocument = {
   readonly review_policy: ReviewPolicyDocument;
 };
 
-export type GraphNodeKind = 'team' | 'department' | 'agent' | 'discussion' | 'pipeline' | 'review' | 'memory';
+export type EditorMode = 'edit' | 'run';
+
+export type RuntimeStatus = 'idle' | 'running' | 'paused' | 'terminated';
+
+export type WorkflowEdgeMode = 'discuss' | 'pipeline';
+
+export type WorkflowNodeType = 'agent' | 'part';
+
+export type GraphNodeKind = 'team' | 'department' | 'agent' | 'part' | 'discussion' | 'pipeline' | 'review' | 'memory';
 
 export type GraphNodeData = {
   readonly kind: GraphNodeKind;
-  readonly title: string;
-  readonly subtitle: string;
+  readonly nodeName: string;
+  readonly roleName?: string;
+  readonly departmentName?: string;
+  readonly detail?: string;
   readonly accent: string;
+  readonly workflowNodeType?: WorkflowNodeType;
 };
+
+export type WorkflowGraphNode = Node<GraphNodeData, 'workflow'>;
 
 export type Selection =
   | { readonly kind: 'team' }

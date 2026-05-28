@@ -1,10 +1,10 @@
 import {
   CAPABILITY_TYPE,
-  type CapabilityRegistry,
   type CapabilityDescriptor,
-} from '../domain/capability';
-import type { CapabilityId } from '../domain/base';
-import type { AgentDefinition } from '../domain/organization';
+  type CapabilityRegistry,
+} from '../../domain/capability';
+import type { CapabilityId } from '../../domain/base';
+import type { AgentDefinition } from '../../domain/organization';
 import type { AgentCapabilitySet, CapabilityIndex } from './types';
 
 const resolveCapability = (

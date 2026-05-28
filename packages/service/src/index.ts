@@ -1,12 +1,27 @@
+import 'dotenv/config';
+
+import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express, { type Request, type Response } from 'express';
 
-import { createAgentAssemblyFactory } from './agent/createAgentAssemblyFactory';
-import type { AgentAssembly, AgentAssemblyBundle } from './agent/types';
+import { createAgentAssemblyFactory, type AgentAssembly, type AgentAssemblyBundle } from './agent/assembly';
+import { createAgentMarkdownRouter } from './agent/markdown/router';
+import type { AgentMarkdownAdapter } from './adapter/agentMarkdownAdapter';
 import type { RuntimePlan } from './domain/runtime';
 import { createRuntimePlan } from './runtime/createRuntimePlan';
 import { loadTeamSchema } from './schema/loadTeamSchema';
 
 const DEFAULT_PORT = 3000;
+const DEFAULT_TEAM_SCHEMA_PATH = resolve(
+	dirname(fileURLToPath(import.meta.url)),
+	'../../../docs/examples/software-delivery-team.json',
+);
+
+type CreateAppOptions = {
+	readonly agentsDirectory?: string;
+	readonly agentMarkdownAdapter?: AgentMarkdownAdapter;
+};
 
 const parsePort = (value: string | undefined): number => {
 	if (value === undefined) {
@@ -20,6 +35,14 @@ const parsePort = (value: string | undefined): number => {
 	}
 
 	return port;
+};
+
+const resolveTeamSchemaPath = (): string => process.env.TEAM_SCHEMA_PATH ?? DEFAULT_TEAM_SCHEMA_PATH;
+
+const readTeamSchemaDocument = async (): Promise<unknown> => {
+	const content = await readFile(resolveTeamSchemaPath(), 'utf8');
+
+	return JSON.parse(content) as unknown;
 };
 
 const serializeRuntimePlan = (runtimePlan: RuntimePlan) => ({
@@ -54,13 +77,30 @@ const serializeAgentAssemblyBundle = (bundle: AgentAssemblyBundle) => ({
 	agents: bundle.agents.map(serializeAgentAssembly),
 });
 
-const createApp = (): express.Express => {
+const createApp = (options: CreateAppOptions = {}): express.Express => {
 	const app = express();
+	const agentMarkdownRouterOptions = {
+		...(options.agentsDirectory === undefined ? {} : { agentsDirectory: options.agentsDirectory }),
+		...(options.agentMarkdownAdapter === undefined ? {} : { adapter: options.agentMarkdownAdapter }),
+	};
 
 	app.use(express.json({ limit: '1mb' }));
+	app.use('/agent-markdown', createAgentMarkdownRouter(agentMarkdownRouterOptions));
 
 	app.get('/health', (_request: Request, response: Response) => {
 		response.json({ ok: true });
+	});
+
+	app.get('/team/schema', async (_request: Request, response: Response): Promise<void> => {
+		const schema = await readTeamSchemaDocument();
+		const validation = loadTeamSchema(schema);
+
+		if (!validation.ok) {
+			response.status(500).json(validation);
+			return;
+		}
+
+		response.json({ ok: true, schema });
 	});
 
 	app.post('/team/validate', (request: Request, response: Response) => {

@@ -1,19 +1,19 @@
 import type {
   CapabilityDescriptor,
   CapabilityRegistry,
-} from '../domain/capability';
+} from '../../domain/capability';
 import type {
   AgentId,
   CapabilityId,
   DepartmentId,
   MemoryProfileId,
   TeamId,
-} from '../domain/base';
+} from '../../domain/base';
 import type {
   AgentDefinition,
   Department,
   MemoryRetrievalProfile,
-} from '../domain/organization';
+} from '../../domain/organization';
 
 export type AgentCapabilitySet = {
   readonly skills: readonly CapabilityDescriptor[];
