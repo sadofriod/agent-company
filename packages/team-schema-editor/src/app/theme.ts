@@ -34,7 +34,7 @@ export const editorTheme = createTheme({
     },
   },
   shape: {
-    borderRadius: 24,
+    borderRadius: 16,
   },
   components: {
     MuiCssBaseline: {

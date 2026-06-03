@@ -103,7 +103,7 @@ export const GraphPanel = ({
         sx={{
           height: { xs: 460, md: 560 },
           overflow: 'hidden',
-          borderRadius: 3,
+          borderRadius: 1,
           borderColor: 'rgba(46, 61, 54, 0.08)',
           bgcolor: 'rgba(255,255,255,0.45)',
         }}
