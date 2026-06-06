@@ -25,6 +25,7 @@
 - [06-review-governance-implementation.md](06-review-governance-implementation.md)：Logic Review、Quality Review、Review Gate 和治理放行。
 - [07-runtime-audit-implementation.md](07-runtime-audit-implementation.md)：ExecutionContext、工作模式路由、中断回退和审计流。
 - [08-acceptance-test-implementation.md](08-acceptance-test-implementation.md)：MVP 验收测试、集成测试和放行矩阵。
+- [09-service-architecture-overview.md](09-service-architecture-overview.md)：当前 `packages/service` 的实现架构总览、主链路和存储设计。
 
 ## 推荐实现顺序
 
