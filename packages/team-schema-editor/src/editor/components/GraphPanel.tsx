@@ -93,7 +93,7 @@ export const GraphPanel = ({
           </Box>
         ) : (
           <Typography color="text.secondary" sx={{ maxWidth: 420, lineHeight: 1.5 }}>
-            Execution view is locked to the selected Team Scheme.
+            Execution view is locked to the selected Team Schema.
           </Typography>
         )}
       </Box>
