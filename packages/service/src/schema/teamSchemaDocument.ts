@@ -27,12 +27,12 @@ const toPersistedDocument = (input: unknown): ValidationResult<Prisma.InputJsonV
 	}
 };
 
-const notFoundIssues = (): readonly SchemaIssue[] => [
-	issue('file_missing', [], 'Stored team schema was not found.', 'Create it with POST /team/schema.'),
+const notFoundIssues = (key: string): readonly SchemaIssue[] => [
+	issue('file_missing', [], `Stored team schema "${key}" was not found.`, `Create it with POST /team/schemas/${key}.`),
 ];
 
-const conflictIssues = (): readonly SchemaIssue[] => [
-	issue('file_conflict', [], 'Stored team schema already exists.', 'Use PUT /team/schema to update it.'),
+const conflictIssues = (key: string): readonly SchemaIssue[] => [
+	issue('file_conflict', [], `Stored team schema "${key}" already exists.`, `Use PUT /team/schemas/${key} to update it.`),
 ];
 
 export const isStoredTeamSchemaMissing = (issues: readonly SchemaIssue[]): boolean =>
@@ -53,11 +53,11 @@ export const listTeamSchemaDocuments = async (): Promise<
 	};
 };
 
-export const readTeamSchemaDocument = async (): Promise<ValidationResult<unknown>> => {
-	const record = await createTeamSchemaRepository().findByKey(TEAM_SCHEMA_KEY);
+export const readTeamSchemaDocument = async (key = TEAM_SCHEMA_KEY): Promise<ValidationResult<unknown>> => {
+	const record = await createTeamSchemaRepository().findByKey(key);
 
 	if (record === undefined) {
-		return { ok: false, issues: notFoundIssues() };
+		return { ok: false, issues: notFoundIssues(key) };
 	}
 
 	if (!isRecord(record.document)) {
@@ -88,44 +88,46 @@ export const parseTeamSchemaDocument = (input: unknown): ValidationResult<Prisma
 };
 
 export const createTeamSchemaDocument = async (
+	key: string,
 	document: Prisma.InputJsonValue,
 ): Promise<ValidationResult<unknown>> => {
 	const repository = createTeamSchemaRepository();
-	const existingRecord = await repository.findByKey(TEAM_SCHEMA_KEY);
+	const existingRecord = await repository.findByKey(key);
 
 	if (existingRecord !== undefined) {
-		return { ok: false, issues: conflictIssues() };
+		return { ok: false, issues: conflictIssues(key) };
 	}
 
-	const record = await repository.upsert({ key: TEAM_SCHEMA_KEY, document });
+	const record = await repository.upsert({ key, document });
 
 	return { ok: true, value: record.document };
 };
 
 export const updateTeamSchemaDocument = async (
+	key: string,
 	document: Prisma.InputJsonValue,
 ): Promise<ValidationResult<unknown>> => {
 	const repository = createTeamSchemaRepository();
-	const existingRecord = await repository.findByKey(TEAM_SCHEMA_KEY);
+	const existingRecord = await repository.findByKey(key);
 
 	if (existingRecord === undefined) {
-		return { ok: false, issues: notFoundIssues() };
+		return { ok: false, issues: notFoundIssues(key) };
 	}
 
-	const record = await repository.upsert({ key: TEAM_SCHEMA_KEY, document });
+	const record = await repository.upsert({ key, document });
 
 	return { ok: true, value: record.document };
 };
 
-export const deleteTeamSchemaDocument = async (): Promise<ValidationResult<{ readonly deleted: true }>> => {
+export const deleteTeamSchemaDocument = async (key: string): Promise<ValidationResult<{ readonly deleted: true }>> => {
 	const repository = createTeamSchemaRepository();
-	const existingRecord = await repository.findByKey(TEAM_SCHEMA_KEY);
+	const existingRecord = await repository.findByKey(key);
 
 	if (existingRecord === undefined) {
-		return { ok: false, issues: notFoundIssues() };
+		return { ok: false, issues: notFoundIssues(key) };
 	}
 
-	await repository.deleteByKey(TEAM_SCHEMA_KEY);
+	await repository.deleteByKey(key);
 
 	return { ok: true, value: { deleted: true } };
 };

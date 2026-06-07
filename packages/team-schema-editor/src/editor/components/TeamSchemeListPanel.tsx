@@ -74,7 +74,7 @@ export const TeamSchemeListPanel = ({
       <Stack spacing={1.5}>
         <Stack spacing={0.75}>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
-            Team Scheme List
+            Team Schema List
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, wordBreak: 'break-word' }}>
             {schemeName}

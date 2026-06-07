@@ -7,6 +7,28 @@
     "dist"
   ],
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schema/*": {
+      "types": "./dist/schema/*.d.ts",
+      "default": "./dist/schema/*.js"
+    },
+    "./domain/*": {
+      "types": "./dist/domain/*.d.ts",
+      "default": "./dist/domain/*.js"
+    },
+    "./agent/markdown": {
+      "types": "./dist/agent/markdown/index.d.ts",
+      "default": "./dist/agent/markdown/index.js"
+    },
+    "./agent/markdown/*": {
+      "types": "./dist/agent/markdown/*.d.ts",
+      "default": "./dist/agent/markdown/*.js"
+    }
+  },
   "scripts": {
     "build": "pnpm prisma:generate && pnpm clean && tsc --project tsconfig.json --emitDeclarationOnly && swc src --out-dir dist --strip-leading-paths",
     "clean": "rm -rf dist",

@@ -15,7 +15,19 @@ export const teamSchemaApi = editorApi.injectEndpoints({
   endpoints: (builder) => ({
     listTeamSchemaRecords: builder.query<readonly TeamSchemaRecord[], void>({
       query: () => TEAM_SCHEMA_BASE,
-      transformResponse: (payload: unknown) => unwrapEnvelope<readonly TeamSchemaRecord[]>(payload),
+      transformResponse: (payload: unknown) => {
+        const data = unwrapEnvelope<unknown>(payload);
+
+        if (Array.isArray(data)) {
+          return data as readonly TeamSchemaRecord[];
+        }
+
+        if (isRecord(data) && Array.isArray(data.schemas)) {
+          return data.schemas as readonly TeamSchemaRecord[];
+        }
+
+        throw new Error(formatFailurePayload(payload, 'Unable to load team schema records.'));
+      },
       providesTags: (result) => {
         if (result === undefined) {
           return [{ type: 'TeamSchemaRecord' as const, id: 'LIST' }];

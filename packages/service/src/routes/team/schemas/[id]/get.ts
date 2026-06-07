@@ -2,10 +2,20 @@ import type { RequestHandler } from 'express';
 
 import { loadTeamSchema } from '../../../../schema/loadTeamSchema';
 import { isStoredTeamSchemaMissing, readTeamSchemaDocument } from '../../../../schema/teamSchemaDocument';
-import { sendData, sendValidationResult } from '../../../_shared/response';
+import { sendData, sendErrorResponse, sendValidationResult } from '../../../_shared/response';
 
-const handler: RequestHandler = async (_request, response): Promise<void> => {
-	const storedSchema = await readTeamSchemaDocument();
+const handler: RequestHandler = async (request, response): Promise<void> => {
+	const schemaKey = request.params.id;
+
+	if (typeof schemaKey !== 'string') {
+		sendErrorResponse(response, 400, {
+			code: 'request_invalid',
+			message: 'Team schema id is required.',
+		});
+		return;
+	}
+
+	const storedSchema = await readTeamSchemaDocument(schemaKey);
 
 	if (!storedSchema.ok) {
 		if (isStoredTeamSchemaMissing(storedSchema.issues)) {
