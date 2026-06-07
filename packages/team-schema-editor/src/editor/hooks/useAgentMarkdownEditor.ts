@@ -7,13 +7,16 @@ import type {
   AgentMarkdownValidationResponse,
 } from '@agents-team/service/agent/markdown';
 import {
-  createAgentMarkdownFile,
-  deleteAgentMarkdownFile,
-  listAgentMarkdownFiles,
-  readAgentMarkdownFile,
-  updateAgentMarkdownFile,
-  validateAgentMarkdownDraft,
-} from '../agentMarkdown/agentMarkdownApi';
+  formatApiErrorMessage,
+} from '../api/shared';
+import {
+  useCreateAgentMarkdownFileMutation,
+  useDeleteAgentMarkdownFileMutation,
+  useLazyReadAgentMarkdownFileQuery,
+  useListAgentMarkdownFilesQuery,
+  useUpdateAgentMarkdownFileMutation,
+  useValidateAgentMarkdownDraftMutation,
+} from '../api/agentMarkdownApi';
 import {
   listAgentMarkdownDraftPaths,
   moveAgentMarkdownDraft,
@@ -102,7 +105,7 @@ const initialState: AgentMarkdownEditorState = {
   draftPaths: [],
 };
 
-const formatUnknownError = (error: unknown): string => (error instanceof Error ? error.message : 'Unexpected error.');
+const formatUnknownError = (error: unknown): string => formatApiErrorMessage(error, 'Unexpected error.');
 
 const createDefaultDraftPath = (files: readonly AgentMarkdownFileSummary[]): string => {
   const existingPaths = new Set(files.map((file) => file.path));
@@ -321,6 +324,12 @@ const toValidationFailure = (issues: readonly SchemaIssue[]): AgentMarkdownValid
 
 export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const filesQuery = useListAgentMarkdownFilesQuery();
+  const [readAgentMarkdownFile] = useLazyReadAgentMarkdownFileQuery();
+  const [validateAgentMarkdownDraft] = useValidateAgentMarkdownDraftMutation();
+  const [createAgentMarkdownFile] = useCreateAgentMarkdownFileMutation();
+  const [updateAgentMarkdownFile] = useUpdateAgentMarkdownFileMutation();
+  const [deleteAgentMarkdownFile] = useDeleteAgentMarkdownFileMutation();
   const isBusy = state.status !== 'idle';
   const isExistingPath = state.files.some((file) => file.path === state.draftPath);
   const canWrite =
@@ -336,7 +345,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
     dispatch({ type: 'filesLoading' });
 
     try {
-      const response = await listAgentMarkdownFiles();
+      const response = await filesQuery.refetch().unwrap();
       dispatch({ type: 'filesLoaded', files: response.files, draftPaths: listAgentMarkdownDraftPaths() });
     } catch (error) {
       dispatch({ type: 'operationFailed', error: formatUnknownError(error) });
@@ -344,30 +353,22 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
   };
 
   useEffect(() => {
-    let isActive = true;
-
-    const loadFiles = async (): Promise<void> => {
+    if (filesQuery.isLoading) {
       dispatch({ type: 'filesLoading' });
+    }
+  }, [filesQuery.isLoading]);
 
-      try {
-        const response = await listAgentMarkdownFiles();
+  useEffect(() => {
+    if (filesQuery.data !== undefined) {
+      dispatch({ type: 'filesLoaded', files: filesQuery.data.files, draftPaths: listAgentMarkdownDraftPaths() });
+    }
+  }, [filesQuery.data]);
 
-        if (isActive) {
-          dispatch({ type: 'filesLoaded', files: response.files, draftPaths: listAgentMarkdownDraftPaths() });
-        }
-      } catch (error) {
-        if (isActive) {
-          dispatch({ type: 'operationFailed', error: formatUnknownError(error) });
-        }
-      }
-    };
-
-    void loadFiles();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
+  useEffect(() => {
+    if (filesQuery.error !== undefined) {
+      dispatch({ type: 'operationFailed', error: formatUnknownError(filesQuery.error) });
+    }
+  }, [filesQuery.error]);
 
   useEffect(() => {
     if (state.selectedPath === null) {
@@ -380,7 +381,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
       dispatch({ type: 'fileReading' });
 
       try {
-        const response = await readAgentMarkdownFile(state.selectedPath ?? '');
+        const response = await readAgentMarkdownFile(state.selectedPath ?? '').unwrap();
 
         if (!isActive) {
           return;
@@ -450,7 +451,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
     dispatch({ type: 'validationStarted' });
 
     try {
-      const validation = await validateAgentMarkdownDraft(state.draftPath, state.content);
+      const validation = await validateAgentMarkdownDraft({ path: state.draftPath, content: state.content }).unwrap();
       const validatedDraft = validation.ok ? { path: state.draftPath, content: state.content } : null;
 
       dispatch({ type: 'validationFinished', validation, validatedDraft });
@@ -473,8 +474,8 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
 
     try {
       const response = isExistingPath
-        ? await updateAgentMarkdownFile(state.draftPath, state.content)
-        : await createAgentMarkdownFile(state.draftPath, state.content);
+        ? await updateAgentMarkdownFile({ path: state.draftPath, content: state.content }).unwrap()
+        : await createAgentMarkdownFile({ path: state.draftPath, content: state.content }).unwrap();
 
       if (!response.ok) {
         dispatch({ type: 'validationFinished', validation: toValidationFailure(response.issues), validatedDraft: null });
@@ -482,7 +483,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
       }
 
       removeAgentMarkdownDraft(response.value.path);
-      const filesResponse = await listAgentMarkdownFiles();
+      const filesResponse = await filesQuery.refetch().unwrap();
 
       dispatch({
         type: 'writeFinished',
@@ -508,7 +509,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
     dispatch({ type: 'deleteStarted' });
 
     try {
-      const response = await deleteAgentMarkdownFile(state.draftPath);
+      const response = await deleteAgentMarkdownFile({ path: state.draftPath }).unwrap();
 
       if (!response.ok) {
         dispatch({ type: 'validationFinished', validation: toValidationFailure(response.issues), validatedDraft: null });
@@ -516,7 +517,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
       }
 
       removeAgentMarkdownDraft(response.value.path);
-      const filesResponse = await listAgentMarkdownFiles();
+  const filesResponse = await filesQuery.refetch().unwrap();
       const selectedPath = chooseSelectedPath(filesResponse.files, null);
 
       dispatch({
@@ -545,7 +546,7 @@ export const useAgentMarkdownEditor = (): AgentMarkdownEditorModel => {
     dispatch({ type: 'fileReading' });
 
     try {
-      const response = await readAgentMarkdownFile(state.selectedPath);
+      const response = await readAgentMarkdownFile(state.selectedPath).unwrap();
 
       if (!response.ok) {
         dispatch({ type: 'validationFinished', validation: toValidationFailure(response.issues), validatedDraft: null });

@@ -10,10 +10,13 @@
   "scripts": {
     "build": "pnpm prisma:generate && pnpm clean && tsc --project tsconfig.json --emitDeclarationOnly && swc src --out-dir dist --strip-leading-paths",
     "clean": "rm -rf dist",
+    "db:bootstrap": "pnpm prisma:generate && pnpm prisma:migrate:deploy && pnpm seed:init",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:dev": "prisma migrate dev",
+    "seed:init": "tsx scripts/seedInitialData.ts",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -75,6 +75,37 @@ export const MEMORY_CONFLICT_STRATEGY = {
 export type MemoryConflictStrategy =
   typeof MEMORY_CONFLICT_STRATEGY[keyof typeof MEMORY_CONFLICT_STRATEGY];
 
+export const LLM_API_FORMAT = {
+  OpenAIChat: 'openai_chat',
+  OpenAIResponses: 'openai_responses',
+  AnthropicMessages: 'anthropic_messages',
+  GoogleGenerateContent: 'google_generate_content',
+  Custom: 'custom',
+} as const;
+
+export type AgentLlmApiFormat = typeof LLM_API_FORMAT[keyof typeof LLM_API_FORMAT];
+
+export type AgentLlmBinding = {
+  /** LLM provider 或 gateway provider 标识。 */
+  readonly provider: string;
+  /** provider 级别的模型覆写；未提供时回退到 AgentDefinition.model。 */
+  readonly model?: string;
+  /** provider 对应的请求协议格式。 */
+  readonly apiFormat?: AgentLlmApiFormat;
+  /** 可选自定义 base URL，用于兼容 gateway 或代理。 */
+  readonly baseUrl?: string;
+  /** API key 所在环境变量名。 */
+  readonly apiKeyEnv?: string;
+  /** 透传给 provider 的静态请求头。 */
+  readonly headers: Readonly<Record<string, string>>;
+  /** 生成温度。 */
+  readonly temperature?: number;
+  /** 最大输出 token 数。 */
+  readonly maxTokens?: number;
+  /** nucleus sampling top_p。 */
+  readonly topP?: number;
+};
+
 /**
  * 描述 Agent 提示词文件中可结构化读取的元数据。
  */
@@ -95,6 +126,8 @@ export type AgentMetadata = {
   readonly allowedCommands: readonly string[];
   /** Agent 必须输出的命令集合。 */
   readonly requiredCommands: readonly string[];
+  /** Agent 对应的 LLM / gateway 绑定信息。 */
+  readonly llm?: AgentLlmBinding;
 };
 
 /**

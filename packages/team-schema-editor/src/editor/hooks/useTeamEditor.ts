@@ -2,8 +2,18 @@ import { useEffect, useState } from 'react';
 import type { Connection, Edge, OnNodesChange } from '@xyflow/react';
 import { applyNodeChanges, MarkerType } from '@xyflow/react';
 
-import { loadTeamSchemaFromService } from '../teamSchema/teamSchemaApi';
+import {
+  formatApiErrorMessage,
+} from '../api/shared';
+import {
+  useDeleteTeamSchemaMutation,
+  useGetTeamSchemaQuery,
+  useListTeamSchemaRecordsQuery,
+  useSaveTeamSchemaMutation,
+  useValidateTeamSchemaMutation,
+} from '../api/teamSchemaApi';
 import { buildGraph } from '../model/graphLayout';
+import { createPendingTeamSchema } from '../state/core/editorShared';
 import {
   addAgent as addAgentAction,
   addDepartment as addDepartmentAction,
@@ -22,10 +32,10 @@ import {
   updateTeamField as updateTeamFieldAction,
 } from '../state/core/editorSlice';
 import { useAppDispatch, useAppSelector } from '../state/core/editorHooks';
-import type { Selection, TeamSchemaDocument, ValidationIssue, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
+import type { Selection, TeamSchemaDocument, TeamSchemaRecord, ValidationIssue, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
 import type { SchemaLoadStatus } from '../state/core/editorShared';
 
-const toErrorMessage = (error: unknown): string => error instanceof Error ? error.message : 'Unable to load team schema.';
+const toErrorMessage = (error: unknown): string => formatApiErrorMessage(error, 'Unable to load team schema.');
 
 const WORKFLOW_AGENT_NODE_PREFIX = 'workflow-agent:';
 const WORKFLOW_PART_NODE_PREFIX = 'workflow-part:';
@@ -148,6 +158,11 @@ export const useTeamEditor = (): {
   readonly schema: TeamSchemaDocument;
   readonly schemaLoadStatus: SchemaLoadStatus;
   readonly schemaLoadError: string | null;
+  readonly schemaServiceStatus: 'idle' | 'loading' | 'saving' | 'deleting' | 'validating' | 'error';
+  readonly schemaServiceError: string | null;
+  readonly schemaServiceMessage: string | null;
+  readonly schemaRecords: readonly TeamSchemaRecord[];
+  readonly selectedSchemaKey: string;
   readonly validationIssues: readonly ValidationIssue[];
   readonly nodes: WorkflowGraphNode[];
   readonly edges: Edge[];
@@ -157,7 +172,6 @@ export const useTeamEditor = (): {
   readonly addWorkflowAgentNode: (agentId: string) => void;
   readonly addWorkflowPartNode: () => void;
   readonly addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
-  readonly reloadSchema: () => void;
   readonly updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
   readonly updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
   readonly updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
@@ -169,6 +183,12 @@ export const useTeamEditor = (): {
   readonly removeDepartment: (departmentId: string) => void;
   readonly addAgent: (departmentId: string) => void;
   readonly removeAgent: (agentId: string) => void;
+  readonly refreshSchemaRecords: () => Promise<void>;
+  readonly reloadSchema: () => Promise<void>;
+  readonly selectSchemaKey: (key: string) => Promise<void>;
+  readonly validateSchema: () => Promise<void>;
+  readonly saveSchema: () => Promise<void>;
+  readonly deleteSchema: () => Promise<void>;
 } => {
   const dispatch = useAppDispatch();
   const schema = useAppSelector((state) => state.editor.schema);
@@ -176,19 +196,34 @@ export const useTeamEditor = (): {
   const schemaLoadError = useAppSelector((state) => state.editor.schemaLoadError);
   const validationIssues = useAppSelector((state) => state.editor.validationIssues);
   const selection = useAppSelector((state) => state.editor.selection);
+  const [selectedSchemaKey, setSelectedSchemaKey] = useState('current');
+  const [schemaServiceStatus, setSchemaServiceStatus] = useState<'idle' | 'loading' | 'saving' | 'deleting' | 'validating' | 'error'>('idle');
+  const [schemaServiceError, setSchemaServiceError] = useState<string | null>(null);
+  const [schemaServiceMessage, setSchemaServiceMessage] = useState<string | null>(null);
   const [nodes, setNodes] = useState<WorkflowGraphNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const schemaRecordsQuery = useListTeamSchemaRecordsQuery();
+  const schemaQuery = useGetTeamSchemaQuery(selectedSchemaKey);
+  const [validateTeamSchema] = useValidateTeamSchemaMutation();
+  const [saveTeamSchema] = useSaveTeamSchemaMutation();
+  const [deleteTeamSchema] = useDeleteTeamSchemaMutation();
+  const schemaRecords = schemaRecordsQuery.data ?? [];
 
   useEffect(() => {
-    if (schemaLoadStatus !== 'idle') {
+    if (schemaQuery.isLoading || schemaQuery.isFetching) {
+      dispatch(startSchemaLoad());
       return;
     }
 
-    dispatch(startSchemaLoad());
-    void loadTeamSchemaFromService()
-      .then((nextSchema) => dispatch(schemaLoadSucceeded(nextSchema)))
-      .catch((error: unknown) => dispatch(schemaLoadFailed(toErrorMessage(error))));
-  }, [dispatch, schemaLoadStatus]);
+    if (schemaQuery.isError) {
+      dispatch(schemaLoadFailed(toErrorMessage(schemaQuery.error)));
+      return;
+    }
+
+    if (schemaQuery.data !== undefined) {
+      dispatch(schemaLoadSucceeded(schemaQuery.data));
+    }
+  }, [dispatch, schemaQuery.data, schemaQuery.error, schemaQuery.isError, schemaQuery.isFetching, schemaQuery.isLoading]);
 
   useEffect(() => {
     const graph = buildGraph(schema);
@@ -251,11 +286,96 @@ export const useTeamEditor = (): {
     setEdges((currentEdges) => currentEdges.concat(createWorkflowEdge(connection, mode, currentEdges)));
   };
 
-  const reloadSchema = (): void => {
+  const refreshSchemaRecords = async (): Promise<void> => {
+    setSchemaServiceStatus('loading');
+    setSchemaServiceError(null);
+    setSchemaServiceMessage(null);
+
+    try {
+      const records = await schemaRecordsQuery.refetch().unwrap();
+      setSchemaServiceStatus('idle');
+      setSchemaServiceMessage(`Loaded ${records.length} schema record(s).`);
+    } catch (error: unknown) {
+      setSchemaServiceStatus('error');
+      setSchemaServiceError(toErrorMessage(error));
+    }
+  };
+
+  const reloadSchema = async (): Promise<void> => {
     dispatch(startSchemaLoad());
-    void loadTeamSchemaFromService()
-      .then((nextSchema) => dispatch(schemaLoadSucceeded(nextSchema)))
-      .catch((error: unknown) => dispatch(schemaLoadFailed(toErrorMessage(error))));
+    setSchemaServiceError(null);
+    setSchemaServiceMessage(null);
+
+    try {
+      const nextSchema = await schemaQuery.refetch().unwrap();
+      dispatch(schemaLoadSucceeded(nextSchema));
+    } catch (error: unknown) {
+      dispatch(schemaLoadFailed(toErrorMessage(error)));
+    }
+  };
+
+  const selectSchemaKey = async (key: string): Promise<void> => {
+    setSelectedSchemaKey(key);
+    dispatch(startSchemaLoad());
+    setSchemaServiceError(null);
+    setSchemaServiceMessage(null);
+  };
+
+  const validateSchema = async (): Promise<void> => {
+    setSchemaServiceStatus('validating');
+    setSchemaServiceError(null);
+    setSchemaServiceMessage(null);
+
+    try {
+      const validation = await validateTeamSchema(schema).unwrap();
+
+      if (validation.ok) {
+        setSchemaServiceStatus('idle');
+        setSchemaServiceMessage('Schema validated against service.');
+        return;
+      }
+
+      setSchemaServiceStatus('error');
+      setSchemaServiceError(validation.issues.map((issue) => `${issue.path.length === 0 ? 'root' : issue.path.join('.')}: ${issue.message}`).join('\n'));
+    } catch (error: unknown) {
+      setSchemaServiceStatus('error');
+      setSchemaServiceError(toErrorMessage(error));
+    }
+  };
+
+  const saveSchema = async (): Promise<void> => {
+    setSchemaServiceStatus('saving');
+    setSchemaServiceError(null);
+    setSchemaServiceMessage(null);
+
+    try {
+      const method = schemaRecords.some((record) => record.key === selectedSchemaKey) ? 'PUT' : 'POST';
+      await saveTeamSchema({ key: selectedSchemaKey, schema, method }).unwrap();
+      await schemaRecordsQuery.refetch().unwrap();
+      setSchemaServiceStatus('idle');
+      setSchemaServiceMessage(`Saved schema ${selectedSchemaKey}.`);
+    } catch (error: unknown) {
+      setSchemaServiceStatus('error');
+      setSchemaServiceError(toErrorMessage(error));
+    }
+  };
+
+  const deleteSchema = async (): Promise<void> => {
+    setSchemaServiceStatus('deleting');
+    setSchemaServiceError(null);
+    setSchemaServiceMessage(null);
+
+    try {
+      await deleteTeamSchema(selectedSchemaKey).unwrap();
+      const records = await schemaRecordsQuery.refetch().unwrap();
+      dispatch(schemaLoadSucceeded(createPendingTeamSchema()));
+      setSelectedSchemaKey(records[0]?.key ?? 'current');
+      setSchemaServiceStatus('idle');
+      setSchemaServiceMessage(`Deleted schema ${selectedSchemaKey}.`);
+    } catch (error: unknown) {
+      setSchemaServiceStatus('error');
+      setSchemaServiceError(toErrorMessage(error));
+    }
   };
 
   const addDepartment = (): void => {
@@ -306,6 +426,11 @@ export const useTeamEditor = (): {
     schema,
     schemaLoadStatus,
     schemaLoadError,
+    schemaServiceStatus,
+    schemaServiceError,
+    schemaServiceMessage,
+    schemaRecords,
+    selectedSchemaKey,
     validationIssues,
     nodes,
     edges,
@@ -315,7 +440,6 @@ export const useTeamEditor = (): {
     addWorkflowAgentNode,
     addWorkflowPartNode,
     addWorkflowEdge,
-    reloadSchema,
     updateTeamField,
     updateDepartmentField,
     updateDepartmentList,
@@ -327,5 +451,11 @@ export const useTeamEditor = (): {
     removeDepartment,
     addAgent,
     removeAgent,
+    refreshSchemaRecords,
+    reloadSchema,
+    selectSchemaKey,
+    validateSchema,
+    saveSchema,
+    deleteSchema,
   };
 };

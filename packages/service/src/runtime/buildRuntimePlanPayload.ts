@@ -26,6 +26,7 @@ const serializeAgentAssembly = (agentAssembly: AgentAssembly) => ({
 	department: agentAssembly.department,
 	definition: agentAssembly.definition,
 	metadata: agentAssembly.metadata,
+	gateway: agentAssembly.gateway,
 	memoryProfile: agentAssembly.memoryProfile,
 	capabilities: agentAssembly.capabilities,
 });

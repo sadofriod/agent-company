@@ -29,6 +29,13 @@ export const createRuntimePlan = (team: TeamDefinition): RuntimePlan => {
               tools: copyArray(agent.metadata.tools),
               allowedCommands: copyArray(agent.metadata.allowedCommands),
               requiredCommands: copyArray(agent.metadata.requiredCommands),
+              llm:
+                agent.metadata.llm === undefined
+                  ? undefined
+                  : {
+                      ...agent.metadata.llm,
+                      headers: { ...agent.metadata.llm.headers },
+                    },
             },
     })),
     discussionPolicy: {

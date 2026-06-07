@@ -9,17 +9,21 @@ import { RuntimePanel } from '../editor/components/RuntimePanel';
 import { SelectionPanel } from '../editor/components/SelectionPanel';
 import { TeamSchemeListPanel } from '../editor/components/TeamSchemeListPanel';
 import { useTeamEditor } from '../editor/hooks/useTeamEditor';
-import type { EditorMode, RuntimeStatus } from '../editor/model/types';
+import { useRuntimeSession } from '../editor/hooks/useRuntimeSession';
+import type { EditorMode } from '../editor/model/types';
 
 export const App = (): ReactElement => {
   const [mode, setMode] = useState<EditorMode>('edit');
-  const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatus>('idle');
-  const [selectedTeamSchemeVersion, setSelectedTeamSchemeVersion] = useState('');
   const [selectedWorkflowAgentId, setSelectedWorkflowAgentId] = useState('');
   const {
     schema,
     schemaLoadStatus,
     schemaLoadError,
+    schemaServiceStatus,
+    schemaServiceError,
+    schemaServiceMessage,
+    schemaRecords,
+    selectedSchemaKey,
     validationIssues,
     nodes,
     edges,
@@ -30,6 +34,11 @@ export const App = (): ReactElement => {
     addWorkflowPartNode,
     addWorkflowEdge,
     reloadSchema,
+    refreshSchemaRecords,
+    selectSchemaKey,
+    validateSchema,
+    saveSchema,
+    deleteSchema,
     updateTeamField,
     updateDepartmentField,
     updateDepartmentList,
@@ -42,14 +51,11 @@ export const App = (): ReactElement => {
     addAgent,
     removeAgent,
   } = useTeamEditor();
+  const runtime = useRuntimeSession();
   const isSchemaReady = schemaLoadStatus === 'ready';
-  const activeTeamSchemeVersion = selectedTeamSchemeVersion === schema.schema_version ? selectedTeamSchemeVersion : schema.schema_version;
   const selectedAgentId = selection.kind === 'agent' ? selection.agentId : null;
   const handleSelectTeam = (): void => onNodeSelect('team');
   const handleSelectAgent = (agentId: string): void => onNodeSelect(`agent:${agentId}`);
-  const handleStart = (): void => setRuntimeStatus('running');
-  const handlePause = (): void => setRuntimeStatus('paused');
-  const handleTerminate = (): void => setRuntimeStatus('terminated');
 
   return (
     <Box component="main" sx={{ minHeight: '100vh', p: { xs: 1.75, md: 3 }, display: 'grid', gap: 2.5 }}>
@@ -57,7 +63,14 @@ export const App = (): ReactElement => {
         mode={mode}
         addDepartment={addDepartment}
         reloadSchema={reloadSchema}
+        refreshSchemaRecords={refreshSchemaRecords}
+        validateSchema={validateSchema}
+        saveSchema={saveSchema}
+        deleteSchema={deleteSchema}
         schemaLoadStatus={schemaLoadStatus}
+        schemaServiceStatus={schemaServiceStatus}
+        schemaServiceMessage={schemaServiceMessage}
+        schemaServiceError={schemaServiceError}
         onModeChange={setMode}
       />
 
@@ -85,11 +98,12 @@ export const App = (): ReactElement => {
         >
           <TeamSchemeListPanel
             schema={schema}
+            schemaRecords={schemaRecords}
             mode={mode}
-            selectedVersion={activeTeamSchemeVersion}
+            selectedSchemaKey={selectedSchemaKey}
             selectedAgentId={selectedAgentId}
             onSelectTeam={handleSelectTeam}
-            onSelectVersion={setSelectedTeamSchemeVersion}
+            onSelectSchemaKey={selectSchemaKey}
             onSelectAgent={handleSelectAgent}
           />
 
@@ -135,21 +149,20 @@ export const App = (): ReactElement => {
         >
           <TeamSchemeListPanel
             schema={schema}
+            schemaRecords={schemaRecords}
             mode={mode}
-            selectedVersion={activeTeamSchemeVersion}
+            selectedSchemaKey={selectedSchemaKey}
             selectedAgentId={selectedAgentId}
             onSelectTeam={handleSelectTeam}
-            onSelectVersion={setSelectedTeamSchemeVersion}
+            onSelectSchemaKey={selectSchemaKey}
             onSelectAgent={handleSelectAgent}
           />
 
           <Stack spacing={2.5} sx={{ minWidth: 0 }}>
             <RuntimePanel
               schema={schema}
-              runtimeStatus={runtimeStatus}
-              onStart={handleStart}
-              onPause={handlePause}
-              onTerminate={handleTerminate}
+              runtime={runtime}
+              onCreateSession={() => runtime.createSession(schema)}
             />
             <GraphPanel
               schema={schema}

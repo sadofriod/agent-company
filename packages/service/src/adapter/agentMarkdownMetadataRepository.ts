@@ -1,4 +1,4 @@
-import { Prisma, type AgentMarkdown, type PrismaClient } from '@prisma/client';
+import type { Prisma, AgentMarkdown, PrismaClient } from '@prisma/client';
 
 import type { AgentMarkdownFileSummary, AgentMarkdownFrontMatter } from '../agent/markdown';
 import type { AgentMarkdownStorageProvider } from './agentMarkdownAdapter';
@@ -74,9 +74,9 @@ const getListFrontMatterValue = (
 
 const toPrismaFrontMatter = (
   frontMatter: AgentMarkdownFrontMatter | undefined,
-): Prisma.InputJsonValue | typeof Prisma.JsonNull => {
+): Prisma.InputJsonValue | undefined => {
   if (frontMatter === undefined) {
-    return Prisma.JsonNull;
+    return undefined;
   }
 
   return Object.fromEntries(
@@ -84,23 +84,27 @@ const toPrismaFrontMatter = (
   );
 };
 
-const createPersistenceData = (input: AgentMarkdownMetadataInput) => ({
-  path: input.path,
-  storageProvider: input.storageProvider,
-  storagePath: input.storagePath,
-  name: input.name,
-  category: input.category,
-  description: input.description,
-  profile: input.profile,
-  toolPolicy: input.toolPolicy,
-  partials: [...input.partials],
-  tools: [...input.tools],
-  allowedCommands: [...input.allowedCommands],
-  requiredCommands: [...input.requiredCommands],
-  frontMatter: toPrismaFrontMatter(input.frontMatter),
-  size: input.size,
-  storageUpdatedAt: input.storageUpdatedAt,
-});
+const createPersistenceData = (input: AgentMarkdownMetadataInput) => {
+  const frontMatter = toPrismaFrontMatter(input.frontMatter);
+
+  return {
+    path: input.path,
+    storageProvider: input.storageProvider,
+    storagePath: input.storagePath,
+    name: input.name,
+    category: input.category,
+    description: input.description,
+    profile: input.profile,
+    toolPolicy: input.toolPolicy,
+    partials: [...input.partials],
+    tools: [...input.tools],
+    allowedCommands: [...input.allowedCommands],
+    requiredCommands: [...input.requiredCommands],
+    ...(frontMatter === undefined ? {} : { frontMatter }),
+    size: input.size,
+    storageUpdatedAt: input.storageUpdatedAt,
+  };
+};
 
 const parseStorageProvider = (value: string): AgentMarkdownStorageProvider => {
   if (value === 'vercel_blob') {

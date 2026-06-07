@@ -54,7 +54,13 @@
         "profile": "architecture",
         "tool_policy": "read_heavy",
         "allowed_commands": ["CHECK_IN", "NEW_TICKET", "DELIVERABLE"],
-        "required_commands": ["CHECK_IN"]
+        "required_commands": ["CHECK_IN"],
+        "llm": {
+          "provider": "openai-compatible",
+          "api_format": "openai_chat",
+          "api_key_env": "OPENAI_API_KEY",
+          "temperature": 0.2
+        }
       },
       "description": "负责收敛技术方案、评估实现风险，并为执行阶段准备稳定的计划与交接结构。",
       "responsibilities": ["technical_plan", "pipeline_design", "risk_review"],
@@ -62,7 +68,6 @@
       "output_contract": "implementation_plan",
       "skills": ["technical_planning"],
       "mcp_servers": ["repository"],
-      "tools": ["search", "read_file"],
       "memory_access_policy": "department_owner_policy"
     },
     {
@@ -78,7 +83,19 @@
         "partials": ["execution"],
         "tools": ["get_ticket_summary", "get_parent_chain", "list_ticket_artifacts", "read_file", "write_file"],
         "allowed_commands": ["CHECK_IN", "DELIVERABLE"],
-        "required_commands": ["CHECK_IN", "DELIVERABLE"]
+        "required_commands": ["CHECK_IN", "DELIVERABLE"],
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "default-coding-model",
+          "api_format": "openai_responses",
+          "base_url": "https://gateway.internal.example/v1",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "headers": {
+            "x-agent-team": "software-delivery-team"
+          },
+          "temperature": 0.1,
+          "max_tokens": 4000
+        }
       },
       "description": "负责产出最小可运行实现，交付代码结果、验证方式与结构化交接产物。",
       "responsibilities": ["execute_step", "produce_handoff", "report_failure"],

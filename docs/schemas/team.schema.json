@@ -123,7 +123,37 @@
         "required_commands": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
+        },
+        "llm": {
+          "$ref": "#/$defs/agent_llm_binding"
         }
+      }
+    },
+    "agent_llm_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "api_format": {
+          "enum": [
+            "openai_chat",
+            "openai_responses",
+            "anthropic_messages",
+            "google_generate_content",
+            "custom"
+          ]
+        },
+        "base_url": { "type": "string", "minLength": 1 },
+        "api_key_env": { "type": "string", "minLength": 1 },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+        "max_tokens": { "type": "integer", "minimum": 1 },
+        "top_p": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
       }
     },
     "discussion_policy": {

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 import { getPrismaClient } from '../adapter/prismaClient';
 import { createPrismaTeamSchemaRepository } from '../adapter/teamSchemaRepository';

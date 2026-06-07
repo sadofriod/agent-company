@@ -25,6 +25,26 @@ export default defineConfig({
         target: serviceOrigin,
         changeOrigin: true,
       },
+      '/team/schemas': {
+        target: serviceOrigin,
+        changeOrigin: true,
+      },
+      '/team/validate': {
+        target: serviceOrigin,
+        changeOrigin: true,
+      },
+      '/runtime-plan': {
+        target: serviceOrigin,
+        changeOrigin: true,
+      },
+      '/agent-gateway': {
+        target: serviceOrigin,
+        changeOrigin: true,
+      },
+      '/runtime/session': {
+        target: serviceOrigin,
+        changeOrigin: true,
+      },
     },
     fs: {
       allow: [resolve(editorDirectory, '..')],

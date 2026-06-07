@@ -14,6 +14,7 @@ import type {
   Department,
   MemoryRetrievalProfile,
 } from '../../domain/organization';
+import type { AgentGatewayBinding } from '../gateway/resolveAgentGatewayBinding';
 
 export type AgentCapabilitySet = {
   readonly skills: readonly CapabilityDescriptor[];
@@ -34,6 +35,7 @@ export type AgentAssembly = {
   readonly department: Department;
   readonly definition: AgentDefinition;
   readonly metadata?: AgentDefinition['metadata'];
+  readonly gateway: AgentGatewayBinding;
   readonly memoryProfile?: MemoryRetrievalProfile;
   readonly capabilities: AgentCapabilitySet;
 };

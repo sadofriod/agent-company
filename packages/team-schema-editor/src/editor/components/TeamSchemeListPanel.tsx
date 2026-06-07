@@ -1,15 +1,16 @@
 import type { ReactElement } from 'react';
 import { Chip, Divider, List, ListItemButton, ListItemText, Paper, Stack, Typography } from '@mui/material';
 
-import type { AgentDocument, EditorMode, TeamSchemaDocument } from '../model/types';
+import type { AgentDocument, EditorMode, TeamSchemaDocument, TeamSchemaRecord } from '../model/types';
 
 type TeamSchemeListPanelProps = {
   readonly schema: TeamSchemaDocument;
+  readonly schemaRecords: readonly TeamSchemaRecord[];
   readonly mode: EditorMode;
-  readonly selectedVersion: string;
+  readonly selectedSchemaKey: string;
   readonly selectedAgentId: string | null;
   readonly onSelectTeam: () => void;
-  readonly onSelectVersion: (version: string) => void;
+  readonly onSelectSchemaKey: (key: string) => void;
   readonly onSelectAgent: (agentId: string) => void;
 };
 
@@ -18,24 +19,25 @@ const findAgent = (agents: readonly AgentDocument[], agentId: string): AgentDocu
 
 export const TeamSchemeListPanel = ({
   schema,
+  schemaRecords,
   mode,
-  selectedVersion,
+  selectedSchemaKey,
   selectedAgentId,
   onSelectTeam,
-  onSelectVersion,
+  onSelectSchemaKey,
   onSelectAgent,
 }: TeamSchemeListPanelProps): ReactElement => {
   const schemeName = schema.team_name ?? schema.team_id;
-  const versionItems = [schema.schema_version].map((version) => (
+  const versionItems = schemaRecords.map((record) => (
     <ListItemButton
-      key={version}
-      selected={selectedVersion === version}
-      onClick={() => onSelectVersion(version)}
+      key={record.key}
+      selected={selectedSchemaKey === record.key}
+      onClick={() => onSelectSchemaKey(record.key)}
       sx={{ ml: 2, borderRadius: 2 }}
     >
       <ListItemText
-        primary={`v${version}`}
-        secondary={`${schema.agents.length} agents`}
+        primary={record.key}
+        secondary={`${record.schema.agents.length} agents · ${new Date(record.updatedAt).toLocaleString()}`}
         slotProps={{ primary: { sx: { fontWeight: 800 } }, secondary: { sx: { fontSize: '0.78rem' } } }}
       />
     </ListItemButton>
@@ -89,6 +91,11 @@ export const TeamSchemeListPanel = ({
             />
           </ListItemButton>
           {versionItems}
+          {schemaRecords.length === 0 ? (
+            <Typography color="text.secondary" sx={{ px: 1, fontSize: '0.82rem' }}>
+              No saved schema records found.
+            </Typography>
+          ) : null}
         </List>
 
         {mode === 'edit' ? (

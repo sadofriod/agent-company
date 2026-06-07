@@ -2,6 +2,12 @@
 
 本目录把现有 PRD、模块需求和 Team Schema 转换为可执行的实现文档。每个模块文档都回答四个问题：模块边界是什么、代码建议放在哪里、核心函数如何组合、需要哪些测试证明它可工作。
 
+说明：
+
+- `01` 到 `08` 主要是目标态实现指南，用于指导后续继续落地
+- `09-service-architecture-overview.md` 描述的是当前 `packages/service` 已经存在的实现
+- 对外 HTTP 行为以 `../service-api.md` 和 `packages/service/src` 实际代码为准
+
 ## 源文档
 
 - [../PRDs/PRD.md](../PRDs/PRD.md)：产品入口和 MVP 主流程。

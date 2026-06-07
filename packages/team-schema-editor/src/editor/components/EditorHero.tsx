@@ -15,13 +15,34 @@ type EditorHeroProps = {
   readonly mode: EditorMode;
   readonly addDepartment: () => void;
   readonly reloadSchema: () => void;
+  readonly refreshSchemaRecords: () => void;
+  readonly validateSchema: () => void;
+  readonly saveSchema: () => void;
+  readonly deleteSchema: () => void;
   readonly schemaLoadStatus: SchemaLoadStatus;
+  readonly schemaServiceStatus: 'idle' | 'loading' | 'saving' | 'deleting' | 'validating' | 'error';
+  readonly schemaServiceMessage: string | null;
+  readonly schemaServiceError: string | null;
   readonly onModeChange: (mode: EditorMode) => void;
 };
 
-export const EditorHero = ({ mode, addDepartment, reloadSchema, schemaLoadStatus, onModeChange }: EditorHeroProps): ReactElement => {
+export const EditorHero = ({
+  mode,
+  addDepartment,
+  reloadSchema,
+  refreshSchemaRecords,
+  validateSchema,
+  saveSchema,
+  deleteSchema,
+  schemaLoadStatus,
+  schemaServiceStatus,
+  schemaServiceMessage,
+  schemaServiceError,
+  onModeChange,
+}: EditorHeroProps): ReactElement => {
   const isSchemaReady = schemaLoadStatus === 'ready';
   const isSchemaLoading = schemaLoadStatus === 'loading';
+  const isBusy = schemaServiceStatus !== 'idle';
   const handleModeChange = (_event: MouseEvent<HTMLElement>, nextMode: EditorMode | null): void => {
     if (nextMode !== null) {
       onModeChange(nextMode);
@@ -57,7 +78,21 @@ export const EditorHero = ({ mode, addDepartment, reloadSchema, schemaLoadStatus
         </ToggleButtonGroup>
         <Button variant="contained" onClick={addDepartment} disabled={!isSchemaReady || mode !== 'edit'}>Add Department</Button>
         <Button variant="outlined" color="secondary" onClick={reloadSchema} disabled={isSchemaLoading}>Reload Schema</Button>
+        <Button variant="outlined" color="secondary" onClick={refreshSchemaRecords} disabled={isBusy}>Refresh Schemas</Button>
+        <Button variant="outlined" color="secondary" onClick={validateSchema} disabled={!isSchemaReady || isBusy}>Validate</Button>
+        <Button variant="contained" color="secondary" onClick={saveSchema} disabled={!isSchemaReady || isBusy}>Save</Button>
+        <Button variant="outlined" color="error" onClick={deleteSchema} disabled={!isSchemaReady || isBusy}>Delete</Button>
       </Box>
+      {schemaServiceMessage === null ? null : (
+        <Typography color="text.secondary" sx={{ width: '100%', textAlign: { xs: 'left', md: 'right' } }}>
+          {schemaServiceMessage}
+        </Typography>
+      )}
+      {schemaServiceError === null ? null : (
+        <Typography color="error" sx={{ width: '100%', whiteSpace: 'pre-wrap', textAlign: { xs: 'left', md: 'right' } }}>
+          {schemaServiceError}
+        </Typography>
+      )}
     </Paper>
   );
 };

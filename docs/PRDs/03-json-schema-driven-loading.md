@@ -54,7 +54,17 @@
       "skills": ["requirements_breakdown"],
       "mcp_servers": [],
       "tools": [],
-      "memory_access_policy": "topic_owner_policy"
+      "memory_access_policy": "topic_owner_policy",
+      "metadata": {
+        "name": "Product Owner",
+        "description": "Clarifies goals and decides acceptance.",
+        "llm": {
+          "provider": "openai-compatible",
+          "api_format": "openai_chat",
+          "api_key_env": "OPENAI_API_KEY",
+          "temperature": 0.2
+        }
+      }
     },
     {
       "agent_id": "executor",
@@ -67,7 +77,23 @@
       "skills": ["implementation"],
       "mcp_servers": ["repository"],
       "tools": ["search", "read_file", "edit_file", "run_tests"],
-      "memory_access_policy": "ticket_executor_policy"
+      "memory_access_policy": "ticket_executor_policy",
+      "metadata": {
+        "name": "Executor",
+        "description": "Executes pipeline steps through the coding gateway.",
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "default-coding-model",
+          "api_format": "openai_responses",
+          "base_url": "https://gateway.internal.example/v1",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "headers": {
+            "x-agent-team": "software-delivery-team"
+          },
+          "temperature": 0.1,
+          "max_tokens": 4000
+        }
+      }
     }
   ],
   "discussion_policy": {
@@ -171,7 +197,46 @@
         "skills": { "type": "array", "items": { "type": "string" } },
         "mcp_servers": { "type": "array", "items": { "type": "string" } },
         "tools": { "type": "array", "items": { "type": "string" } },
-        "memory_access_policy": { "type": "string" }
+        "memory_access_policy": { "type": "string" },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "profile": { "type": "string" },
+            "tool_policy": { "type": "string" },
+            "partials": { "type": "array", "items": { "type": "string" } },
+            "tools": { "type": "array", "items": { "type": "string" } },
+            "allowed_commands": { "type": "array", "items": { "type": "string" } },
+            "required_commands": { "type": "array", "items": { "type": "string" } },
+            "llm": {
+              "type": "object",
+              "required": ["provider"],
+              "properties": {
+                "provider": { "type": "string" },
+                "model": { "type": "string" },
+                "api_format": {
+                  "enum": [
+                    "openai_chat",
+                    "openai_responses",
+                    "anthropic_messages",
+                    "google_generate_content",
+                    "custom"
+                  ]
+                },
+                "base_url": { "type": "string" },
+                "api_key_env": { "type": "string" },
+                "headers": {
+                  "type": "object",
+                  "additionalProperties": { "type": "string" }
+                },
+                "temperature": { "type": "number", "minimum": 0, "maximum": 2 },
+                "max_tokens": { "type": "integer", "minimum": 1 },
+                "top_p": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        }
       }
     },
     "discussion_policy": {
@@ -253,6 +318,8 @@
 - Pipeline 必须在 Ticket 通过准入审查后创建。
 - Tool 只能在当前 Agent、当前步骤和当前 Schema 都允许时加载。
 - 若 Schema 声明的能力不存在，运行时必须中断并报告 `capability_missing`。
+- Agent 的 `metadata.llm` 决定该 Agent 绑定到哪个 provider / gateway，以及使用什么请求协议、base URL 和采样参数。
+- 若 `metadata.llm.model` 缺失，则回退到顶层 `agent.model` 作为最终装配模型。
 - Agent 的 `memory_access_policy` 必须能解析到 `memory_policy.retrieval_profiles.profile_id`，或由运行时默认 profile 显式兜底。
 - MemoryRetriever 必须先执行治理过滤，再做向量召回或图遍历。
 - 若检索结果存在冲突、过期或被替代标记，必须按 `memory_policy.conflict_strategy` 处理。
