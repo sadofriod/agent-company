@@ -65,7 +65,7 @@ export const EditorHero = ({
           React Flow Team Schema Editor
         </Typography>
         <Typography variant="h1" sx={{ fontSize: { xs: '2rem', md: '3.6rem' }, maxWidth: 720 }}>
-          Build Team Schemes, edit workflows and run them.
+          Build Team Schemas, edit workflows and run them.
         </Typography>
         <Box>
           <Chip label={schemaStatusLabels[schemaLoadStatus]} color={schemaLoadStatus === 'error' ? 'error' : 'secondary'} variant="outlined" />

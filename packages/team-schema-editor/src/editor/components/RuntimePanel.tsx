@@ -22,7 +22,7 @@ export const RuntimePanel = ({ schema, runtime, onCreateSession }: RuntimePanelP
       <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
         <Stack spacing={0.75}>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
-            Current Team Scheme
+            Current Team Schema
           </Typography>
           <Typography variant="h5" sx={{ lineHeight: 1.2, wordBreak: 'break-word' }}>
             {schemeName}
