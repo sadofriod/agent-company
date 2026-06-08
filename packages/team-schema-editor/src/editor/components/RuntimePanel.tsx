@@ -5,9 +5,9 @@ import type { TeamSchemaDocument } from '../model/types';
 import type { RuntimeSessionModel } from '../hooks/useRuntimeSession';
 
 type RuntimePanelProps = {
-  readonly schema: TeamSchemaDocument;
-  readonly runtime: RuntimeSessionModel;
-  readonly onCreateSession: () => Promise<void>;
+  schema: TeamSchemaDocument;
+  runtime: RuntimeSessionModel;
+  onCreateSession: () => Promise<void>;
 };
 
 export const RuntimePanel = ({ schema, runtime, onCreateSession }: RuntimePanelProps): ReactElement => {

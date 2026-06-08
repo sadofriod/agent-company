@@ -114,7 +114,7 @@ export const toAgentMarkdownValidationResponse = (payload: unknown): AgentMarkdo
 };
 
 export const toAgentMarkdownDeleteResponse = (payload: unknown): AgentMarkdownDeleteResponse => {
-  const success = toSuccessPayload<{ readonly path: string }>(payload);
+  const success = toSuccessPayload<{ path: string }>(payload);
 
   if (success !== null) {
     return { ok: true, value: success };
@@ -123,7 +123,7 @@ export const toAgentMarkdownDeleteResponse = (payload: unknown): AgentMarkdownDe
   return payload as AgentMarkdownDeleteResponse;
 };
 
-export const getErrorPayload = (result: { readonly error?: { readonly data?: unknown } }): unknown => result.error?.data;
+export const getErrorPayload = (result: { error?: { data?: unknown } }): unknown => result.error?.data;
 
 export const createCustomError = (payload: unknown, fallback: string) => ({
   status: 'CUSTOM_ERROR' as const,
@@ -132,9 +132,9 @@ export const createCustomError = (payload: unknown, fallback: string) => ({
 });
 
 export const toRuntimeTaskPayload = (task: RuntimeTaskDraft): RuntimeTaskDraft['constraints'] extends string ? {
-  readonly title: string;
-  readonly goal: string;
-  readonly constraints: readonly string[];
+  title: string;
+  goal: string;
+  constraints: string[];
 } : never => ({
   title: task.title,
   goal: task.goal,

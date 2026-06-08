@@ -3,7 +3,8 @@ import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuIte
 import { Background, Controls, MiniMap, ReactFlow } from '@xyflow/react';
 import type { Connection, Edge, NodeTypes, OnNodesChange } from '@xyflow/react';
 
-import type { EditorMode, TeamSchemaDocument, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
+import { EditorMode, WorkflowEdgeMode } from '../model/types';
+import type { TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { WorkflowNode } from './WorkflowNode';
 
 const nodeTypes: NodeTypes = {
@@ -11,17 +12,17 @@ const nodeTypes: NodeTypes = {
 };
 
 type GraphPanelProps = {
-  readonly schema: TeamSchemaDocument;
-  readonly mode: EditorMode;
-  readonly nodes: WorkflowGraphNode[];
-  readonly edges: Edge[];
-  readonly selectedWorkflowAgentId: string;
-  readonly onNodesChange: OnNodesChange<WorkflowGraphNode>;
-  readonly onNodeSelect: (nodeId: string | null) => void;
-  readonly onWorkflowAgentChange: (agentId: string) => void;
-  readonly onAddWorkflowAgentNode: (agentId: string) => void;
-  readonly onAddWorkflowPartNode: () => void;
-  readonly onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
+  schema: TeamSchemaDocument;
+  mode: EditorMode;
+  nodes: WorkflowGraphNode[];
+  edges: Edge[];
+  selectedWorkflowAgentId: string;
+  onNodesChange: OnNodesChange<WorkflowGraphNode>;
+  onNodeSelect: (nodeId: string | null) => void;
+  onWorkflowAgentChange: (agentId: string) => void;
+  onAddWorkflowAgentNode: (agentId: string) => void;
+  onAddWorkflowPartNode: () => void;
+  onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
 };
 
 export const GraphPanel = ({
@@ -38,7 +39,7 @@ export const GraphPanel = ({
   onWorkflowConnect,
 }: GraphPanelProps): ReactElement => {
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
-  const isEditing = mode === 'edit';
+  const isEditing = mode === EditorMode.Edit;
   const firstAgentId = schema.agents[0]?.agent_id ?? '';
   const selectedWorkflowAgentExists = schema.agents.some((agent) => agent.agent_id === selectedWorkflowAgentId);
   const activeWorkflowAgentId = selectedWorkflowAgentExists ? selectedWorkflowAgentId : firstAgentId;
@@ -134,8 +135,8 @@ export const GraphPanel = ({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPendingConnection(null)}>Cancel</Button>
-          <Button color="secondary" onClick={() => handleConnectionModeSelect('discuss')}>Discuss</Button>
-          <Button variant="contained" color="secondary" onClick={() => handleConnectionModeSelect('pipeline')}>Pipeline</Button>
+          <Button color="secondary" onClick={() => handleConnectionModeSelect(WorkflowEdgeMode.Discuss)}>Discuss</Button>
+          <Button variant="contained" color="secondary" onClick={() => handleConnectionModeSelect(WorkflowEdgeMode.Pipeline)}>Pipeline</Button>
         </DialogActions>
       </Dialog>
     </Paper>

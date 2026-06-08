@@ -4,7 +4,7 @@ import { Stack, Typography } from '@mui/material';
 import type { TeamSchemaDocument } from '../../model/types';
 
 type ReviewPolicyViewProps = {
-  readonly schema: TeamSchemaDocument;
+  schema: TeamSchemaDocument;
 };
 
 export const ReviewPolicyView = ({ schema }: ReviewPolicyViewProps): ReactElement => {

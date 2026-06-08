@@ -6,9 +6,9 @@ import { SelectionFormField } from './SelectionFormField';
 import type { SelectionFormValues } from './selectionFormValues';
 
 type TeamSelectionViewProps = {
-  readonly form: UseFormReturn<SelectionFormValues>;
-  readonly addDepartment: () => void;
-  readonly updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
+  form: UseFormReturn<SelectionFormValues>;
+  addDepartment: () => void;
+  updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
 };
 
 export const TeamSelectionView = ({ form, addDepartment, updateTeamField }: TeamSelectionViewProps): ReactElement => {

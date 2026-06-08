@@ -4,7 +4,7 @@ import { parseList, type DepartmentField, type DepartmentListField, type EditorS
 
 export const updateDepartmentField: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly departmentId: string; readonly field: DepartmentField; readonly value: string }>
+  PayloadAction<{ departmentId: string; field: DepartmentField; value: string }>
 > = (state, action): void => {
   const schema = updateDepartment(state.schema, action.payload.departmentId, (department) => ({
     ...department,
@@ -16,7 +16,7 @@ export const updateDepartmentField: CaseReducer<
 
 export const updateDepartmentList: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly departmentId: string; readonly field: DepartmentListField; readonly value: string }>
+  PayloadAction<{ departmentId: string; field: DepartmentListField; value: string }>
 > = (state, action): void => {
   const schema = updateDepartment(state.schema, action.payload.departmentId, (department) => ({
     ...department,

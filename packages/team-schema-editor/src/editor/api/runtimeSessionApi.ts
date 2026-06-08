@@ -9,7 +9,7 @@ export const runtimeSessionApi = editorApi.injectEndpoints({
       transformResponse: (payload: unknown) => unwrapEnvelope<RuntimeSessionSnapshot>(payload),
       providesTags: (_result, _error, sessionId) => [{ type: 'RuntimeSession', id: sessionId }],
     }),
-    startRuntimeSession: builder.mutation<RuntimeSessionSnapshot, { readonly task: RuntimeTaskDraft; readonly team: TeamSchemaDocument }>({
+    startRuntimeSession: builder.mutation<RuntimeSessionSnapshot, { task: RuntimeTaskDraft; team: TeamSchemaDocument }>({
       query: ({ task, team }) => ({
         url: RUNTIME_SESSION_BASE,
         method: 'POST',

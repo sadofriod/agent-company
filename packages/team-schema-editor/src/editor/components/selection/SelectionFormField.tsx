@@ -6,12 +6,12 @@ import type { UseFormReturn } from 'react-hook-form';
 import type { SelectionFormValues } from './selectionFormValues';
 
 type SelectionFormFieldProps = {
-  readonly form: UseFormReturn<SelectionFormValues>;
-  readonly name: string;
-  readonly label: string;
-  readonly multiline?: boolean;
-  readonly type?: 'text' | 'number';
-  readonly onValueChange: (value: string) => void;
+  form: UseFormReturn<SelectionFormValues>;
+  name: string;
+  label: string;
+  multiline?: boolean;
+  type?: 'text' | 'number';
+  onValueChange: (value: string) => void;
 };
 
 export const SelectionFormField = ({

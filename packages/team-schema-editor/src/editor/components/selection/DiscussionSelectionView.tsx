@@ -6,9 +6,9 @@ import { SelectionFormField } from './SelectionFormField';
 import type { SelectionFormValues } from './selectionFormValues';
 
 type DiscussionSelectionViewProps = {
-  readonly form: UseFormReturn<SelectionFormValues>;
-  readonly updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
-  readonly updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
+  form: UseFormReturn<SelectionFormValues>;
+  updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
+  updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
 };
 
 export const DiscussionSelectionView = ({ form, updateDiscussionField, updateDiscussionNumber }: DiscussionSelectionViewProps): ReactElement => {

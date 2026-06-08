@@ -4,7 +4,7 @@ import { createAgentId, ensureUniqueId, parseList, type AgentField, type AgentLi
 
 export const updateAgentField: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly agentId: string; readonly field: AgentField; readonly value: string }>
+  PayloadAction<{ agentId: string; field: AgentField; value: string }>
 > = (state, action): void => {
   const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
     ...agent,
@@ -16,7 +16,7 @@ export const updateAgentField: CaseReducer<
 
 export const updateAgentList: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly agentId: string; readonly field: AgentListField; readonly value: string }>
+  PayloadAction<{ agentId: string; field: AgentListField; value: string }>
 > = (state, action): void => {
   const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
     ...agent,

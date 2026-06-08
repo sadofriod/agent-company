@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/editor/hooks/use*.ts"
   },
   "dependencies": {
     "@agents-team/service": "workspace:*",
@@ -23,10 +24,14 @@
     "react-redux": "^9.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/eslint": "^9.6.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.39.1",
+    "typescript-eslint": "^8.46.2",
     "typescript": "^5.9.3",
     "vite": "^7.1.12"
   }

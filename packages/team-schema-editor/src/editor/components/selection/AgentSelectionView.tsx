@@ -7,11 +7,11 @@ import type { SelectionFormValues } from './selectionFormValues';
 import type { AgentDocument } from '../../model/types';
 
 type AgentSelectionViewProps = {
-  readonly form: UseFormReturn<SelectionFormValues>;
-  readonly agent: AgentDocument;
-  readonly removeAgent: (agentId: string) => void;
-  readonly updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
-  readonly updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
+  form: UseFormReturn<SelectionFormValues>;
+  agent: AgentDocument;
+  removeAgent: (agentId: string) => void;
+  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
+  updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
 };
 
 export const AgentSelectionView = ({ form, agent, removeAgent, updateAgentField, updateAgentList }: AgentSelectionViewProps): ReactElement => {

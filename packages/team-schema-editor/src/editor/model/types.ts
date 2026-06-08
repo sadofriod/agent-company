@@ -1,174 +1,197 @@
 import type { Node } from '@xyflow/react';
 
 export type AgentMetadataDocument = {
-  readonly name: string;
-  readonly description: string;
-  readonly profile?: string;
-  readonly tool_policy?: string;
-  readonly partials?: readonly string[];
-  readonly tools?: readonly string[];
-  readonly allowed_commands?: readonly string[];
-  readonly required_commands?: readonly string[];
+  name: string;
+  description: string;
+  profile?: string;
+  tool_policy?: string;
+  partials?: string[];
+  tools?: string[];
+  allowed_commands?: string[];
+  required_commands?: string[];
 };
 
 export type DepartmentDocument = {
-  readonly department_id: string;
-  readonly name: string;
-  readonly mission: string;
-  readonly decision_scope: readonly string[];
-  readonly agents: readonly string[];
-  readonly handoff_contracts: readonly string[];
+  department_id: string;
+  name: string;
+  mission: string;
+  decision_scope: string[];
+  agents: string[];
+  handoff_contracts: string[];
 };
 
 export type AgentDocument = {
-  readonly agent_id: string;
-  readonly department_id: string;
-  readonly role: string;
-  readonly model: string;
-  readonly metadata?: AgentMetadataDocument;
-  readonly description?: string;
-  readonly responsibilities: readonly string[];
-  readonly input_contract: string;
-  readonly output_contract: string;
-  readonly skills: readonly string[];
-  readonly mcp_servers: readonly string[];
-  readonly tools: readonly string[];
-  readonly memory_access_policy?: string;
+  agent_id: string;
+  department_id: string;
+  role: string;
+  model: string;
+  metadata?: AgentMetadataDocument;
+  description?: string;
+  responsibilities: string[];
+  input_contract: string;
+  output_contract: string;
+  skills: string[];
+  mcp_servers: string[];
+  tools: string[];
+  memory_access_policy?: string;
 };
 
 export type DiscussionPolicyDocument = {
-  readonly mode: string;
-  readonly max_rounds: number;
-  readonly supervisor_agent_id?: string;
-  readonly conflict_resolution: string;
-  readonly required_outputs: readonly string[];
+  mode: string;
+  max_rounds: number;
+  supervisor_agent_id?: string;
+  conflict_resolution: string;
+  required_outputs: string[];
 };
 
 export type PipelinePolicyDocument = {
-  readonly one_pipeline_per_ticket: true;
-  readonly dag_required: true;
-  readonly step_owner_required: boolean;
-  readonly review_before_handoff: boolean;
+  one_pipeline_per_ticket: true;
+  dag_required: true;
+  step_owner_required: boolean;
+  review_before_handoff: boolean;
 };
 
 export type MemoryRetrievalProfileDocument = {
-  readonly profile_id: string;
-  readonly allowed_scopes: readonly string[];
-  readonly max_results: number;
-  readonly max_graph_hops: number;
-  readonly require_reviewed_memory: boolean;
+  profile_id: string;
+  allowed_scopes: string[];
+  max_results: number;
+  max_graph_hops: number;
+  require_reviewed_memory: boolean;
 };
 
 export type MemoryPolicyDocument = {
-  readonly retrieval_mode: string;
-  readonly vector_store?: string;
-  readonly graph_store?: string;
-  readonly indexed_object_types: readonly string[];
-  readonly retrieval_profiles: readonly MemoryRetrievalProfileDocument[];
-  readonly evidence_required_for_outputs: readonly string[];
-  readonly conflict_strategy: string;
+  retrieval_mode: string;
+  vector_store?: string;
+  graph_store?: string;
+  indexed_object_types: string[];
+  retrieval_profiles: MemoryRetrievalProfileDocument[];
+  evidence_required_for_outputs: string[];
+  conflict_strategy: string;
 };
 
 export type ReviewPolicyDocument = {
-  readonly ticket_admission: readonly string[];
-  readonly step_completion: readonly string[];
-  readonly allowed_results: readonly string[];
+  ticket_admission: string[];
+  step_completion: string[];
+  allowed_results: string[];
 };
 
 export type TeamSchemaDocument = {
-  readonly schema_version: string;
-  readonly team_id: string;
-  readonly team_name?: string;
-  readonly departments: readonly DepartmentDocument[];
-  readonly agents: readonly AgentDocument[];
-  readonly discussion_policy: DiscussionPolicyDocument;
-  readonly pipeline_policy: PipelinePolicyDocument;
-  readonly memory_policy?: MemoryPolicyDocument;
-  readonly review_policy: ReviewPolicyDocument;
+  schema_version: string;
+  team_id: string;
+  team_name?: string;
+  departments: DepartmentDocument[];
+  agents: AgentDocument[];
+  discussion_policy: DiscussionPolicyDocument;
+  pipeline_policy: PipelinePolicyDocument;
+  memory_policy?: MemoryPolicyDocument;
+  review_policy: ReviewPolicyDocument;
 };
 
 export type TeamSchemaRecord = {
-  readonly key: string;
-  readonly schema: TeamSchemaDocument;
-  readonly updatedAt: string;
+  key: string;
+  schema: TeamSchemaDocument;
+  updatedAt: string;
 };
 
 export type RuntimeSessionStatus = 'running' | 'paused' | 'terminated';
 
 export type RuntimeTaskDraft = {
-  readonly title: string;
-  readonly goal: string;
-  readonly constraints: string;
+  title: string;
+  goal: string;
+  constraints: string;
 };
 
 export type RuntimeSessionSnapshot = {
-  readonly sessionId: string;
-  readonly status: RuntimeSessionStatus;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-  readonly runtimePlan: Record<string, unknown>;
-  readonly state: {
-    readonly context?: {
-      readonly runtimeId: string;
-      readonly task?: {
-        readonly title: string;
-        readonly goal: string;
-        readonly constraints: readonly string[];
+  sessionId: string;
+  status: RuntimeSessionStatus;
+  createdAt: string;
+  updatedAt: string;
+  runtimePlan: Record<string, unknown>;
+  state: {
+    context?: {
+      runtimeId: string;
+      task?: {
+        title: string;
+        goal: string;
+        constraints: string[];
       };
-      readonly traceId?: string;
-      readonly teamId?: string;
-      readonly currentMode?: string;
-      readonly auditTrail?: readonly unknown[];
-      readonly memoryScopes?: readonly unknown[];
+      traceId?: string;
+      teamId?: string;
+      currentMode?: string;
+      auditTrail?: unknown[];
+      memoryScopes?: unknown[];
     };
-    readonly workModeDecision?: {
-      readonly mode?: string;
-      readonly reason?: string;
-      readonly requiredObjects?: readonly string[];
+    workModeDecision?: {
+      mode?: string;
+      reason?: string;
+      requiredObjects?: string[];
     };
-    readonly pendingTickets?: readonly unknown[];
-    readonly completedTickets?: readonly unknown[];
-    readonly completedStepResults?: readonly unknown[];
-    readonly reviewResults?: readonly unknown[];
-    readonly generatedHandoffs?: readonly unknown[];
-    readonly nextAction?: string;
+    pendingTickets?: unknown[];
+    completedTickets?: unknown[];
+    completedStepResults?: unknown[];
+    reviewResults?: unknown[];
+    generatedHandoffs?: unknown[];
+    nextAction?: string;
   };
 };
 
-export type EditorMode = 'edit' | 'run';
+export const enum EditorMode {
+  Edit = 'edit',
+  Run = 'run',
+}
 
-export type RuntimeStatus = 'idle' | 'running' | 'paused' | 'terminated';
+export const enum RuntimeStatus {
+  Idle = 'idle',
+  Running = 'running',
+  Paused = 'paused',
+  Terminated = 'terminated',
+}
 
-export type WorkflowEdgeMode = 'discuss' | 'pipeline';
+export const enum WorkflowEdgeMode {
+  Discuss = 'discuss',
+  Pipeline = 'pipeline',
+}
 
-export type WorkflowNodeType = 'agent' | 'part';
+export const enum WorkflowNodeType {
+  Agent = 'agent',
+  Part = 'part',
+}
 
-export type GraphNodeKind = 'team' | 'department' | 'agent' | 'part' | 'discussion' | 'pipeline' | 'review' | 'memory';
+export const enum GraphNodeKind {
+  Team = 'team',
+  Department = 'department',
+  Agent = 'agent',
+  Part = 'part',
+  Discussion = 'discussion',
+  Pipeline = 'pipeline',
+  Review = 'review',
+  Memory = 'memory',
+}
 
 export type GraphNodeData = {
-  readonly kind: GraphNodeKind;
-  readonly nodeName: string;
-  readonly roleName?: string;
-  readonly departmentName?: string;
-  readonly detail?: string;
-  readonly accent: string;
-  readonly workflowNodeType?: WorkflowNodeType;
+  kind: GraphNodeKind;
+  nodeName: string;
+  roleName?: string;
+  departmentName?: string;
+  detail?: string;
+  accent: string;
+  workflowNodeType?: WorkflowNodeType;
 };
 
 export type WorkflowGraphNode = Node<GraphNodeData, 'workflow'>;
 
 export type Selection =
-  | { readonly kind: 'team' }
-  | { readonly kind: 'department'; readonly departmentId: string }
-  | { readonly kind: 'agent'; readonly agentId: string }
-  | { readonly kind: 'discussion' }
-  | { readonly kind: 'pipeline' }
-  | { readonly kind: 'review' }
-  | { readonly kind: 'memory' };
+  | { kind: 'team' }
+  | { kind: 'department'; departmentId: string }
+  | { kind: 'agent'; agentId: string }
+  | { kind: 'discussion' }
+  | { kind: 'pipeline' }
+  | { kind: 'review' }
+  | { kind: 'memory' };
 
 export type ValidationIssue = {
-  readonly code: string;
-  readonly path: readonly string[];
-  readonly message: string;
-  readonly suggestion?: string;
+  code: string;
+  path: readonly string[];
+  message: string;
+  suggestion?: string;
 };

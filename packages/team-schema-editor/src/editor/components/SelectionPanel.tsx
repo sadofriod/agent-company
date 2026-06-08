@@ -12,19 +12,19 @@ import type { Selection, TeamSchemaDocument } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
 
 type SelectionPanelProps = {
-  readonly schema: TeamSchemaDocument;
-  readonly selection: Selection;
-  readonly addDepartment: () => void;
-  readonly removeDepartment: (departmentId: string) => void;
-  readonly addAgent: (departmentId: string) => void;
-  readonly removeAgent: (agentId: string) => void;
-  readonly updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
-  readonly updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
-  readonly updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
-  readonly updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
-  readonly updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
-  readonly updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
-  readonly updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
+  schema: TeamSchemaDocument;
+  selection: Selection;
+  addDepartment: () => void;
+  removeDepartment: (departmentId: string) => void;
+  addAgent: (departmentId: string) => void;
+  removeAgent: (agentId: string) => void;
+  updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
+  updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
+  updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
+  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
+  updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
+  updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
+  updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
 };
 
 export const SelectionPanel = ({

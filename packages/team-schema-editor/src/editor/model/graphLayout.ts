@@ -1,5 +1,6 @@
 import type { Edge } from '@xyflow/react';
 
+import { GraphNodeKind } from './types';
 import type { GraphNodeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
 
 const TEAM_NODE_ID = 'team';
@@ -28,13 +29,13 @@ const createEdge = (id: string, source: string, target: string, label?: string, 
   animated,
 });
 
-export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: WorkflowGraphNode[]; readonly edges: Edge[] } => {
+export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
   const nodes: WorkflowGraphNode[] = [];
   const edges: Edge[] = [];
 
   nodes.push(
     createNode(TEAM_NODE_ID, 40, 120, {
-      kind: 'team',
+      kind: GraphNodeKind.Team,
       nodeName: schema.team_name ?? schema.team_id,
       roleName: 'Team',
       detail: schema.team_id,
@@ -48,7 +49,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
 
     nodes.push(
       createNode(departmentNodeId, 340, departmentY, {
-        kind: 'department',
+        kind: GraphNodeKind.Department,
         nodeName: department.name,
         roleName: 'Department',
         detail: department.department_id,
@@ -69,7 +70,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
 
       nodes.push(
         createNode(agentNodeId, 680, departmentY + agentIndex * 140, {
-          kind: 'agent',
+          kind: GraphNodeKind.Agent,
           nodeName: agent.metadata?.name ?? agent.agent_id,
           roleName: agent.role,
           departmentName: department.name,
@@ -84,7 +85,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
 
   nodes.push(
     createNode(DISCUSSION_NODE_ID, 340, 520, {
-      kind: 'discussion',
+      kind: GraphNodeKind.Discussion,
       nodeName: 'Discussion Policy',
       roleName: 'Governance',
       detail: `${schema.discussion_policy.mode} / ${schema.discussion_policy.max_rounds} rounds`,
@@ -95,7 +96,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
 
   nodes.push(
     createNode(PIPELINE_NODE_ID, 340, 660, {
-      kind: 'pipeline',
+      kind: GraphNodeKind.Pipeline,
       nodeName: 'Pipeline Policy',
       roleName: 'Workflow',
       detail: schema.pipeline_policy.review_before_handoff ? 'review before handoff' : 'direct handoff',
@@ -106,7 +107,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
 
   nodes.push(
     createNode(REVIEW_NODE_ID, 340, 800, {
-      kind: 'review',
+      kind: GraphNodeKind.Review,
       nodeName: 'Review Policy',
       roleName: 'Quality Gate',
       detail: schema.review_policy.allowed_results.join(' / '),
@@ -118,7 +119,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
   if (schema.memory_policy !== undefined) {
     nodes.push(
       createNode(MEMORY_NODE_ID, 680, 800, {
-        kind: 'memory',
+        kind: GraphNodeKind.Memory,
         nodeName: 'Memory Policy',
         roleName: 'Retrieval',
         detail: schema.memory_policy.retrieval_mode,

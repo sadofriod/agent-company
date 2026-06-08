@@ -4,17 +4,17 @@ import { Chip, Divider, List, ListItemButton, ListItemText, Paper, Stack, Typogr
 import type { AgentDocument, EditorMode, TeamSchemaDocument, TeamSchemaRecord } from '../model/types';
 
 type TeamSchemeListPanelProps = {
-  readonly schema: TeamSchemaDocument;
-  readonly schemaRecords: readonly TeamSchemaRecord[];
-  readonly mode: EditorMode;
-  readonly selectedSchemaKey: string;
-  readonly selectedAgentId: string | null;
-  readonly onSelectTeam: () => void;
-  readonly onSelectSchemaKey: (key: string) => void;
-  readonly onSelectAgent: (agentId: string) => void;
+  schema: TeamSchemaDocument;
+  schemaRecords: TeamSchemaRecord[];
+  mode: EditorMode;
+  selectedSchemaKey: string;
+  selectedAgentId: string | null;
+  onSelectTeam: () => void;
+  onSelectSchemaKey: (key: string) => void;
+  onSelectAgent: (agentId: string) => void;
 };
 
-const findAgent = (agents: readonly AgentDocument[], agentId: string): AgentDocument | undefined =>
+const findAgent = (agents: AgentDocument[], agentId: string): AgentDocument | undefined =>
   agents.find((agent) => agent.agent_id === agentId);
 
 export const TeamSchemeListPanel = ({

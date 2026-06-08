@@ -2,7 +2,7 @@ import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 
 import { createDepartmentId, ensureUniqueId, type EditorState, type SchemaField, withSchema } from '../core/editorShared';
 
-export const updateTeamField: CaseReducer<EditorState, PayloadAction<{ readonly field: SchemaField; readonly value: string }>> = (
+export const updateTeamField: CaseReducer<EditorState, PayloadAction<{ field: SchemaField; value: string }>> = (
   state,
   action,
 ): void => {

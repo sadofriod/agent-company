@@ -1,9 +1,7 @@
 import { useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 
-import type { RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../model/types';
-import {
-  formatApiErrorMessage,
-} from '../api/shared';
+import { formatApiErrorMessage } from '../api/shared';
 import {
   useAdvanceRuntimeSessionMutation,
   useLazyGetRuntimeSessionQuery,
@@ -12,58 +10,30 @@ import {
   useStartRuntimeSessionMutation,
   useTerminateRuntimeSessionMutation,
 } from '../api/runtimeSessionApi';
+import type { RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../model/types';
+import type { RuntimeSessionModel, RuntimeSessionOperationStatus } from './helper/runtimeSession.types';
 
-export type RuntimeSessionOperationStatus = 'idle' | 'starting' | 'refreshing' | 'advancing' | 'pausing' | 'resuming' | 'terminating' | 'error';
-
-export type RuntimeSessionModel = {
-  readonly session: RuntimeSessionSnapshot | null;
-  readonly taskDraft: RuntimeTaskDraft;
-  readonly status: RuntimeSessionOperationStatus;
-  readonly message: string | null;
-  readonly error: string | null;
-  readonly setTaskTitle: (value: string) => void;
-  readonly setTaskGoal: (value: string) => void;
-  readonly setTaskConstraints: (value: string) => void;
-  readonly createSession: (team: TeamSchemaDocument) => Promise<void>;
-  readonly refreshSession: () => Promise<void>;
-  readonly advanceSession: () => Promise<void>;
-  readonly pauseSession: () => Promise<void>;
-  readonly resumeSession: () => Promise<void>;
-  readonly terminateSession: () => Promise<void>;
-};
+export type { RuntimeSessionModel } from './helper/runtimeSession.types';
 
 const formatError = (error: unknown): string => formatApiErrorMessage(error, 'Runtime session request failed.');
 
-export const useRuntimeSession = (): RuntimeSessionModel => {
-  const [session, setSession] = useState<RuntimeSessionSnapshot | null>(null);
-  const [taskDraft, setTaskDraft] = useState<RuntimeTaskDraft>({
-    title: 'Deliver onboarding flow',
-    goal: 'Ship MVP onboarding in this sprint',
-    constraints: 'Keep current database schema',
-  });
-  const [status, setStatus] = useState<RuntimeSessionOperationStatus>('idle');
-  const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [startRuntimeSession] = useStartRuntimeSessionMutation();
-  const [loadRuntimeSession] = useLazyGetRuntimeSessionQuery();
-  const [advanceRuntimeSession] = useAdvanceRuntimeSessionMutation();
-  const [pauseRuntimeSession] = usePauseRuntimeSessionMutation();
-  const [resumeRuntimeSession] = useResumeRuntimeSessionMutation();
-  const [terminateRuntimeSession] = useTerminateRuntimeSessionMutation();
+const useTaskDraftEditors = (
+  setTaskDraft: Dispatch<SetStateAction<RuntimeTaskDraft>>,
+): Pick<RuntimeSessionModel, 'setTaskTitle' | 'setTaskGoal' | 'setTaskConstraints'> => {
+  const setTaskTitle = (value: string): void => setTaskDraft((current) => ({ ...current, title: value }));
+  const setTaskGoal = (value: string): void => setTaskDraft((current) => ({ ...current, goal: value }));
+  const setTaskConstraints = (value: string): void => setTaskDraft((current) => ({ ...current, constraints: value }));
 
-  const setTaskTitle = (value: string): void => {
-    setTaskDraft((current) => ({ ...current, title: value }));
-  };
+  return { setTaskTitle, setTaskGoal, setTaskConstraints };
+};
 
-  const setTaskGoal = (value: string): void => {
-    setTaskDraft((current) => ({ ...current, goal: value }));
-  };
-
-  const setTaskConstraints = (value: string): void => {
-    setTaskDraft((current) => ({ ...current, constraints: value }));
-  };
-
-  const withSessionMutation = async (
+const useSessionMutationRunner = (
+  setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>,
+  setStatus: Dispatch<SetStateAction<RuntimeSessionOperationStatus>>,
+  setMessage: Dispatch<SetStateAction<string | null>>,
+  setError: Dispatch<SetStateAction<string | null>>,
+) => {
+  return async (
     nextStatus: RuntimeSessionOperationStatus,
     mutation: () => Promise<RuntimeSessionSnapshot>,
     successMessage: string,
@@ -82,55 +52,62 @@ export const useRuntimeSession = (): RuntimeSessionModel => {
       setError(formatError(mutationError));
     }
   };
+};
 
-  const createSession = async (team: TeamSchemaDocument): Promise<void> => {
-    await withSessionMutation('starting', () => startRuntimeSession({ task: taskDraft, team }).unwrap(), 'Runtime session created.');
-  };
+const useSessionOperations = (
+  session: RuntimeSessionSnapshot | null,
+  taskDraft: RuntimeTaskDraft,
+  setMessage: Dispatch<SetStateAction<string | null>>,
+  runMutation: (
+    nextStatus: RuntimeSessionOperationStatus,
+    mutation: () => Promise<RuntimeSessionSnapshot>,
+    successMessage: string,
+  ) => Promise<void>,
+): Pick<RuntimeSessionModel, 'createSession' | 'refreshSession' | 'advanceSession' | 'pauseSession' | 'resumeSession' | 'terminateSession'> => {
+  const [startRuntimeSession] = useStartRuntimeSessionMutation();
+  const [loadRuntimeSession] = useLazyGetRuntimeSessionQuery();
+  const [advanceRuntimeSession] = useAdvanceRuntimeSessionMutation();
+  const [pauseRuntimeSession] = usePauseRuntimeSessionMutation();
+  const [resumeRuntimeSession] = useResumeRuntimeSessionMutation();
+  const [terminateRuntimeSession] = useTerminateRuntimeSessionMutation();
 
-  const refreshSession = async (): Promise<void> => {
+  const runIfSessionExists = async (
+    status: RuntimeSessionOperationStatus,
+    operation: (sessionId: string) => Promise<RuntimeSessionSnapshot>,
+    successMessage: string,
+  ): Promise<void> => {
     if (session === null) {
       setMessage('Start a runtime session first.');
       return;
     }
 
-    await withSessionMutation('refreshing', () => loadRuntimeSession(session.sessionId).unwrap(), 'Runtime session refreshed.');
+    await runMutation(status, () => operation(session.sessionId), successMessage);
   };
 
-  const advance = async (): Promise<void> => {
-    if (session === null) {
-      setMessage('Start a runtime session first.');
-      return;
-    }
-
-    await withSessionMutation('advancing', () => advanceRuntimeSession(session.sessionId).unwrap(), 'Runtime session advanced.');
+  return {
+    createSession: async (team: TeamSchemaDocument) =>
+      runMutation('starting', () => startRuntimeSession({ task: taskDraft, team }).unwrap(), 'Runtime session created.'),
+    refreshSession: async () => runIfSessionExists('refreshing', (sessionId) => loadRuntimeSession(sessionId).unwrap(), 'Runtime session refreshed.'),
+    advanceSession: async () => runIfSessionExists('advancing', (sessionId) => advanceRuntimeSession(sessionId).unwrap(), 'Runtime session advanced.'),
+    pauseSession: async () => runIfSessionExists('pausing', (sessionId) => pauseRuntimeSession(sessionId).unwrap(), 'Runtime session paused.'),
+    resumeSession: async () => runIfSessionExists('resuming', (sessionId) => resumeRuntimeSession(sessionId).unwrap(), 'Runtime session resumed.'),
+    terminateSession: async () => runIfSessionExists('terminating', (sessionId) => terminateRuntimeSession(sessionId).unwrap(), 'Runtime session terminated.'),
   };
+};
 
-  const pause = async (): Promise<void> => {
-    if (session === null) {
-      setMessage('Start a runtime session first.');
-      return;
-    }
-
-    await withSessionMutation('pausing', () => pauseRuntimeSession(session.sessionId).unwrap(), 'Runtime session paused.');
-  };
-
-  const resume = async (): Promise<void> => {
-    if (session === null) {
-      setMessage('Start a runtime session first.');
-      return;
-    }
-
-    await withSessionMutation('resuming', () => resumeRuntimeSession(session.sessionId).unwrap(), 'Runtime session resumed.');
-  };
-
-  const terminate = async (): Promise<void> => {
-    if (session === null) {
-      setMessage('Start a runtime session first.');
-      return;
-    }
-
-    await withSessionMutation('terminating', () => terminateRuntimeSession(session.sessionId).unwrap(), 'Runtime session terminated.');
-  };
+export const useRuntimeSession = (): RuntimeSessionModel => {
+  const [session, setSession] = useState<RuntimeSessionSnapshot | null>(null);
+  const [taskDraft, setTaskDraft] = useState<RuntimeTaskDraft>({
+    title: 'Deliver onboarding flow',
+    goal: 'Ship MVP onboarding in this sprint',
+    constraints: 'Keep current database schema',
+  });
+  const [status, setStatus] = useState<RuntimeSessionOperationStatus>('idle');
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const taskDraftEditors = useTaskDraftEditors(setTaskDraft);
+  const runMutation = useSessionMutationRunner(setSession, setStatus, setMessage, setError);
+  const operations = useSessionOperations(session, taskDraft, setMessage, runMutation);
 
   return {
     session,
@@ -138,14 +115,7 @@ export const useRuntimeSession = (): RuntimeSessionModel => {
     status,
     message,
     error,
-    setTaskTitle,
-    setTaskGoal,
-    setTaskConstraints,
-    createSession,
-    refreshSession,
-    advanceSession: advance,
-    pauseSession: pause,
-    resumeSession: resume,
-    terminateSession: terminate,
+    ...taskDraftEditors,
+    ...operations,
   };
 };

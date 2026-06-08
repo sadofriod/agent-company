@@ -8,12 +8,13 @@ import { GraphPanel } from '../editor/components/GraphPanel';
 import { RuntimePanel } from '../editor/components/RuntimePanel';
 import { SelectionPanel } from '../editor/components/SelectionPanel';
 import { TeamSchemeListPanel } from '../editor/components/TeamSchemeListPanel';
+import { useSchemaServiceNotification } from '../editor/hooks/useSchemaServiceNotification';
 import { useTeamEditor } from '../editor/hooks/useTeamEditor';
 import { useRuntimeSession } from '../editor/hooks/useRuntimeSession';
-import type { EditorMode } from '../editor/model/types';
+import { EditorMode } from '../editor/model/types';
 
 export const App = (): ReactElement => {
-  const [mode, setMode] = useState<EditorMode>('edit');
+  const [mode, setMode] = useState<EditorMode>(EditorMode.Edit);
   const [selectedWorkflowAgentId, setSelectedWorkflowAgentId] = useState('');
   const {
     schema,
@@ -52,6 +53,7 @@ export const App = (): ReactElement => {
     removeAgent,
   } = useTeamEditor();
   const runtime = useRuntimeSession();
+  useSchemaServiceNotification({ status: schemaServiceStatus, message: schemaServiceMessage, error: schemaServiceError });
   const isSchemaReady = schemaLoadStatus === 'ready';
   const selectedAgentId = selection.kind === 'agent' ? selection.agentId : null;
   const handleSelectTeam = (): void => onNodeSelect('team');
@@ -69,8 +71,6 @@ export const App = (): ReactElement => {
         deleteSchema={deleteSchema}
         schemaLoadStatus={schemaLoadStatus}
         schemaServiceStatus={schemaServiceStatus}
-        schemaServiceMessage={schemaServiceMessage}
-        schemaServiceError={schemaServiceError}
         onModeChange={setMode}
       />
 
@@ -88,7 +88,7 @@ export const App = (): ReactElement => {
         </Paper>
       )}
 
-      {isSchemaReady && mode === 'edit' ? (
+      {isSchemaReady && mode === EditorMode.Edit ? (
         <Box
           sx={{
             display: 'grid',
@@ -139,7 +139,7 @@ export const App = (): ReactElement => {
         </Box>
       ) : null}
 
-      {isSchemaReady && mode === 'run' ? (
+      {isSchemaReady && mode === EditorMode.Run ? (
         <Box
           sx={{
             display: 'grid',
@@ -181,7 +181,7 @@ export const App = (): ReactElement => {
         </Box>
       ) : null}
 
-      {isSchemaReady && mode === 'edit' ? <AgentMarkdownPanel /> : null}
+      {isSchemaReady && mode === EditorMode.Edit ? <AgentMarkdownPanel /> : null}
     </Box>
   );
 };

@@ -5,11 +5,11 @@ import type { AgentDocument, DepartmentDocument, Selection, TeamSchemaDocument, 
 export type SchemaLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export type EditorState = {
-  readonly schema: TeamSchemaDocument;
-  readonly validationIssues: readonly ValidationIssue[];
-  readonly selection: Selection;
-  readonly schemaLoadStatus: SchemaLoadStatus;
-  readonly schemaLoadError: string | null;
+  schema: TeamSchemaDocument;
+  validationIssues: readonly ValidationIssue[];
+  selection: Selection;
+  schemaLoadStatus: SchemaLoadStatus;
+  schemaLoadError: string | null;
 };
 
 export type SchemaField = 'team_name' | 'team_id' | 'schema_version';
@@ -19,7 +19,7 @@ export type AgentField = 'role' | 'model' | 'description';
 export type AgentListField = 'responsibilities' | 'skills' | 'tools' | 'mcp_servers';
 export type DiscussionField = 'mode' | 'conflict_resolution' | 'supervisor_agent_id';
 
-type ValidationResult = { readonly ok: true } | { readonly ok: false; readonly issues: readonly ValidationIssue[] };
+type ValidationResult = { ok: true } | { ok: false; issues: readonly ValidationIssue[] };
 
 export const parseList = (value: string): string[] =>
   value
@@ -32,7 +32,7 @@ export const createDepartmentId = (schema: TeamSchemaDocument): string => `depar
 export const createAgentId = (schema: TeamSchemaDocument, departmentId: string): string =>
   `${departmentId}_agent_${schema.agents.length + 1}`;
 
-export const ensureUniqueId = (candidate: string, existingIds: readonly string[]): string => {
+export const ensureUniqueId = (candidate: string, existingIds: string[]): string => {
   if (!existingIds.includes(candidate)) {
     return candidate;
   }

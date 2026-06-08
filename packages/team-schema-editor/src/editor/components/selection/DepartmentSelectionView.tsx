@@ -7,12 +7,12 @@ import type { SelectionFormValues } from './selectionFormValues';
 import type { DepartmentDocument } from '../../model/types';
 
 type DepartmentSelectionViewProps = {
-  readonly form: UseFormReturn<SelectionFormValues>;
-  readonly department: DepartmentDocument;
-  readonly addAgent: (departmentId: string) => void;
-  readonly removeDepartment: (departmentId: string) => void;
-  readonly updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
-  readonly updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
+  form: UseFormReturn<SelectionFormValues>;
+  department: DepartmentDocument;
+  addAgent: (departmentId: string) => void;
+  removeDepartment: (departmentId: string) => void;
+  updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
+  updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
 };
 
 export const DepartmentSelectionView = ({

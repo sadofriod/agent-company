@@ -4,7 +4,7 @@ import { type DiscussionField, type EditorState, withSchema } from '../core/edit
 
 export const updateDiscussionField: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly field: DiscussionField; readonly value: string }>
+  PayloadAction<{ field: DiscussionField; value: string }>
 > = (state, action): void => {
   const schema = {
     ...state.schema,
@@ -19,7 +19,7 @@ export const updateDiscussionField: CaseReducer<
 
 export const updateDiscussionNumber: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly field: 'max_rounds'; readonly value: number }>
+  PayloadAction<{ field: 'max_rounds'; value: number }>
 > = (state, action): void => {
   const schema = {
     ...state.schema,

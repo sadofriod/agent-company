@@ -66,7 +66,7 @@ export const agentMarkdownApi = editorApi.injectEndpoints({
       },
       providesTags: (_result, _error, path) => [{ type: 'AgentMarkdownFile', id: path }],
     }),
-    validateAgentMarkdownDraft: builder.mutation<AgentMarkdownValidationResponse, { readonly path: string; readonly content: string }>({
+    validateAgentMarkdownDraft: builder.mutation<AgentMarkdownValidationResponse, { path: string; content: string }>({
       async queryFn(body, _api, _extraOptions, fetchWithBQ) {
         const result = await fetchWithBQ({
           url: `${AGENT_MARKDOWN_ENDPOINT}/validate`,
@@ -88,7 +88,7 @@ export const agentMarkdownApi = editorApi.injectEndpoints({
         return { data: toAgentMarkdownValidationResponse(result.data) };
       },
     }),
-    createAgentMarkdownFile: builder.mutation<AgentMarkdownFileResponse, { readonly path: string; readonly content: string }>({
+    createAgentMarkdownFile: builder.mutation<AgentMarkdownFileResponse, { path: string; content: string }>({
       async queryFn(body, _api, _extraOptions, fetchWithBQ) {
         const result = await fetchWithBQ({
           url: AGENT_MARKDOWN_ENDPOINT,
@@ -114,7 +114,7 @@ export const agentMarkdownApi = editorApi.injectEndpoints({
         { type: 'AgentMarkdownFile', id: path },
       ],
     }),
-    updateAgentMarkdownFile: builder.mutation<AgentMarkdownFileResponse, { readonly path: string; readonly content: string }>({
+    updateAgentMarkdownFile: builder.mutation<AgentMarkdownFileResponse, { path: string; content: string }>({
       async queryFn(body, _api, _extraOptions, fetchWithBQ) {
         const result = await fetchWithBQ({
           url: AGENT_MARKDOWN_ENDPOINT,
@@ -140,7 +140,7 @@ export const agentMarkdownApi = editorApi.injectEndpoints({
         { type: 'AgentMarkdownFile', id: path },
       ],
     }),
-    deleteAgentMarkdownFile: builder.mutation<AgentMarkdownDeleteResponse, { readonly path: string }>({
+    deleteAgentMarkdownFile: builder.mutation<AgentMarkdownDeleteResponse, { path: string }>({
       async queryFn(body, _api, _extraOptions, fetchWithBQ) {
         const result = await fetchWithBQ({
           url: AGENT_MARKDOWN_ENDPOINT,
