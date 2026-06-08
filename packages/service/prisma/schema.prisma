@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model AgentMarkdown {
+  id               String   @id @default(cuid())
+  path             String   @unique
+  storageProvider  String   @map("storage_provider")
+  storagePath      String   @map("storage_path")
+  name             String
+  category         String
+  description      String?
+  profile          String?
+  toolPolicy       String?  @map("tool_policy")
+  partials         String[] @default([])
+  tools            String[] @default([])
+  allowedCommands  String[] @default([]) @map("allowed_commands")
+  requiredCommands String[] @default([]) @map("required_commands")
+  frontMatter      Json?    @map("front_matter")
+  size             Int
+  storageUpdatedAt DateTime @map("storage_updated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("agent_markdowns")
+}
+
+model TeamSchema {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  document  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("team_schemas")
+}

@@ -1,19 +1,68 @@
-import type { ReactElement } from 'react';
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { useState, type ReactElement } from 'react';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { Background, Controls, MiniMap, ReactFlow } from '@xyflow/react';
-import type { Edge, Node, OnNodesChange } from '@xyflow/react';
+import type { Connection, Edge, NodeTypes, OnNodesChange } from '@xyflow/react';
 
-import type { GraphNodeData, TeamSchemaDocument } from '../model/types';
+import type { EditorMode, TeamSchemaDocument, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
+import { WorkflowNode } from './WorkflowNode';
+
+const nodeTypes: NodeTypes = {
+  workflow: WorkflowNode,
+};
 
 type GraphPanelProps = {
   readonly schema: TeamSchemaDocument;
-  readonly nodes: Node<GraphNodeData>[];
+  readonly mode: EditorMode;
+  readonly nodes: WorkflowGraphNode[];
   readonly edges: Edge[];
-  readonly onNodesChange: OnNodesChange<Node<GraphNodeData>>;
+  readonly selectedWorkflowAgentId: string;
+  readonly onNodesChange: OnNodesChange<WorkflowGraphNode>;
   readonly onNodeSelect: (nodeId: string | null) => void;
+  readonly onWorkflowAgentChange: (agentId: string) => void;
+  readonly onAddWorkflowAgentNode: (agentId: string) => void;
+  readonly onAddWorkflowPartNode: () => void;
+  readonly onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
 };
 
-export const GraphPanel = ({ schema, nodes, edges, onNodesChange, onNodeSelect }: GraphPanelProps): ReactElement => {
+export const GraphPanel = ({
+  schema,
+  mode,
+  nodes,
+  edges,
+  selectedWorkflowAgentId,
+  onNodesChange,
+  onNodeSelect,
+  onWorkflowAgentChange,
+  onAddWorkflowAgentNode,
+  onAddWorkflowPartNode,
+  onWorkflowConnect,
+}: GraphPanelProps): ReactElement => {
+  const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
+  const isEditing = mode === 'edit';
+  const firstAgentId = schema.agents[0]?.agent_id ?? '';
+  const selectedWorkflowAgentExists = schema.agents.some((agent) => agent.agent_id === selectedWorkflowAgentId);
+  const activeWorkflowAgentId = selectedWorkflowAgentExists ? selectedWorkflowAgentId : firstAgentId;
+  const hasSelectedAgent = activeWorkflowAgentId.length > 0 && schema.agents.some((agent) => agent.agent_id === activeWorkflowAgentId);
+  const agentOptions = schema.agents.map((agent) => (
+    <MenuItem key={agent.agent_id} value={agent.agent_id}>
+      {agent.metadata?.name ?? agent.agent_id}
+    </MenuItem>
+  ));
+  const handleConnect = (connection: Connection): void => {
+    if (!isEditing) {
+      return;
+    }
+
+    setPendingConnection(connection);
+  };
+  const handleConnectionModeSelect = (connectionMode: WorkflowEdgeMode): void => {
+    if (pendingConnection !== null) {
+      onWorkflowConnect(pendingConnection, connectionMode);
+    }
+
+    setPendingConnection(null);
+  };
+
   return (
     <Paper sx={{ p: 2.25, minHeight: 640 }}>
       <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', gap: 2, mb: 2 }}>
@@ -23,9 +72,30 @@ export const GraphPanel = ({ schema, nodes, edges, onNodesChange, onNodeSelect }
           </Typography>
           <Typography variant="h5">{schema.team_name ?? schema.team_id}</Typography>
         </Stack>
-        <Typography color="text.secondary" sx={{ maxWidth: 420, lineHeight: 1.5 }}>
-          Drag nodes to explore relationships. Selecting a node opens contextual editing on the right.
-        </Typography>
+        {isEditing ? (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' }, maxWidth: 520 }}>
+            <TextField
+              select
+              size="small"
+              label="Workflow agent"
+              value={activeWorkflowAgentId}
+              onChange={(event) => onWorkflowAgentChange(event.target.value)}
+              sx={{ minWidth: 220 }}
+            >
+              {agentOptions}
+            </TextField>
+            <Button variant="outlined" color="secondary" onClick={() => onAddWorkflowAgentNode(activeWorkflowAgentId)} disabled={!hasSelectedAgent}>
+              Add Agent Node
+            </Button>
+            <Button variant="contained" color="secondary" onClick={onAddWorkflowPartNode}>
+              Add Part Node
+            </Button>
+          </Box>
+        ) : (
+          <Typography color="text.secondary" sx={{ maxWidth: 420, lineHeight: 1.5 }}>
+            Execution view is locked to the selected Team Schema.
+          </Typography>
+        )}
       </Box>
 
       <Paper
@@ -33,7 +103,7 @@ export const GraphPanel = ({ schema, nodes, edges, onNodesChange, onNodeSelect }
         sx={{
           height: { xs: 460, md: 560 },
           overflow: 'hidden',
-          borderRadius: 3,
+          borderRadius: 1,
           borderColor: 'rgba(46, 61, 54, 0.08)',
           bgcolor: 'rgba(255,255,255,0.45)',
         }}
@@ -41,8 +111,12 @@ export const GraphPanel = ({ schema, nodes, edges, onNodesChange, onNodeSelect }
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={(_event, node) => onNodeSelect(node.id)}
+          onConnect={handleConnect}
+          nodesConnectable={isEditing}
+          nodesDraggable={isEditing}
           fitView
         >
           <MiniMap pannable zoomable />
@@ -50,6 +124,20 @@ export const GraphPanel = ({ schema, nodes, edges, onNodesChange, onNodeSelect }
           <Background gap={20} size={1} />
         </ReactFlow>
       </Paper>
+
+      <Dialog open={pendingConnection !== null} onClose={() => setPendingConnection(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Choose link mode</DialogTitle>
+        <DialogContent>
+          <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
+            Discuss links use two arrowheads. Pipeline links use one arrowhead.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingConnection(null)}>Cancel</Button>
+          <Button color="secondary" onClick={() => handleConnectionModeSelect('discuss')}>Discuss</Button>
+          <Button variant="contained" color="secondary" onClick={() => handleConnectionModeSelect('pipeline')}>Pipeline</Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

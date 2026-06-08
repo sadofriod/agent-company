@@ -1,19 +1,20 @@
 import type {
   CapabilityDescriptor,
   CapabilityRegistry,
-} from '../domain/capability';
+} from '../../domain/capability';
 import type {
   AgentId,
   CapabilityId,
   DepartmentId,
   MemoryProfileId,
   TeamId,
-} from '../domain/base';
+} from '../../domain/base';
 import type {
   AgentDefinition,
   Department,
   MemoryRetrievalProfile,
-} from '../domain/organization';
+} from '../../domain/organization';
+import type { AgentGatewayBinding } from '../gateway/resolveAgentGatewayBinding';
 
 export type AgentCapabilitySet = {
   readonly skills: readonly CapabilityDescriptor[];
@@ -34,6 +35,7 @@ export type AgentAssembly = {
   readonly department: Department;
   readonly definition: AgentDefinition;
   readonly metadata?: AgentDefinition['metadata'];
+  readonly gateway: AgentGatewayBinding;
   readonly memoryProfile?: MemoryRetrievalProfile;
   readonly capabilities: AgentCapabilitySet;
 };

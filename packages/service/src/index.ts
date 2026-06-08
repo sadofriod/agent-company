@@ -1,12 +1,21 @@
-import express, { type Request, type Response } from 'express';
+import 'dotenv/config';
 
-import { createAgentAssemblyFactory } from './agent/createAgentAssemblyFactory';
-import type { AgentAssembly, AgentAssemblyBundle } from './agent/types';
-import type { RuntimePlan } from './domain/runtime';
-import { createRuntimePlan } from './runtime/createRuntimePlan';
-import { loadTeamSchema } from './schema/loadTeamSchema';
+import express from 'express';
+
+import type { AgentMarkdownAdapter } from './adapter/agentMarkdownAdapter';
+import { createAgentMarkdownAdapter } from './adapter/createAgentMarkdownAdapter';
+import type { RuntimeSessionScheduler } from './runtime/runtimeSessionScheduler';
+import { createRuntimeSessionScheduler } from './runtime/runtimeSessionScheduler';
+import { registerFileRoutes } from './routes';
 
 const DEFAULT_PORT = 3000;
+
+type CreateAppOptions = {
+	readonly agentsDirectory?: string;
+	readonly agentMarkdownAdapter?: AgentMarkdownAdapter;
+	readonly runtimeSessionScheduler?: RuntimeSessionScheduler;
+	readonly routesDirectory?: string;
+};
 
 const parsePort = (value: string | undefined): number => {
 	if (value === undefined) {
@@ -21,94 +30,36 @@ const parsePort = (value: string | undefined): number => {
 
 	return port;
 };
-
-const serializeRuntimePlan = (runtimePlan: RuntimePlan) => ({
-	team: runtimePlan.team,
-	departments: [...runtimePlan.departmentsById.values()],
-	agents: [...runtimePlan.agentsById.values()],
-	discussionPolicy: runtimePlan.discussionPolicy,
-	pipelinePolicy: runtimePlan.pipelinePolicy,
-	memoryPolicy: runtimePlan.memoryPolicy,
-	reviewPolicy: runtimePlan.reviewPolicy,
-});
-
-const serializeAgentAssembly = (agentAssembly: AgentAssembly) => ({
-	agentId: agentAssembly.agentId,
-	teamId: agentAssembly.teamId,
-	departmentId: agentAssembly.departmentId,
-	role: agentAssembly.role,
-	model: agentAssembly.model,
-	description: agentAssembly.description,
-	inputContract: agentAssembly.inputContract,
-	outputContract: agentAssembly.outputContract,
-	responsibilities: agentAssembly.responsibilities,
-	department: agentAssembly.department,
-	definition: agentAssembly.definition,
-	metadata: agentAssembly.metadata,
-	memoryProfile: agentAssembly.memoryProfile,
-	capabilities: agentAssembly.capabilities,
-});
-
-const serializeAgentAssemblyBundle = (bundle: AgentAssemblyBundle) => ({
-	teamId: bundle.teamId,
-	agents: bundle.agents.map(serializeAgentAssembly),
-});
-
-const createApp = (): express.Express => {
+const createApp = async (options: CreateAppOptions = {}): Promise<express.Express> => {
 	const app = express();
+	app.locals.agentMarkdownAdapter =
+		options.agentMarkdownAdapter ?? createAgentMarkdownAdapter({ agentsDirectory: options.agentsDirectory });
+	app.locals.runtimeSessionScheduler =
+		options.runtimeSessionScheduler ?? createRuntimeSessionScheduler();
 
 	app.use(express.json({ limit: '1mb' }));
-
-	app.get('/health', (_request: Request, response: Response) => {
-		response.json({ ok: true });
-	});
-
-	app.post('/team/validate', (request: Request, response: Response) => {
-		const validation = loadTeamSchema(request.body);
-
-		if (!validation.ok) {
-			response.status(400).json(validation);
-			return;
-		}
-
-		response.json({ ok: true, team: validation.value });
-	});
-
-	app.post('/runtime-plan', (request: Request, response: Response) => {
-		const validation = loadTeamSchema(request.body);
-
-		if (!validation.ok) {
-			response.status(400).json(validation);
-			return;
-		}
-
-		const runtimePlan = createRuntimePlan(validation.value);
-		const assemblyFactory = createAgentAssemblyFactory(runtimePlan);
-
-		response.json({
-			ok: true,
-			runtimePlan: serializeRuntimePlan(runtimePlan),
-			agentAssembly: serializeAgentAssemblyBundle(assemblyFactory.assembleAll()),
-		});
-	});
-
-	app.use((error: unknown, _request: Request, response: Response, _next: express.NextFunction) => {
-		const message = error instanceof Error ? error.message : 'Unexpected server error.';
-
-		response.status(500).json({
-			ok: false,
-			message,
-		});
+	await registerFileRoutes(app, {
+		routesDirectory: options.routesDirectory,
+		moduleUrl: new URL('./routes/', import.meta.url).href,
 	});
 
 	return app;
 };
 
-const app = createApp();
-const port = parsePort(process.env.PORT);
+const startServer = async (): Promise<void> => {
+	const app = await createApp();
+	const port = parsePort(process.env.PORT);
 
-app.listen(port, () => {
-	console.log(`agents-team service listening on port ${port}`);
+	app.listen(port, () => {
+		console.log(`agents-team service listening on port ${port}`);
+	});
+};
+
+void startServer().catch((error: unknown) => {
+	const message = error instanceof Error ? error.message : 'Unexpected server startup error.';
+
+	console.error(message);
+	process.exitCode = 1;
 });
 
 export { createApp };

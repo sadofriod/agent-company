@@ -1,5 +1,6 @@
-import type { AgentId } from '../domain/base';
-import type { RuntimePlan } from '../domain/runtime';
+import type { AgentId } from '../../domain/base';
+import type { RuntimePlan } from '../../domain/runtime';
+import { resolveAgentGatewayBinding } from '../gateway/resolveAgentGatewayBinding';
 import { createCapabilityIndex, resolveAgentCapabilities } from './resolveAgentCapabilities';
 import { resolveMemoryProfilesById } from './resolveMemoryProfilesById';
 import type {
@@ -20,6 +21,13 @@ const cloneAgentMetadata = (
         tools: [...metadata.tools],
         allowedCommands: [...metadata.allowedCommands],
         requiredCommands: [...metadata.requiredCommands],
+        llm:
+          metadata.llm === undefined
+            ? undefined
+            : {
+                ...metadata.llm,
+                headers: { ...metadata.llm.headers },
+              },
       };
 
 const createAssembly = (
@@ -51,6 +59,7 @@ const createAssembly = (
     department,
     definition: agent,
     metadata: cloneAgentMetadata(agent.metadata),
+    gateway: resolveAgentGatewayBinding(agent),
     memoryProfile:
       agent.memoryAccessProfileId === undefined
         ? undefined

@@ -9,6 +9,8 @@
   },
   "module": {
     "type": "es6",
-    "strict": true
+    "strict": true,
+    "resolveFully": true,
+    "outFileExtension": ".js"
   }
 }

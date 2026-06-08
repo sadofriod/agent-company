@@ -5,6 +5,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
+    "dev:docker": "docker compose -f docker-compose.dev.yml up -d",
     "dev": "pnpm --parallel --filter @agents-team/service --filter @agents-team/team-schema-editor run dev",
     "dev:service": "pnpm --filter @agents-team/service dev",
     "dev:editor": "pnpm --filter @agents-team/team-schema-editor dev"

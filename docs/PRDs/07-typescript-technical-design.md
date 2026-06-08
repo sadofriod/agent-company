@@ -121,6 +121,93 @@ src/
 - `adapters/` 实现具体外部依赖。
 - `review/`、`memory/`、`capability/` 保持可独立测试。
 
+## 当前 Service 实现架构
+
+当前 `packages/service` 已经落地了一版可运行的服务骨架。它延续了上面的分层原则，但在工程组织上采用了更贴近当前功能的目录划分：`domain/` 负责领域类型，`schema/` 负责 Team Schema 解析与引用校验，`runtime/` 和 `agent/assembly/` 负责运行时装配，`agent/markdown/` 负责 Markdown 文件的本地能力，`adapter/` 负责把文件系统、Vercel Blob 与 Prisma/Postgres 接入统一接口。
+
+### 模块关系图
+
+```mermaid
+flowchart TD
+  A[HTTP Client / team-schema-editor] --> B[Express App]
+  B --> C[Schema API]
+  B --> D[Runtime Plan API]
+  B --> E[Agent Markdown API]
+
+  C --> F[loadTeamSchema]
+  F --> G[Zod teamSchema]
+  F --> H[Reference Validation]
+  H --> I[TeamDefinition]
+
+  D --> F
+  D --> J[createRuntimePlan]
+  J --> K[RuntimePlan]
+  K --> L[createAgentAssemblyFactory]
+  L --> M[Memory Profile Resolution]
+  L --> N[Capability Resolution]
+  L --> O[AgentAssemblyBundle]
+
+  E --> P[AgentMarkdownRouter]
+  P --> Q[AgentMarkdownAdapter Factory]
+  Q --> R[Local Adapter]
+  Q --> S[Vercel Blob Adapter]
+
+  R --> T[Local Markdown Files]
+  R --> U[Metadata Repository]
+  S --> V[Vercel Blob]
+  S --> U
+
+  U --> W[Prisma Client]
+  W --> X[Postgres]
+```
+
+### 请求主链路图
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Express
+  participant Schema
+  participant Runtime
+  participant Assembly
+  participant Adapter
+  participant Storage
+  participant DB
+
+  Client->>Express: POST /runtime-plan
+  Express->>Schema: loadTeamSchema(body)
+  Schema-->>Express: TeamDefinition
+  Express->>Runtime: createRuntimePlan(team)
+  Runtime-->>Express: RuntimePlan
+  Express->>Assembly: assembleAll()
+  Assembly-->>Express: AgentAssemblyBundle
+  Express-->>Client: runtimePlan + agentAssembly
+
+  Client->>Express: POST/PUT /agent-markdown
+  Express->>Adapter: write(path, content, mode)
+  Adapter->>Storage: save markdown content
+  Adapter->>DB: upsert metadata
+  Adapter-->>Express: ValidationResult
+  Express-->>Client: JSON response
+```
+
+### 当前代码分层说明
+
+- `src/index.ts` 是薄入口层，只负责挂载 Express 路由和把结果序列化为 HTTP 响应。
+- `src/schema/` 把外部 JSON 从 `snake_case` 解析成内部 `camelCase` 领域对象，并补做跨对象引用校验。`loadTeamSchema` 返回统一的 `ValidationResult<T>`，让 API 层可以直接复用。
+- `src/domain/` 是领域语义底座，主要包含 Team、Department、Agent、DiscussionPolicy、RuntimePlan 等类型定义和常量，不承载 I/O。
+- `src/runtime/createRuntimePlan.ts` 负责把 `TeamDefinition` 冻结成运行时快照，并建立 `departmentsById`、`agentsById` 等索引，降低后续装配与执行时的查找成本。
+- `src/agent/assembly/` 在 `RuntimePlan` 之上进一步生成 `AgentAssembly`。这一层负责把 Agent 原始定义与 capability registry、memory profile 解析结果组合起来，形成更接近执行态的数据结构。
+- `src/agent/markdown/` 负责 Markdown 文件领域的路径规范化、front matter 校验、摘要提取、文件读写和错误结果封装。
+- `src/adapter/` 采用适配器模式封装存储差异。对上层暴露统一的 `AgentMarkdownAdapter` 接口，对下层可切换为本地文件系统或 Vercel Blob；元数据则统一进入 Prisma Repository。
+
+### 设计取舍
+
+- Team Schema 是运行时装配的唯一输入源，运行时不直接消费原始 JSON。
+- `RuntimePlan` 与 `AgentAssembly` 形成两级中间对象：前者面向团队级运行时快照，后者面向单 Agent 的执行装配结果。
+- Agent Markdown 采用“内容存储”和“元数据存储”分离设计：内容可落本地或 Blob，元数据统一落 Postgres，便于检索、同步和后续扩展。
+- 当前代码仍偏向函数式组合，小型纯函数集中在 `schema/`、`runtime/`、`agent/assembly/` 与 `agent/markdown/` 内部，基础设施依赖则通过 `adapter/` 边界隔离。
+
 ## 核心类型建模
 
 ### ID 与只读对象

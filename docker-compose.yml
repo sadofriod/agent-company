@@ -1,0 +1,51 @@
+services:
+  service:
+    image: node:22-alpine
+    container_name: agents-team-service
+    working_dir: /workspace
+    restart: unless-stopped
+    command: >-
+      sh -c "corepack enable
+      && ([ -d node_modules/.pnpm ] || pnpm install)
+      && pnpm --filter @agents-team/service db:bootstrap
+      && pnpm --parallel --filter @agents-team/service --filter @agents-team/team-schema-editor run dev"
+    environment:
+      DATABASE_URL: postgresql://agents_team:agents_team@postgres:5432/agents_team
+      PORT: 3000
+      VITE_EDITOR_EXPOSE_HOST: "true"
+    ports:
+      - "3000:3000"
+      - "5173:5173"
+    volumes:
+      - ./:/workspace
+      - agents_team_node_modules:/workspace/node_modules
+      - agents_team_service_node_modules:/workspace/packages/service/node_modules
+      - agents_team_editor_node_modules:/workspace/packages/team-schema-editor/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: agents-team-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agents_team
+      POSTGRES_USER: agents_team
+      POSTGRES_PASSWORD: agents_team
+    ports:
+      - "5432:5432"
+    volumes:
+      - agents_team_pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  agents_team_pgdata:
+  agents_team_node_modules:
+  agents_team_service_node_modules:
+  agents_team_editor_node_modules:

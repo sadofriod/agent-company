@@ -1,6 +1,6 @@
-import type { Edge, Node } from '@xyflow/react';
+import type { Edge } from '@xyflow/react';
 
-import type { GraphNodeData, TeamSchemaDocument } from './types';
+import type { GraphNodeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
 
 const TEAM_NODE_ID = 'team';
 const DISCUSSION_NODE_ID = 'discussion';
@@ -13,11 +13,11 @@ const createNode = (
   x: number,
   y: number,
   data: GraphNodeData,
-): Node<GraphNodeData> => ({
+): WorkflowGraphNode => ({
   id,
   position: { x, y },
   data,
-  type: 'default',
+  type: 'workflow',
 });
 
 const createEdge = (id: string, source: string, target: string, label?: string, animated = false): Edge => ({
@@ -28,15 +28,16 @@ const createEdge = (id: string, source: string, target: string, label?: string, 
   animated,
 });
 
-export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<GraphNodeData>[]; readonly edges: Edge[] } => {
-  const nodes: Node<GraphNodeData>[] = [];
+export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: WorkflowGraphNode[]; readonly edges: Edge[] } => {
+  const nodes: WorkflowGraphNode[] = [];
   const edges: Edge[] = [];
 
   nodes.push(
     createNode(TEAM_NODE_ID, 40, 120, {
       kind: 'team',
-      title: schema.team_name ?? schema.team_id,
-      subtitle: schema.team_id,
+      nodeName: schema.team_name ?? schema.team_id,
+      roleName: 'Team',
+      detail: schema.team_id,
       accent: 'var(--team-accent)',
     }),
   );
@@ -48,8 +49,9 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<G
     nodes.push(
       createNode(departmentNodeId, 340, departmentY, {
         kind: 'department',
-        title: department.name,
-        subtitle: department.department_id,
+        nodeName: department.name,
+        roleName: 'Department',
+        detail: department.department_id,
         accent: 'var(--department-accent)',
       }),
     );
@@ -68,8 +70,10 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<G
       nodes.push(
         createNode(agentNodeId, 680, departmentY + agentIndex * 140, {
           kind: 'agent',
-          title: agent.metadata?.name ?? agent.role,
-          subtitle: agent.agent_id,
+          nodeName: agent.metadata?.name ?? agent.agent_id,
+          roleName: agent.role,
+          departmentName: department.name,
+          detail: agent.agent_id,
           accent: 'var(--agent-accent)',
         }),
       );
@@ -81,8 +85,9 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<G
   nodes.push(
     createNode(DISCUSSION_NODE_ID, 340, 520, {
       kind: 'discussion',
-      title: 'Discussion Policy',
-      subtitle: `${schema.discussion_policy.mode} / ${schema.discussion_policy.max_rounds} rounds`,
+      nodeName: 'Discussion Policy',
+      roleName: 'Governance',
+      detail: `${schema.discussion_policy.mode} / ${schema.discussion_policy.max_rounds} rounds`,
       accent: 'var(--discussion-accent)',
     }),
   );
@@ -91,8 +96,9 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<G
   nodes.push(
     createNode(PIPELINE_NODE_ID, 340, 660, {
       kind: 'pipeline',
-      title: 'Pipeline Policy',
-      subtitle: schema.pipeline_policy.review_before_handoff ? 'review before handoff' : 'direct handoff',
+      nodeName: 'Pipeline Policy',
+      roleName: 'Workflow',
+      detail: schema.pipeline_policy.review_before_handoff ? 'review before handoff' : 'direct handoff',
       accent: 'var(--pipeline-accent)',
     }),
   );
@@ -101,8 +107,9 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<G
   nodes.push(
     createNode(REVIEW_NODE_ID, 340, 800, {
       kind: 'review',
-      title: 'Review Policy',
-      subtitle: schema.review_policy.allowed_results.join(' / '),
+      nodeName: 'Review Policy',
+      roleName: 'Quality Gate',
+      detail: schema.review_policy.allowed_results.join(' / '),
       accent: 'var(--review-accent)',
     }),
   );
@@ -112,8 +119,9 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Node<G
     nodes.push(
       createNode(MEMORY_NODE_ID, 680, 800, {
         kind: 'memory',
-        title: 'Memory Policy',
-        subtitle: schema.memory_policy.retrieval_mode,
+        nodeName: 'Memory Policy',
+        roleName: 'Retrieval',
+        detail: schema.memory_policy.retrieval_mode,
         accent: 'var(--memory-accent)',
       }),
     );

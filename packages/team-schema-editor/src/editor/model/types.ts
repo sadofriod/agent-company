@@ -1,3 +1,5 @@
+import type { Node } from '@xyflow/react';
+
 export type AgentMetadataDocument = {
   readonly name: string;
   readonly description: string;
@@ -85,14 +87,75 @@ export type TeamSchemaDocument = {
   readonly review_policy: ReviewPolicyDocument;
 };
 
-export type GraphNodeKind = 'team' | 'department' | 'agent' | 'discussion' | 'pipeline' | 'review' | 'memory';
+export type TeamSchemaRecord = {
+  readonly key: string;
+  readonly schema: TeamSchemaDocument;
+  readonly updatedAt: string;
+};
+
+export type RuntimeSessionStatus = 'running' | 'paused' | 'terminated';
+
+export type RuntimeTaskDraft = {
+  readonly title: string;
+  readonly goal: string;
+  readonly constraints: string;
+};
+
+export type RuntimeSessionSnapshot = {
+  readonly sessionId: string;
+  readonly status: RuntimeSessionStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly runtimePlan: Record<string, unknown>;
+  readonly state: {
+    readonly context?: {
+      readonly runtimeId: string;
+      readonly task?: {
+        readonly title: string;
+        readonly goal: string;
+        readonly constraints: readonly string[];
+      };
+      readonly traceId?: string;
+      readonly teamId?: string;
+      readonly currentMode?: string;
+      readonly auditTrail?: readonly unknown[];
+      readonly memoryScopes?: readonly unknown[];
+    };
+    readonly workModeDecision?: {
+      readonly mode?: string;
+      readonly reason?: string;
+      readonly requiredObjects?: readonly string[];
+    };
+    readonly pendingTickets?: readonly unknown[];
+    readonly completedTickets?: readonly unknown[];
+    readonly completedStepResults?: readonly unknown[];
+    readonly reviewResults?: readonly unknown[];
+    readonly generatedHandoffs?: readonly unknown[];
+    readonly nextAction?: string;
+  };
+};
+
+export type EditorMode = 'edit' | 'run';
+
+export type RuntimeStatus = 'idle' | 'running' | 'paused' | 'terminated';
+
+export type WorkflowEdgeMode = 'discuss' | 'pipeline';
+
+export type WorkflowNodeType = 'agent' | 'part';
+
+export type GraphNodeKind = 'team' | 'department' | 'agent' | 'part' | 'discussion' | 'pipeline' | 'review' | 'memory';
 
 export type GraphNodeData = {
   readonly kind: GraphNodeKind;
-  readonly title: string;
-  readonly subtitle: string;
+  readonly nodeName: string;
+  readonly roleName?: string;
+  readonly departmentName?: string;
+  readonly detail?: string;
   readonly accent: string;
+  readonly workflowNodeType?: WorkflowNodeType;
 };
+
+export type WorkflowGraphNode = Node<GraphNodeData, 'workflow'>;
 
 export type Selection =
   | { readonly kind: 'team' }

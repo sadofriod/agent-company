@@ -2,6 +2,17 @@
   box-sizing: border-box;
 }
 
+:root {
+  --team-accent: #d96c3f;
+  --department-accent: #6f7d45;
+  --agent-accent: #2f7b6d;
+  --part-accent: #7a5aa6;
+  --discussion-accent: #b24f7c;
+  --pipeline-accent: #4d73a8;
+  --review-accent: #7d6a31;
+  --memory-accent: #487b87;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -27,4 +38,16 @@ textarea {
 .react-flow__node-default.selected,
 .react-flow__node-default:focus {
   box-shadow: 0 0 0 2px rgba(217, 108, 63, 0.28), 0 18px 40px rgba(38, 49, 44, 0.08);
+}
+
+.react-flow__node-workflow {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.react-flow__node-workflow.selected,
+.react-flow__node-workflow:focus {
+  box-shadow: none;
 }

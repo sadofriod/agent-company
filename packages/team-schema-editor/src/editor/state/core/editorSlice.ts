@@ -7,9 +7,9 @@ import {
   updateAgentList as updateAgentListReducer,
 } from '../reducers/agentReducers';
 import {
-  applyJson as applyJsonReducer,
-  resetSample as resetSampleReducer,
-  setJsonValue as setJsonValueReducer,
+  schemaLoadFailed as schemaLoadFailedReducer,
+  schemaLoadSucceeded as schemaLoadSucceededReducer,
+  startSchemaLoad as startSchemaLoadReducer,
 } from '../reducers/documentReducers';
 import {
   updateDiscussionField as updateDiscussionFieldReducer,
@@ -32,9 +32,9 @@ const editorSlice = createSlice({
   initialState,
   reducers: {
     selectNode: selectNodeReducer,
-    setJsonValue: setJsonValueReducer,
-    applyJson: applyJsonReducer,
-    resetSample: resetSampleReducer,
+    startSchemaLoad: startSchemaLoadReducer,
+    schemaLoadSucceeded: schemaLoadSucceededReducer,
+    schemaLoadFailed: schemaLoadFailedReducer,
     updateTeamField: updateTeamFieldReducer,
     updateDepartmentField: updateDepartmentFieldReducer,
     updateDepartmentList: updateDepartmentListReducer,
@@ -52,12 +52,12 @@ const editorSlice = createSlice({
 export const {
   addAgent,
   addDepartment,
-  applyJson,
   removeAgent,
   removeDepartment,
-  resetSample,
+  schemaLoadFailed,
+  schemaLoadSucceeded,
   selectNode,
-  setJsonValue,
+  startSchemaLoad,
   updateAgentField,
   updateAgentList,
   updateDepartmentField,

@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
+import { LLM_API_FORMAT } from '../domain/organization';
 import type {
   AgentDefinition,
+  AgentLlmBinding,
   AgentMetadata,
   Department,
   DiscussionPolicy,
@@ -26,6 +28,43 @@ import {
   stringArraySchema,
 } from './teamSchemaShared';
 
+const llmApiFormatSchema = z.enum([
+  LLM_API_FORMAT.OpenAIChat,
+  LLM_API_FORMAT.OpenAIResponses,
+  LLM_API_FORMAT.AnthropicMessages,
+  LLM_API_FORMAT.GoogleGenerateContent,
+  LLM_API_FORMAT.Custom,
+]);
+
+const llmHeadersSchema = z.record(nonEmptyStringSchema).default({});
+
+const agentLlmBindingSchema = z
+  .object({
+    provider: nonEmptyStringSchema,
+    model: nonEmptyStringSchema.optional(),
+    api_format: llmApiFormatSchema.optional(),
+    base_url: nonEmptyStringSchema.optional(),
+    api_key_env: nonEmptyStringSchema.optional(),
+    headers: llmHeadersSchema,
+    temperature: z.number().min(0).max(2).optional(),
+    max_tokens: integerSchema.min(1).optional(),
+    top_p: z.number().gt(0).max(1).optional(),
+  })
+  .strict()
+  .transform(
+    (value): AgentLlmBinding => ({
+      provider: value.provider,
+      model: value.model,
+      apiFormat: value.api_format,
+      baseUrl: value.base_url,
+      apiKeyEnv: value.api_key_env,
+      headers: value.headers,
+      temperature: value.temperature,
+      maxTokens: value.max_tokens,
+      topP: value.top_p,
+    }),
+  );
+
 const agentMetadataSchema = z
   .object({
     name: nonEmptyStringSchema,
@@ -36,6 +75,7 @@ const agentMetadataSchema = z
     tools: stringArraySchema.default([]),
     allowed_commands: stringArraySchema.default([]),
     required_commands: stringArraySchema.default([]),
+    llm: agentLlmBindingSchema.optional(),
   })
   .strict()
   .transform(
@@ -48,6 +88,7 @@ const agentMetadataSchema = z
       tools: value.tools,
       allowedCommands: value.allowed_commands,
       requiredCommands: value.required_commands,
+      llm: value.llm,
     }),
   );
 

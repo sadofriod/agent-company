@@ -10,42 +10,55 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./agent/*": {
-      "types": "./dist/agent/*.d.ts",
-      "import": "./dist/agent/*.js"
-    },
-    "./domain/*": {
-      "types": "./dist/domain/*.d.ts",
-      "import": "./dist/domain/*.js"
-    },
-    "./runtime/*": {
-      "types": "./dist/runtime/*.d.ts",
-      "import": "./dist/runtime/*.js"
+      "default": "./dist/index.js"
     },
     "./schema/*": {
       "types": "./dist/schema/*.d.ts",
-      "import": "./dist/schema/*.js"
+      "default": "./dist/schema/*.js"
     },
-    "./package.json": "./package.json"
+    "./domain/*": {
+      "types": "./dist/domain/*.d.ts",
+      "default": "./dist/domain/*.js"
+    },
+    "./agent/markdown": {
+      "types": "./dist/agent/markdown/index.d.ts",
+      "default": "./dist/agent/markdown/index.js"
+    },
+    "./agent/markdown/*": {
+      "types": "./dist/agent/markdown/*.d.ts",
+      "default": "./dist/agent/markdown/*.js"
+    }
   },
   "scripts": {
-    "build": "pnpm clean && tsc --project tsconfig.json --emitDeclarationOnly && swc src --out-dir dist --strip-leading-paths",
+    "build": "pnpm prisma:generate && pnpm clean && tsc --project tsconfig.json --emitDeclarationOnly && swc src --out-dir dist --strip-leading-paths",
     "clean": "rm -rf dist",
+    "db:bootstrap": "pnpm prisma:generate && pnpm prisma:migrate:deploy && pnpm seed:init",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "seed:init": "tsx scripts/seedInitialData.ts",
     "typecheck": "tsc --project tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "@vercel/blob": "^2.4.0",
+    "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "immer": "^10.2.0",
+    "pg": "^8.21.0",
+    "yaml": "^2.9.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@swc/cli": "^0.7.8",
     "@swc/core": "^1.13.5",
     "@types/express": "^5.0.3",
+    "@types/node": "^24.12.4",
+    "@types/pg": "^8.20.0",
+    "prisma": "^7.8.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }

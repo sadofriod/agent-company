@@ -9,7 +9,7 @@ import type {
   TicketId,
 } from './base';
 import type { DiscussionResult } from './discussion';
-import type { Pipeline, PipelineInterruption, StepResult, Ticket } from './delivery';
+import type { Handoff, Pipeline, PipelineInterruption, StepResult, Ticket } from './delivery';
 import type { MemoryContextPackage } from './memory';
 import type {
   AgentDefinition,
@@ -111,20 +111,57 @@ export type RuntimeState = {
   readonly workModeDecision: WorkModeDecision;
   /** 最近一次讨论结果。 */
   readonly discussionResult?: DiscussionResult;
+  /** 已通过准入审查但尚未执行的 Ticket 队列。 */
+  readonly pendingTickets: readonly Ticket[];
   /** 当前激活的 Ticket。 */
   readonly activeTicket?: Ticket;
+  /** 已完成的 Ticket 集合。 */
+  readonly completedTickets: readonly Ticket[];
   /** 当前激活的 Pipeline。 */
   readonly activePipeline?: Pipeline;
   /** 最近一次 Step 结果。 */
   readonly latestStepResult?: StepResult;
+  /** 当前 session 已完成的 Step 结果集合。 */
+  readonly completedStepResults: readonly StepResult[];
   /** 最近一次审查结果。 */
   readonly latestReviewResult?: ReviewResult;
+  /** 当前 session 累积的审查结果。 */
+  readonly reviewResults: readonly ReviewResult[];
   /** 最近一次记忆检索包。 */
   readonly latestMemoryPackage?: MemoryContextPackage;
+  /** 当前 session 已生成的结构化 Handoff。 */
+  readonly generatedHandoffs: readonly Handoff[];
   /** 最近一次中断信息。 */
   readonly interruption?: PipelineInterruption;
   /** 运行时建议的下一步动作。 */
   readonly nextAction: string;
+};
+
+/** 定义 runtime session 的生命周期状态。 */
+export const RUNTIME_SESSION_STATUS = {
+  Running: 'running',
+  Paused: 'paused',
+  Terminated: 'terminated',
+} as const;
+
+/** runtime session 生命周期状态类型。 */
+export type RuntimeSessionStatus =
+  typeof RUNTIME_SESSION_STATUS[keyof typeof RUNTIME_SESSION_STATUS];
+
+/** 表示可被 API 控制的 runtime session 快照。 */
+export type RuntimeSession = {
+  /** session 唯一标识。 */
+  readonly sessionId: RuntimeId;
+  /** 当前生命周期状态。 */
+  readonly status: RuntimeSessionStatus;
+  /** 创建时间。 */
+  readonly createdAt: string;
+  /** 最近一次状态更新时间。 */
+  readonly updatedAt: string;
+  /** 本次 session 绑定的运行计划。 */
+  readonly runtimePlan: RuntimePlan;
+  /** 当前运行状态快照。 */
+  readonly state: RuntimeState;
 };
 
 /**
