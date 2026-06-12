@@ -8,37 +8,50 @@ import { MemoryPolicyView } from './selection/MemoryPolicyView';
 import { PipelinePolicyView } from './selection/PipelinePolicyView';
 import { ReviewPolicyView } from './selection/ReviewPolicyView';
 import { TeamSelectionView } from './selection/TeamSelectionView';
-import type { Selection, TeamSchemaDocument } from '../model/types';
+import { WorkflowAgentSelectionView } from './selection/WorkflowAgentSelectionView';
+import type { Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
 
 type SelectionPanelProps = {
   schema: TeamSchemaDocument;
+  nodes: WorkflowGraphNode[];
   selection: Selection;
   addDepartment: () => void;
   removeDepartment: (departmentId: string) => void;
   addAgent: (departmentId: string) => void;
   removeAgent: (agentId: string) => void;
+  updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  removeWorkflowDraftNode: (nodeId: string) => void;
   updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
   updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
   updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
   updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
   updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
   updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
 };
 
 export const SelectionPanel = ({
   schema,
+  nodes,
   selection,
   addDepartment,
   removeDepartment,
   addAgent,
   removeAgent,
+  updateWorkflowAgentNode,
+  updateWorkflowNodeMetadata,
+  removeWorkflowDraftNode,
   updateTeamField,
   updateDepartmentField,
   updateDepartmentList,
   updateAgentField,
   updateAgentList,
+  updateAgentMetadataField,
+  updateAgentMetadataList,
   updateDiscussionField,
   updateDiscussionNumber,
 }: SelectionPanelProps): ReactElement => {
@@ -49,6 +62,9 @@ export const SelectionPanel = ({
     : undefined;
   const agent = selection.kind === 'agent'
     ? schema.agents.find((candidate) => candidate.agent_id === selection.agentId)
+    : undefined;
+  const workflowNode = selection.kind === 'workflowAgent'
+    ? nodes.find((candidate) => candidate.id === selection.nodeId)
     : undefined;
 
   if (selection.kind === 'team') {
@@ -128,6 +144,45 @@ export const SelectionPanel = ({
             removeAgent={removeAgent}
             updateAgentField={updateAgentField}
             updateAgentList={updateAgentList}
+            updateAgentMetadataField={updateAgentMetadataField}
+            updateAgentMetadataList={updateAgentMetadataList}
+          />
+        </Stack>
+      </Paper>
+    );
+  }
+
+  if (selection.kind === 'workflowAgent') {
+    if (workflowNode === undefined) {
+      return (
+        <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+          <Stack spacing={2}>
+            <Typography variant="h5">Workflow Agent</Typography>
+            <Typography color="text.secondary">Workflow node not found.</Typography>
+          </Stack>
+        </Paper>
+      );
+    }
+
+    return (
+      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+        <Stack spacing={2}>
+          <Stack spacing={0.75}>
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+              Inspector
+            </Typography>
+            <Typography variant="h5">Workflow Agent</Typography>
+          </Stack>
+          <WorkflowAgentSelectionView
+            schema={schema}
+            workflowNode={workflowNode}
+            updateWorkflowAgentNode={updateWorkflowAgentNode}
+            updateWorkflowNodeMetadata={updateWorkflowNodeMetadata}
+            removeWorkflowDraftNode={removeWorkflowDraftNode}
+            updateAgentField={updateAgentField}
+            updateAgentList={updateAgentList}
+            updateAgentMetadataField={updateAgentMetadataField}
+            updateAgentMetadataList={updateAgentMetadataList}
           />
         </Stack>
       </Paper>

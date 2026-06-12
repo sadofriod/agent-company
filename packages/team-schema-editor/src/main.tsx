@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 import { Provider } from 'react-redux';
+import { BrowserRouter } from 'react-router-dom';
 
 import { App } from './app/App';
 import { NotificationProvider } from './app/notification/NotificationContext';
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <CssBaseline />
       <Provider store={editorStore}>
         <NotificationProvider>
-          <App />
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
         </NotificationProvider>
       </Provider>
     </ThemeProvider>

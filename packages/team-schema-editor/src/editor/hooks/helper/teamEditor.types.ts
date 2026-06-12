@@ -34,9 +34,12 @@ export type WorkflowGraphEditorModel = {
   edges: Edge[];
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onNodeSelect: (nodeId: string | null) => void;
-  addWorkflowAgentNode: (agentId: string) => void;
+  addWorkflowAgentNode: () => void;
   addWorkflowPartNode: () => void;
   addWorkflowPipelineNode: () => void;
+  updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  removeWorkflowDraftNode: (nodeId: string) => void;
   addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
   edgeConnectionError: string | null;
   clearEdgeConnectionError: () => void;
@@ -58,9 +61,12 @@ export type TeamEditorModel = {
   selection: Selection;
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onNodeSelect: (nodeId: string | null) => void;
-  addWorkflowAgentNode: (agentId: string) => void;
+  addWorkflowAgentNode: () => void;
   addWorkflowPartNode: () => void;
   addWorkflowPipelineNode: () => void;
+  updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  removeWorkflowDraftNode: (nodeId: string) => void;
   addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
   edgeConnectionError: string | null;
   clearEdgeConnectionError: () => void;
@@ -69,6 +75,8 @@ export type TeamEditorModel = {
   updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
   updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
   updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
   updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
   addDepartment: () => void;

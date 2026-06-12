@@ -8,15 +8,14 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  MenuItem,
   Paper,
   Snackbar,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { Background, Controls, MiniMap, ReactFlow } from '@xyflow/react';
 import type { Connection, Edge, EdgeTypes, NodeTypes, OnNodesChange } from '@xyflow/react';
+import { Bot, GitBranch, Layers } from 'lucide-react';
 
 import { EditorMode, WorkflowEdgeMode, WorkflowEdgeType } from '../model/types';
 import type { TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
@@ -42,12 +41,10 @@ type GraphPanelProps = {
   mode: EditorMode;
   nodes: WorkflowGraphNode[];
   edges: Edge[];
-  selectedWorkflowAgentId: string;
   edgeConnectionError: string | null;
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onNodeSelect: (nodeId: string | null) => void;
-  onWorkflowAgentChange: (agentId: string) => void;
-  onAddWorkflowAgentNode: (agentId: string) => void;
+  onAddWorkflowAgentNode: () => void;
   onAddWorkflowPartNode: () => void;
   onAddWorkflowPipelineNode: () => void;
   onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
@@ -59,11 +56,9 @@ export const GraphPanel = ({
   mode,
   nodes,
   edges,
-  selectedWorkflowAgentId,
   edgeConnectionError,
   onNodesChange,
   onNodeSelect,
-  onWorkflowAgentChange,
   onAddWorkflowAgentNode,
   onAddWorkflowPartNode,
   onAddWorkflowPipelineNode,
@@ -72,10 +67,6 @@ export const GraphPanel = ({
 }: GraphPanelProps): ReactElement => {
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
   const isEditing = mode === EditorMode.Edit;
-  const firstAgentId = schema.agents[0]?.agent_id ?? '';
-  const selectedWorkflowAgentExists = schema.agents.some((agent) => agent.agent_id === selectedWorkflowAgentId);
-  const activeWorkflowAgentId = selectedWorkflowAgentExists ? selectedWorkflowAgentId : firstAgentId;
-  const hasSelectedAgent = activeWorkflowAgentId.length > 0 && schema.agents.some((agent) => agent.agent_id === activeWorkflowAgentId);
   const workflowDraftNodeCount = nodes.filter((node) => node.data.workflowNodeType !== undefined).length;
   const graphStats = [
     <Chip key="departments" size="small" label={`${schema.departments.length} departments`} sx={{ borderRadius: 0.75, fontWeight: 750 }} />,
@@ -83,11 +74,6 @@ export const GraphPanel = ({
     <Chip key="links" size="small" label={`${edges.length} links`} sx={{ borderRadius: 0.75, fontWeight: 750 }} />,
     <Chip key="draft" size="small" color="secondary" variant="outlined" label={`${workflowDraftNodeCount} draft nodes`} sx={{ borderRadius: 0.75, fontWeight: 750 }} />,
   ];
-  const agentOptions = schema.agents.map((agent) => (
-    <MenuItem key={agent.agent_id} value={agent.agent_id}>
-      {agent.metadata?.name ?? agent.agent_id}
-    </MenuItem>
-  ));
   const handleConnect = (connection: Connection): void => {
     if (!isEditing) {
       return;
@@ -158,24 +144,14 @@ export const GraphPanel = ({
               </Typography>
               <Typography sx={{ color: '#344054', fontSize: '0.82rem', fontWeight: 750 }}>Workflow blocks</Typography>
             </Stack>
-            <TextField
-              select
-              size="small"
-              label="Agent"
-              value={activeWorkflowAgentId}
-              onChange={(event) => onWorkflowAgentChange(event.target.value)}
-              fullWidth
-            >
-              {agentOptions}
-            </TextField>
             <Stack spacing={0.75}>
-              <Button variant="outlined" color="secondary" onClick={() => onAddWorkflowAgentNode(activeWorkflowAgentId)} disabled={!hasSelectedAgent} fullWidth>
+              <Button variant="outlined" color="secondary" startIcon={<Bot size={16} />} onClick={onAddWorkflowAgentNode} fullWidth>
                 Agent node
               </Button>
-              <Button variant="outlined" color="secondary" onClick={onAddWorkflowPartNode} fullWidth>
+              <Button variant="outlined" color="secondary" startIcon={<Layers size={16} />} onClick={onAddWorkflowPartNode} fullWidth>
                 Part node
               </Button>
-              <Button variant="contained" color="warning" onClick={onAddWorkflowPipelineNode} fullWidth>
+              <Button variant="contained" color="warning" startIcon={<GitBranch size={16} />} onClick={onAddWorkflowPipelineNode} fullWidth>
                 Pipeline node
               </Button>
             </Stack>

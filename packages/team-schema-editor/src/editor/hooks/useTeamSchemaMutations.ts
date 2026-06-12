@@ -5,6 +5,8 @@ import {
   removeDepartment as removeDepartmentAction,
   updateAgentField as updateAgentFieldAction,
   updateAgentList as updateAgentListAction,
+  updateAgentMetadataField as updateAgentMetadataFieldAction,
+  updateAgentMetadataList as updateAgentMetadataListAction,
   updateDepartmentField as updateDepartmentFieldAction,
   updateDepartmentList as updateDepartmentListAction,
   updateDiscussionField as updateDiscussionFieldAction,
@@ -25,6 +27,8 @@ type AgentActions = {
   removeAgent: (agentId: string) => void;
   updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
   updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
 };
 
 type TeamAndDiscussionActions = {
@@ -74,7 +78,23 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
     dispatch(updateAgentListAction({ agentId, field, value }));
   };
 
-  return { addAgent, removeAgent, updateAgentField, updateAgentList };
+  const updateAgentMetadataField = (
+    agentId: string,
+    field: 'name' | 'description' | 'profile' | 'tool_policy',
+    value: string,
+  ): void => {
+    dispatch(updateAgentMetadataFieldAction({ agentId, field, value }));
+  };
+
+  const updateAgentMetadataList = (
+    agentId: string,
+    field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands',
+    value: string,
+  ): void => {
+    dispatch(updateAgentMetadataListAction({ agentId, field, value }));
+  };
+
+  return { addAgent, removeAgent, updateAgentField, updateAgentList, updateAgentMetadataField, updateAgentMetadataList };
 };
 
 const useTeamAndDiscussionActions = (dispatch: AppDispatch): TeamAndDiscussionActions => {

@@ -2,13 +2,22 @@ import type { Edge } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 
 import { GraphNodeKind, WorkflowEdgeType } from './types';
-import type { GraphNodeData, SchemaEdgeData, SchemaEdgeTone, TeamSchemaDocument, WorkflowGraphNode } from './types';
+import type { AgentDocument, GraphNodeData, SchemaEdgeData, SchemaEdgeTone, TeamSchemaDocument, WorkflowGraphNode } from './types';
 
 const DISCUSSION_NODE_ID = 'discussion';
 const PIPELINE_NODE_ID = 'pipeline';
 const REVIEW_NODE_ID = 'review';
 const DISCUSSION_MEMORY_NODE_ID = 'memory:discussion';
 const SESSION_MEMORY_NODE_ID = 'memory:session';
+
+const DEPARTMENT_X = 40;
+const AGENT_X = 380;
+const GOVERNANCE_X = 760;
+const MEMORY_X = 1080;
+const START_Y = 40;
+const AGENT_GAP_Y = 140;
+const MIN_DEPARTMENT_GROUP_HEIGHT = 190;
+const GOVERNANCE_GAP_Y = 160;
 
 const createNode = (
   id: string,
@@ -54,13 +63,18 @@ const createEdge = (
 export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
   const nodes: WorkflowGraphNode[] = [];
   const edges: Edge[] = [];
+  let organizationCursorY = START_Y;
 
-  schema.departments.forEach((department, departmentIndex) => {
+  schema.departments.forEach((department) => {
     const departmentNodeId = `department:${department.department_id}`;
-    const departmentY = 40 + departmentIndex * 180;
+    const resolvedAgents = department.agents
+      .map((agentId) => schema.agents.find((candidate) => candidate.agent_id === agentId))
+      .filter((agent): agent is AgentDocument => agent !== undefined);
+    const groupHeight = Math.max(MIN_DEPARTMENT_GROUP_HEIGHT, resolvedAgents.length * AGENT_GAP_Y);
+    const departmentY = organizationCursorY + Math.max(0, (resolvedAgents.length - 1) * (AGENT_GAP_Y / 2));
 
     nodes.push(
-      createNode(departmentNodeId, 40, departmentY, {
+      createNode(departmentNodeId, DEPARTMENT_X, departmentY, {
         kind: GraphNodeKind.Department,
         nodeName: department.name,
         roleName: 'Department',
@@ -70,17 +84,11 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
       }),
     );
 
-    department.agents.forEach((agentId, agentIndex) => {
-      const agent = schema.agents.find((candidate) => candidate.agent_id === agentId);
-
-      if (agent === undefined) {
-        return;
-      }
-
+    resolvedAgents.forEach((agent, agentIndex) => {
       const agentNodeId = `agent:${agent.agent_id}`;
 
       nodes.push(
-        createNode(agentNodeId, 380, departmentY + agentIndex * 140, {
+        createNode(agentNodeId, AGENT_X, organizationCursorY + agentIndex * AGENT_GAP_Y, {
           kind: GraphNodeKind.Agent,
           nodeName: agent.metadata?.name ?? agent.agent_id,
           roleName: agent.role,
@@ -93,10 +101,14 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
 
       edges.push(createEdge(`department-agent:${department.department_id}:${agent.agent_id}`, departmentNodeId, agentNodeId, agent.role));
     });
+
+    organizationCursorY += groupHeight;
   });
 
+  const governanceY = Math.max(START_Y, Math.round((organizationCursorY - START_Y - GOVERNANCE_GAP_Y * 2) / 2));
+
   nodes.push(
-    createNode(DISCUSSION_NODE_ID, 40, 520, {
+    createNode(DISCUSSION_NODE_ID, GOVERNANCE_X, governanceY, {
       kind: GraphNodeKind.Discussion,
       nodeName: 'Discussion Policy',
       roleName: 'Governance',
@@ -107,7 +119,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
   );
 
   nodes.push(
-    createNode(PIPELINE_NODE_ID, 40, 660, {
+    createNode(PIPELINE_NODE_ID, GOVERNANCE_X, governanceY + GOVERNANCE_GAP_Y, {
       kind: GraphNodeKind.Pipeline,
       nodeName: 'Pipeline Policy',
       roleName: 'Workflow',
@@ -117,7 +129,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
   );
 
   nodes.push(
-    createNode(REVIEW_NODE_ID, 40, 800, {
+    createNode(REVIEW_NODE_ID, GOVERNANCE_X, governanceY + GOVERNANCE_GAP_Y * 2, {
       kind: GraphNodeKind.Review,
       nodeName: 'Review Policy',
       roleName: 'Quality Gate',
@@ -128,7 +140,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
 
   if (schema.memory_policy !== undefined) {
     nodes.push(
-      createNode(DISCUSSION_MEMORY_NODE_ID, 380, 800, {
+      createNode(DISCUSSION_MEMORY_NODE_ID, MEMORY_X, governanceY, {
         kind: GraphNodeKind.Memory,
         nodeName: 'Discussion Memory',
         roleName: 'Retriever',
@@ -140,7 +152,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
     );
 
     nodes.push(
-      createNode(SESSION_MEMORY_NODE_ID, 680, 800, {
+      createNode(SESSION_MEMORY_NODE_ID, MEMORY_X, governanceY + GOVERNANCE_GAP_Y, {
         kind: GraphNodeKind.Memory,
         nodeName: 'Session Memory',
         roleName: 'Retriever',

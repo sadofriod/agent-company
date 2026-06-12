@@ -1,6 +1,24 @@
 import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 
-import { createAgentId, ensureUniqueId, parseList, type AgentField, type AgentListField, type EditorState, updateAgent, withSchema } from '../core/editorShared';
+import type { AgentDocument, AgentMetadataDocument } from '../../model/types';
+import {
+  createAgentId,
+  ensureUniqueId,
+  parseList,
+  type AgentField,
+  type AgentListField,
+  type AgentMetadataField,
+  type AgentMetadataListField,
+  type EditorState,
+  updateAgent,
+  withSchema,
+} from '../core/editorShared';
+
+const createAgentMetadataBase = (agent: AgentDocument): AgentMetadataDocument => ({
+  name: agent.metadata?.name ?? agent.agent_id,
+  description: agent.metadata?.description ?? agent.description ?? 'Describe this agent.',
+  ...(agent.metadata ?? {}),
+});
 
 export const updateAgentField: CaseReducer<
   EditorState,
@@ -21,6 +39,39 @@ export const updateAgentList: CaseReducer<
   const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
     ...agent,
     [action.payload.field]: parseList(action.payload.value),
+  }));
+
+  Object.assign(state, withSchema(state, schema));
+};
+
+export const updateAgentMetadataField: CaseReducer<
+  EditorState,
+  PayloadAction<{ agentId: string; field: AgentMetadataField; value: string }>
+> = (state, action): void => {
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
+    const metadata = createAgentMetadataBase(agent);
+
+    if (action.payload.field === 'profile' || action.payload.field === 'tool_policy') {
+      const value = action.payload.value.trim().length === 0 ? undefined : action.payload.value;
+      return { ...agent, metadata: { ...metadata, [action.payload.field]: value } };
+    }
+
+    return { ...agent, metadata: { ...metadata, [action.payload.field]: action.payload.value } };
+  });
+
+  Object.assign(state, withSchema(state, schema));
+};
+
+export const updateAgentMetadataList: CaseReducer<
+  EditorState,
+  PayloadAction<{ agentId: string; field: AgentMetadataListField; value: string }>
+> = (state, action): void => {
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
+    ...agent,
+    metadata: {
+      ...createAgentMetadataBase(agent),
+      [action.payload.field]: parseList(action.payload.value),
+    },
   }));
 
   Object.assign(state, withSchema(state, schema));

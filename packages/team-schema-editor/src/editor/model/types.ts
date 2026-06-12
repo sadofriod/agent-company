@@ -24,6 +24,11 @@ export type AgentLlmDocument = {
   top_p?: number;
 };
 
+export type WorkflowNodeMetadata = {
+  name: string;
+  description: string;
+};
+
 export type DepartmentDocument = {
   department_id: string;
   name: string;
@@ -209,6 +214,8 @@ export type GraphNodeData = {
   detail?: string;
   accent: string;
   workflowNodeType?: WorkflowNodeType;
+  workflowAgentId?: string;
+  workflowMetadata?: WorkflowNodeMetadata;
   memoryScope?: 'discussion' | 'session';
   department?: DepartmentDocument;
   agent?: AgentDocument;
@@ -222,6 +229,7 @@ export type Selection =
   | { kind: 'team' }
   | { kind: 'department'; departmentId: string }
   | { kind: 'agent'; agentId: string }
+  | { kind: 'workflowAgent'; nodeId: string }
   | { kind: 'discussion' }
   | { kind: 'pipeline' }
   | { kind: 'review' }

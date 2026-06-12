@@ -43,6 +43,14 @@ export const buildSelectionFormValues = (schema: TeamSchemaDocument, selection: 
       skills: renderListValue(agent.skills),
       tools: renderListValue(agent.tools),
       mcp_servers: renderListValue(agent.mcp_servers),
+      metadata_name: agent.metadata?.name ?? agent.agent_id,
+      metadata_description: agent.metadata?.description ?? '',
+      metadata_profile: agent.metadata?.profile ?? '',
+      metadata_tool_policy: agent.metadata?.tool_policy ?? '',
+      metadata_partials: renderListValue(agent.metadata?.partials ?? []),
+      metadata_tools: renderListValue(agent.metadata?.tools ?? []),
+      metadata_allowed_commands: renderListValue(agent.metadata?.allowed_commands ?? []),
+      metadata_required_commands: renderListValue(agent.metadata?.required_commands ?? []),
     };
   }
 

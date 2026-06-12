@@ -5,6 +5,8 @@ import {
   removeAgent as removeAgentReducer,
   updateAgentField as updateAgentFieldReducer,
   updateAgentList as updateAgentListReducer,
+  updateAgentMetadataField as updateAgentMetadataFieldReducer,
+  updateAgentMetadataList as updateAgentMetadataListReducer,
 } from '../reducers/agentReducers';
 import {
   schemaLoadFailed as schemaLoadFailedReducer,
@@ -40,6 +42,8 @@ const editorSlice = createSlice({
     updateDepartmentList: updateDepartmentListReducer,
     updateAgentField: updateAgentFieldReducer,
     updateAgentList: updateAgentListReducer,
+    updateAgentMetadataField: updateAgentMetadataFieldReducer,
+    updateAgentMetadataList: updateAgentMetadataListReducer,
     updateDiscussionField: updateDiscussionFieldReducer,
     updateDiscussionNumber: updateDiscussionNumberReducer,
     addDepartment: addDepartmentReducer,
@@ -60,6 +64,8 @@ export const {
   startSchemaLoad,
   updateAgentField,
   updateAgentList,
+  updateAgentMetadataField,
+  updateAgentMetadataList,
   updateDepartmentField,
   updateDepartmentList,
   updateDiscussionField,

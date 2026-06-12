@@ -17,6 +17,8 @@ export type DepartmentField = 'name' | 'mission';
 export type DepartmentListField = 'decision_scope' | 'handoff_contracts';
 export type AgentField = 'role' | 'model' | 'description';
 export type AgentListField = 'responsibilities' | 'skills' | 'tools' | 'mcp_servers';
+export type AgentMetadataField = 'name' | 'description' | 'profile' | 'tool_policy';
+export type AgentMetadataListField = 'partials' | 'tools' | 'allowed_commands' | 'required_commands';
 export type DiscussionField = 'mode' | 'conflict_resolution' | 'supervisor_agent_id';
 
 type ValidationResult = { ok: true } | { ok: false; issues: readonly ValidationIssue[] };

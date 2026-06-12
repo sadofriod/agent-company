@@ -2,7 +2,7 @@ import type { Connection, Edge } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 
 import { GraphNodeKind, WorkflowEdgeMode, WorkflowEdgeType, WorkflowNodeType } from '../../model/types';
-import type { TeamSchemaDocument, WorkflowEdgeData, WorkflowGraphNode } from '../../model/types';
+import type { WorkflowEdgeData, WorkflowGraphNode } from '../../model/types';
 
 export const WORKFLOW_AGENT_NODE_PREFIX = 'workflow-agent:';
 export const WORKFLOW_PART_NODE_PREFIX = 'workflow-part:';
@@ -44,31 +44,26 @@ const createUniqueWorkflowEdgeId = (existingEdges: Edge[]): string => {
   return candidate;
 };
 
-export const createWorkflowAgentNode = (
-  schema: TeamSchemaDocument,
-  agentId: string,
-  existingNodes: WorkflowGraphNode[],
-): WorkflowGraphNode | null => {
-  const agent = schema.agents.find((candidate) => candidate.agent_id === agentId);
-
-  if (agent === undefined) {
-    return null;
-  }
-
-  const department = schema.departments.find((candidate) => candidate.department_id === agent.department_id);
+export const createWorkflowAgentNode = (existingNodes: WorkflowGraphNode[]): WorkflowGraphNode => {
   const workflowNodeCount = pickWorkflowDraftNodes(existingNodes).length;
+  const nodeId = createUniqueWorkflowNodeId(WORKFLOW_AGENT_NODE_PREFIX, existingNodes);
+  const agentNumber = nodeId.replace(WORKFLOW_AGENT_NODE_PREFIX, '');
+  const nodeName = `Agent Node ${agentNumber}`;
 
   return {
-    id: createUniqueWorkflowNodeId(`${WORKFLOW_AGENT_NODE_PREFIX}${agentId}:`, existingNodes),
+    id: nodeId,
     position: { x: 980, y: 80 + workflowNodeCount * 130 },
     data: {
       kind: GraphNodeKind.Agent,
-      nodeName: agent.metadata?.name ?? agent.agent_id,
-      roleName: agent.role,
-      departmentName: department?.name,
-      detail: `Workflow agent / ${agent.agent_id}`,
+      nodeName,
+      roleName: 'Unassigned Agent',
+      detail: 'Select an agent in Inspector',
       accent: 'var(--agent-accent)',
       workflowNodeType: WorkflowNodeType.Agent,
+      workflowMetadata: {
+        name: nodeName,
+        description: 'Workflow-local node metadata.',
+      },
     },
     type: 'workflow',
   };

@@ -3,7 +3,8 @@ import type { Connection, Edge, OnNodesChange } from '@xyflow/react';
 import { applyNodeChanges } from '@xyflow/react';
 
 import { buildGraph } from '../model/graphLayout';
-import type { TeamSchemaDocument, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
+import { WorkflowNodeType } from '../model/types';
+import type { AgentDocument, TeamSchemaDocument, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
 import { selectNode } from '../state/core/editorSlice';
 import type { AppDispatch } from '../state/core/editorStore';
 import type { WorkflowGraphEditorModel } from './helper/teamEditor.types';
@@ -25,16 +26,36 @@ const mergeLayoutNodes = (layoutNodes: WorkflowGraphNode[], currentNodes: Workfl
   });
 
 const createNodeSelectHandler = (dispatch: AppDispatch) => (nodeId: string | null): void => {
-  if (nodeId?.startsWith(WORKFLOW_AGENT_NODE_PREFIX) !== true) {
-    dispatch(selectNode(nodeId));
-    return;
+  dispatch(selectNode(nodeId));
+};
+
+const findAgentDepartmentName = (schema: TeamSchemaDocument, agent: AgentDocument | undefined): string | undefined => {
+  if (agent === undefined) {
+    return undefined;
   }
 
-  const agentId = nodeId.replace(WORKFLOW_AGENT_NODE_PREFIX, '').split(':')[0];
+  return schema.departments.find((department) => department.department_id === agent.department_id)?.name;
+};
 
-  if (agentId !== undefined && agentId.length > 0) {
-    dispatch(selectNode(`agent:${agentId}`));
+const refreshWorkflowDraftNodeData = (schema: TeamSchemaDocument, node: WorkflowGraphNode): WorkflowGraphNode => {
+  if (node.id.startsWith(WORKFLOW_AGENT_NODE_PREFIX) && node.data.workflowNodeType === WorkflowNodeType.Agent) {
+    const agent = schema.agents.find((candidate) => candidate.agent_id === node.data.workflowAgentId);
+    const workflowMetadata = node.data.workflowMetadata;
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        nodeName: workflowMetadata?.name ?? agent?.metadata?.name ?? node.data.nodeName,
+        roleName: agent?.role ?? 'Unassigned Agent',
+        departmentName: findAgentDepartmentName(schema, agent),
+        detail: agent === undefined ? 'Select an agent in Inspector' : `Loads ${agent.agent_id}`,
+        agent,
+      },
+    };
   }
+
+  return node;
 };
 
 export const useWorkflowGraphEditor = (
@@ -47,7 +68,7 @@ export const useWorkflowGraphEditor = (
 
   useEffect(() => {
     const graph = buildGraph(schema);
-    setNodes((currentNodes) => mergeLayoutNodes(graph.nodes, currentNodes).concat(pickWorkflowDraftNodes(currentNodes)));
+    setNodes((currentNodes) => mergeLayoutNodes(graph.nodes, currentNodes).concat(pickWorkflowDraftNodes(currentNodes).map((node) => refreshWorkflowDraftNodeData(schema, node))));
     setEdges((currentEdges) => graph.edges.concat(pickWorkflowDraftEdges(currentEdges)));
   }, [schema]);
 
@@ -56,11 +77,8 @@ export const useWorkflowGraphEditor = (
   };
 
   const onNodeSelect = createNodeSelectHandler(dispatch);
-  const addWorkflowAgentNode = (agentId: string): void => {
-    setNodes((currentNodes) => {
-      const nextNode = createWorkflowAgentNode(schema, agentId, currentNodes);
-      return nextNode === null ? currentNodes : currentNodes.concat(nextNode);
-    });
+  const addWorkflowAgentNode = (): void => {
+    setNodes((currentNodes) => currentNodes.concat(createWorkflowAgentNode(currentNodes)));
   };
 
   const addWorkflowPartNode = (): void => {
@@ -69,6 +87,59 @@ export const useWorkflowGraphEditor = (
 
   const addWorkflowPipelineNode = (): void => {
     setNodes((currentNodes) => currentNodes.concat(createWorkflowPipelineNode(currentNodes)));
+  };
+
+  const updateWorkflowAgentNode = (nodeId: string, agentId: string): void => {
+    setNodes((currentNodes) => currentNodes.map((node) => {
+      if (node.id !== nodeId || node.data.workflowNodeType !== WorkflowNodeType.Agent) {
+        return node;
+      }
+
+      const agent = schema.agents.find((candidate) => candidate.agent_id === agentId);
+      const workflowMetadata = node.data.workflowMetadata ?? {
+        name: agent?.metadata?.name ?? node.data.nodeName,
+        description: agent?.metadata?.description ?? node.data.detail ?? 'Workflow-local node metadata.',
+      };
+
+      return refreshWorkflowDraftNodeData(schema, {
+        ...node,
+        data: {
+          ...node.data,
+          workflowAgentId: agentId.length === 0 ? undefined : agentId,
+          workflowMetadata,
+        },
+      });
+    }));
+  };
+
+  const updateWorkflowNodeMetadata = (nodeId: string, field: 'name' | 'description', value: string): void => {
+    setNodes((currentNodes) => currentNodes.map((node) => {
+      if (node.id !== nodeId || node.data.workflowNodeType === undefined) {
+        return node;
+      }
+
+      const workflowMetadata = {
+        name: node.data.workflowMetadata?.name ?? node.data.nodeName,
+        description: node.data.workflowMetadata?.description ?? node.data.detail ?? '',
+        [field]: value,
+      };
+
+      return refreshWorkflowDraftNodeData(schema, {
+        ...node,
+        data: {
+          ...node.data,
+          workflowMetadata,
+          nodeName: workflowMetadata.name,
+          detail: workflowMetadata.description,
+        },
+      });
+    }));
+  };
+
+  const removeWorkflowDraftNode = (nodeId: string): void => {
+    setNodes((currentNodes) => currentNodes.filter((node) => node.id !== nodeId));
+    setEdges((currentEdges) => currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+    dispatch(selectNode('team'));
   };
 
   const addWorkflowEdge = (connection: Connection, mode: WorkflowEdgeMode): void => {
@@ -99,6 +170,9 @@ export const useWorkflowGraphEditor = (
     addWorkflowAgentNode,
     addWorkflowPartNode,
     addWorkflowPipelineNode,
+    updateWorkflowAgentNode,
+    updateWorkflowNodeMetadata,
+    removeWorkflowDraftNode,
     addWorkflowEdge,
     edgeConnectionError,
     clearEdgeConnectionError,
