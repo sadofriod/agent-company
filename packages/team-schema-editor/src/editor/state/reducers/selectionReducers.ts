@@ -24,8 +24,8 @@ export const selectNode: CaseReducer<EditorState, PayloadAction<string | null>> 
     return;
   }
 
-  if (nodeId.startsWith('workflow-agent:')) {
-    state.selection = { kind: 'workflowAgent', nodeId };
+  if (nodeId.startsWith('workflow-agent:') || nodeId.startsWith('workflow-part:') || nodeId.startsWith('workflow-pipeline:')) {
+    state.selection = { kind: 'workflowNode', nodeId };
     return;
   }
 

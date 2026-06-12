@@ -67,7 +67,6 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
 
         <EditorHero
           mode={mode}
-          addDepartment={editor.addDepartment}
           reloadSchema={editor.reloadSchema}
           refreshSchemaRecords={editor.refreshSchemaRecords}
           validateSchema={editor.validateSchema}
@@ -95,50 +94,52 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
       )}
 
       {isSchemaReady && mode === EditorMode.Edit ? (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2.5,
-            gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.75fr) minmax(320px, 0.85fr)' },
-          }}
-        >
-          <GraphPanel
-            schema={editor.schema}
-            mode={mode}
-            nodes={editor.nodes}
-            edges={editor.edges}
-            edgeConnectionError={editor.edgeConnectionError}
-            onNodesChange={editor.onNodesChange}
-            onNodeSelect={editor.onNodeSelect}
-            onAddWorkflowAgentNode={editor.addWorkflowAgentNode}
-            onAddWorkflowPartNode={editor.addWorkflowPartNode}
-            onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}
-            onWorkflowConnect={editor.addWorkflowEdge}
-            onClearEdgeConnectionError={editor.clearEdgeConnectionError}
-          />
-
-          <SelectionPanel
-            schema={editor.schema}
-            nodes={editor.nodes}
-            selection={editor.selection}
-            addDepartment={editor.addDepartment}
-            removeDepartment={editor.removeDepartment}
-            addAgent={editor.addAgent}
-            removeAgent={editor.removeAgent}
-            updateWorkflowAgentNode={editor.updateWorkflowAgentNode}
-            updateWorkflowNodeMetadata={editor.updateWorkflowNodeMetadata}
-            removeWorkflowDraftNode={editor.removeWorkflowDraftNode}
-            updateTeamField={editor.updateTeamField}
-            updateDepartmentField={editor.updateDepartmentField}
-            updateDepartmentList={editor.updateDepartmentList}
-            updateAgentField={editor.updateAgentField}
-            updateAgentList={editor.updateAgentList}
-            updateAgentMetadataField={editor.updateAgentMetadataField}
-            updateAgentMetadataList={editor.updateAgentMetadataList}
-            updateDiscussionField={editor.updateDiscussionField}
-            updateDiscussionNumber={editor.updateDiscussionNumber}
-          />
-        </Box>
+        <GraphPanel
+          schema={editor.schema}
+          mode={mode}
+          nodes={editor.nodes}
+          edges={editor.edges}
+          edgeConnectionError={editor.edgeConnectionError}
+          onNodesChange={editor.onNodesChange}
+          onEdgesChange={editor.onEdgesChange}
+          onNodeSelect={editor.onNodeSelect}
+          onAddWorkflowAgentNode={editor.addWorkflowAgentNode}
+          onAddWorkflowPartNode={editor.addWorkflowPartNode}
+          onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}
+          onWorkflowConnect={editor.addWorkflowEdge}
+          onClearEdgeConnectionError={editor.clearEdgeConnectionError}
+          inspectorPanel={(
+            <SelectionPanel
+              schema={editor.schema}
+              nodes={editor.nodes}
+              selection={editor.selection}
+              addDepartment={editor.addDepartment}
+              removeDepartment={editor.removeDepartment}
+              addAgent={editor.addAgent}
+              removeAgent={editor.removeAgent}
+              updateWorkflowAgentNode={editor.updateWorkflowAgentNode}
+              updateWorkflowNodeMetadata={editor.updateWorkflowNodeMetadata}
+              removeWorkflowDraftNode={editor.removeWorkflowDraftNode}
+              updateTeamField={editor.updateTeamField}
+              updateDepartmentField={editor.updateDepartmentField}
+              updateDepartmentList={editor.updateDepartmentList}
+              updateAgentField={editor.updateAgentField}
+              updateAgentList={editor.updateAgentList}
+              updateAgentMetadataField={editor.updateAgentMetadataField}
+              updateAgentMetadataList={editor.updateAgentMetadataList}
+              updateDiscussionField={editor.updateDiscussionField}
+              updateDiscussionNumber={editor.updateDiscussionNumber}
+              updateMemoryPolicyField={editor.updateMemoryPolicyField}
+              updateMemoryPolicyList={editor.updateMemoryPolicyList}
+              addMemoryRetrievalProfile={editor.addMemoryRetrievalProfile}
+              removeMemoryRetrievalProfile={editor.removeMemoryRetrievalProfile}
+              updateMemoryRetrievalProfileField={editor.updateMemoryRetrievalProfileField}
+              updateMemoryRetrievalProfileList={editor.updateMemoryRetrievalProfileList}
+              updateMemoryRetrievalProfileNumber={editor.updateMemoryRetrievalProfileNumber}
+              updateMemoryRetrievalProfileBoolean={editor.updateMemoryRetrievalProfileBoolean}
+            />
+          )}
+        />
       ) : null}
 
       {isSchemaReady && mode === EditorMode.Run ? (
@@ -155,6 +156,7 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
             edges={editor.edges}
             edgeConnectionError={editor.edgeConnectionError}
             onNodesChange={editor.onNodesChange}
+            onEdgesChange={editor.onEdgesChange}
             onNodeSelect={editor.onNodeSelect}
             onAddWorkflowAgentNode={editor.addWorkflowAgentNode}
             onAddWorkflowPartNode={editor.addWorkflowPartNode}

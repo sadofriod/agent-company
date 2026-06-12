@@ -50,13 +50,13 @@ export const NodeShell = ({
         boxShadow: selected ? `0 0 0 2px color-mix(in srgb, ${accent} 28%, transparent), 0 12px 30px rgba(15, 23, 42, 0.16)` : '0 8px 22px rgba(15, 23, 42, 0.08)',
         outline: workflowNodeType === undefined ? 'none' : `1px dashed ${accent}`,
         outlineOffset: 5,
-        overflow: 'hidden',
+        overflow: 'visible',
       }}
     >
       <Handle type="target" position={Position.Left} style={createHandleStyle(accent, 'left')} />
       <Handle type="source" position={Position.Right} style={createHandleStyle(accent, 'right')} />
 
-      <Box sx={{ position: 'absolute', inset: '0 auto 0 0', width: 5, bgcolor: accent }} />
+      <Box sx={{ position: 'absolute', inset: '0 auto 0 0', width: 5, bgcolor: accent, borderRadius: '8px 0 0 8px' }} />
       <Stack spacing={1} sx={{ p: 1.5, pl: 2 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', minWidth: 0 }}>
           <Box sx={{ width: 8, height: 8, borderRadius: 0.5, bgcolor: accent, flex: '0 0 auto' }} />

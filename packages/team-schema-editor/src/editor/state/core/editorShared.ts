@@ -1,6 +1,6 @@
 import { loadTeamSchema } from '@agents-team/service/schema/loadTeamSchema';
 
-import type { AgentDocument, DepartmentDocument, Selection, TeamSchemaDocument, ValidationIssue } from '../../model/types';
+import type { AgentDocument, DepartmentDocument, MemoryPolicyDocument, MemoryRetrievalProfileDocument, Selection, TeamSchemaDocument, ValidationIssue } from '../../model/types';
 
 export type SchemaLoadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -10,16 +10,23 @@ export type EditorState = {
   selection: Selection;
   schemaLoadStatus: SchemaLoadStatus;
   schemaLoadError: string | null;
+  schemaDocumentRevision: number;
 };
 
 export type SchemaField = 'team_name' | 'team_id' | 'schema_version';
 export type DepartmentField = 'name' | 'mission';
 export type DepartmentListField = 'decision_scope' | 'handoff_contracts';
-export type AgentField = 'role' | 'model' | 'description';
+export type AgentField = 'role' | 'model' | 'description' | 'memory_access_policy';
 export type AgentListField = 'responsibilities' | 'skills' | 'tools' | 'mcp_servers';
 export type AgentMetadataField = 'name' | 'description' | 'profile' | 'tool_policy';
 export type AgentMetadataListField = 'partials' | 'tools' | 'allowed_commands' | 'required_commands';
 export type DiscussionField = 'mode' | 'conflict_resolution' | 'supervisor_agent_id';
+export type MemoryPolicyField = 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy';
+export type MemoryPolicyListField = 'indexed_object_types' | 'evidence_required_for_outputs';
+export type MemoryRetrievalProfileField = 'profile_id';
+export type MemoryRetrievalProfileListField = 'allowed_scopes';
+export type MemoryRetrievalProfileNumberField = 'max_results' | 'max_graph_hops';
+export type MemoryRetrievalProfileBooleanField = 'require_reviewed_memory';
 
 type ValidationResult = { ok: true } | { ok: false; issues: readonly ValidationIssue[] };
 
@@ -103,6 +110,30 @@ export const updateAgent = (
   agents: schema.agents.map((agent) => (agent.agent_id === agentId ? recipe(agent) : agent)),
 });
 
+export const createDefaultMemoryProfile = (profileId = 'default_memory'): MemoryRetrievalProfileDocument => ({
+  profile_id: profileId,
+  allowed_scopes: ['system', 'session', 'ticket'],
+  max_results: 8,
+  max_graph_hops: 1,
+  require_reviewed_memory: false,
+});
+
+export const createDefaultMemoryPolicy = (): MemoryPolicyDocument => ({
+  retrieval_mode: 'standard_rag',
+  indexed_object_types: ['memory_object', 'topic', 'decision', 'ticket'],
+  retrieval_profiles: [createDefaultMemoryProfile()],
+  evidence_required_for_outputs: ['decision', 'ticket', 'handoff', 'review_result'],
+  conflict_strategy: 'prefer_reviewed_latest',
+});
+
+export const withMemoryPolicy = (
+  schema: TeamSchemaDocument,
+  recipe: (memoryPolicy: MemoryPolicyDocument) => MemoryPolicyDocument,
+): TeamSchemaDocument => ({
+  ...schema,
+  memory_policy: recipe(schema.memory_policy ?? createDefaultMemoryPolicy()),
+});
+
 export const withSchema = (state: EditorState, schema: TeamSchemaDocument): EditorState => ({
   ...state,
   schema,
@@ -164,4 +195,5 @@ export const initialState: EditorState = {
   validationIssues: [],
   schemaLoadStatus: 'idle',
   schemaLoadError: null,
+  schemaDocumentRevision: 0,
 };

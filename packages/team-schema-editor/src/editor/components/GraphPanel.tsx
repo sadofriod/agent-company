@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import {
   Alert,
   Box,
@@ -8,13 +8,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
   Paper,
   Snackbar,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import { Background, Controls, MiniMap, ReactFlow } from '@xyflow/react';
-import type { Connection, Edge, EdgeTypes, NodeTypes, OnNodesChange } from '@xyflow/react';
+import type { Connection, Edge, EdgeTypes, NodeTypes, OnEdgesChange, OnNodesChange } from '@xyflow/react';
 import { Bot, GitBranch, Layers } from 'lucide-react';
 
 import { EditorMode, WorkflowEdgeMode, WorkflowEdgeType } from '../model/types';
@@ -43,12 +45,14 @@ type GraphPanelProps = {
   edges: Edge[];
   edgeConnectionError: string | null;
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
+  onEdgesChange: OnEdgesChange<Edge>;
   onNodeSelect: (nodeId: string | null) => void;
   onAddWorkflowAgentNode: () => void;
   onAddWorkflowPartNode: () => void;
   onAddWorkflowPipelineNode: () => void;
   onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
   onClearEdgeConnectionError: () => void;
+  inspectorPanel?: ReactNode;
 };
 
 export const GraphPanel = ({
@@ -58,16 +62,27 @@ export const GraphPanel = ({
   edges,
   edgeConnectionError,
   onNodesChange,
+  onEdgesChange,
   onNodeSelect,
   onAddWorkflowAgentNode,
   onAddWorkflowPartNode,
   onAddWorkflowPipelineNode,
   onWorkflowConnect,
   onClearEdgeConnectionError,
+  inspectorPanel,
 }: GraphPanelProps): ReactElement => {
   const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
+  const [linkSourceId, setLinkSourceId] = useState('');
+  const [linkTargetId, setLinkTargetId] = useState('');
+  const [linkMode, setLinkMode] = useState<WorkflowEdgeMode>(WorkflowEdgeMode.Pipeline);
   const isEditing = mode === EditorMode.Edit;
+  const hasInspectorPanel = isEditing && inspectorPanel !== undefined && inspectorPanel !== null;
   const workflowDraftNodeCount = nodes.filter((node) => node.data.workflowNodeType !== undefined).length;
+  const connectableNodeOptions = nodes.map((node) => (
+    <MenuItem key={node.id} value={node.id}>
+      {node.data.nodeName}
+    </MenuItem>
+  ));
   const graphStats = [
     <Chip key="departments" size="small" label={`${schema.departments.length} departments`} sx={{ borderRadius: 0.75, fontWeight: 750 }} />,
     <Chip key="agents" size="small" label={`${schema.agents.length} agents`} sx={{ borderRadius: 0.75, fontWeight: 750 }} />,
@@ -88,6 +103,29 @@ export const GraphPanel = ({
 
     setPendingConnection(null);
   };
+  const handleManualWorkflowConnect = (): void => {
+    if (linkSourceId.length === 0 || linkTargetId.length === 0) {
+      return;
+    }
+
+    onWorkflowConnect({ source: linkSourceId, target: linkTargetId, sourceHandle: null, targetHandle: null }, linkMode);
+  };
+
+  useEffect(() => {
+    if (linkSourceId.length > 0 && nodes.some((node) => node.id === linkSourceId)) {
+      return;
+    }
+
+    setLinkSourceId(nodes[0]?.id ?? '');
+  }, [linkSourceId, nodes]);
+
+  useEffect(() => {
+    if (linkTargetId.length > 0 && nodes.some((node) => node.id === linkTargetId)) {
+      return;
+    }
+
+    setLinkTargetId(nodes[1]?.id ?? nodes[0]?.id ?? '');
+  }, [linkTargetId, nodes]);
 
   return (
     <Paper sx={{ minHeight: { xs: 640, xl: 'calc(100vh - 122px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -122,7 +160,10 @@ export const GraphPanel = ({
           flex: '1 1 auto',
           minHeight: 0,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', lg: isEditing ? '260px minmax(0, 1fr)' : '1fr' },
+          gridTemplateColumns: {
+            xs: '1fr',
+            lg: hasInspectorPanel ? '260px minmax(0, 1fr) minmax(320px, 0.52fr)' : isEditing ? '260px minmax(0, 1fr)' : '1fr',
+          },
           bgcolor: '#eef2f6',
         }}
       >
@@ -153,6 +194,32 @@ export const GraphPanel = ({
               </Button>
               <Button variant="contained" color="warning" startIcon={<GitBranch size={16} />} onClick={onAddWorkflowPipelineNode} fullWidth>
                 Pipeline node
+              </Button>
+            </Stack>
+            <Stack spacing={0.75}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.68rem', fontWeight: 850, letterSpacing: 0 }}>
+                Link
+              </Typography>
+              <TextField select fullWidth size="small" label="Source" value={linkSourceId} onChange={(event) => setLinkSourceId(event.target.value)}>
+                {connectableNodeOptions}
+              </TextField>
+              <TextField select fullWidth size="small" label="Target" value={linkTargetId} onChange={(event) => setLinkTargetId(event.target.value)}>
+                {connectableNodeOptions}
+              </TextField>
+              <TextField select fullWidth size="small" label="Edge Type" value={linkMode} onChange={(event) => setLinkMode(event.target.value as WorkflowEdgeMode)}>
+                <MenuItem value={WorkflowEdgeMode.Discuss}>Discuss · peers</MenuItem>
+                <MenuItem value={WorkflowEdgeMode.DiscussBroadcast}>Discuss · broadcast</MenuItem>
+                <MenuItem value={WorkflowEdgeMode.Pipeline}>Pipeline</MenuItem>
+              </TextField>
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={<GitBranch size={16} />}
+                onClick={handleManualWorkflowConnect}
+                disabled={linkSourceId.length === 0 || linkTargetId.length === 0}
+                fullWidth
+              >
+                Create edge
               </Button>
             </Stack>
           </Box>
@@ -186,6 +253,7 @@ export const GraphPanel = ({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
             onNodeClick={(_event, node) => onNodeSelect(node.id)}
             onConnect={handleConnect}
             nodesConnectable={isEditing}
@@ -205,6 +273,21 @@ export const GraphPanel = ({
             <Background gap={24} size={1} color="#cfd7e3" />
           </ReactFlow>
         </Box>
+
+        {hasInspectorPanel ? (
+          <Box
+            sx={{
+              minWidth: 0,
+              minHeight: 0,
+              overflow: 'auto',
+              borderLeft: { xs: 0, lg: '1px solid #d7dde5' },
+              borderTop: { xs: '1px solid #d7dde5', lg: 0 },
+              bgcolor: '#fbfcfe',
+            }}
+          >
+            {inspectorPanel}
+          </Box>
+        ) : null}
       </Box>
 
       <Dialog open={pendingConnection !== null} onClose={() => setPendingConnection(null)} fullWidth maxWidth="xs">

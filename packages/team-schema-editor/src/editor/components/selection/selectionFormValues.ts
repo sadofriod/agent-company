@@ -43,6 +43,7 @@ export const buildSelectionFormValues = (schema: TeamSchemaDocument, selection: 
       skills: renderListValue(agent.skills),
       tools: renderListValue(agent.tools),
       mcp_servers: renderListValue(agent.mcp_servers),
+      memory_access_policy: agent.memory_access_policy ?? '',
       metadata_name: agent.metadata?.name ?? agent.agent_id,
       metadata_description: agent.metadata?.description ?? '',
       metadata_profile: agent.metadata?.profile ?? '',

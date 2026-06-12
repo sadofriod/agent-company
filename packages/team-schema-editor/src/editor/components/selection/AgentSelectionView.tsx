@@ -10,7 +10,7 @@ type AgentSelectionViewProps = {
   form: UseFormReturn<SelectionFormValues>;
   agent: AgentDocument;
   removeAgent: (agentId: string) => void;
-  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
+  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string) => void;
   updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
   updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
   updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
@@ -38,6 +38,7 @@ export const AgentSelectionView = ({
       <SelectionFormField form={form} name="skills" label="Skills" multiline onValueChange={(value) => updateAgentList(agent.agent_id, 'skills', value)} />
       <SelectionFormField form={form} name="tools" label="Tools" multiline onValueChange={(value) => updateAgentList(agent.agent_id, 'tools', value)} />
       <SelectionFormField form={form} name="mcp_servers" label="MCP Servers" multiline onValueChange={(value) => updateAgentList(agent.agent_id, 'mcp_servers', value)} />
+      <SelectionFormField form={form} name="memory_access_policy" label="Memory Profile" onValueChange={(value) => updateAgentField(agent.agent_id, 'memory_access_policy', value)} />
 
       <Divider />
       <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 850, letterSpacing: 0 }}>

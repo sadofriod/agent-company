@@ -1,13 +1,12 @@
 import type { MouseEvent, ReactElement } from 'react';
 import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { FileText, Plus, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { FileText, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 
 import type { EditorMode } from '../model/types';
 import type { SchemaLoadStatus } from '../state/core/editorShared';
 
 type EditorHeroProps = {
   mode: EditorMode;
-  addDepartment: () => void;
   reloadSchema: () => void;
   refreshSchemaRecords: () => void;
   validateSchema: () => void;
@@ -21,7 +20,6 @@ type EditorHeroProps = {
 
 export const EditorHero = ({
   mode,
-  addDepartment,
   reloadSchema,
   refreshSchemaRecords,
   validateSchema,
@@ -56,13 +54,6 @@ export const EditorHero = ({
         </Tooltip>
       </ToggleButtonGroup>
 
-      <Tooltip title="Add department">
-        <span>
-          <IconButton color="primary" onClick={addDepartment} disabled={!isSchemaReady || mode !== 'edit'} aria-label="Add department">
-            <Plus size={18} />
-          </IconButton>
-        </span>
-      </Tooltip>
       <Tooltip title="Agent markdown">
         <span>
           <IconButton color="secondary" onClick={onOpenAgentMarkdown} aria-label="Agent markdown">

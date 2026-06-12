@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { Paper, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 
 import { AgentSelectionView } from './selection/AgentSelectionView';
 import { DepartmentSelectionView } from './selection/DepartmentSelectionView';
@@ -8,7 +8,7 @@ import { MemoryPolicyView } from './selection/MemoryPolicyView';
 import { PipelinePolicyView } from './selection/PipelinePolicyView';
 import { ReviewPolicyView } from './selection/ReviewPolicyView';
 import { TeamSelectionView } from './selection/TeamSelectionView';
-import { WorkflowAgentSelectionView } from './selection/WorkflowAgentSelectionView';
+import { WorkflowNodeSelectionView } from './selection/WorkflowNodeSelectionView';
 import type { Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
 
@@ -26,12 +26,20 @@ type SelectionPanelProps = {
   updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
   updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
   updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
-  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
+  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string) => void;
   updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
   updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
   updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
   updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
+  updateMemoryPolicyField: (field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy', value: string) => void;
+  updateMemoryPolicyList: (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string) => void;
+  addMemoryRetrievalProfile: () => void;
+  removeMemoryRetrievalProfile: (profileId: string) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: 'profile_id', value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: 'allowed_scopes', value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: 'max_results' | 'max_graph_hops', value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: 'require_reviewed_memory', value: boolean) => void;
 };
 
 export const SelectionPanel = ({
@@ -54,6 +62,14 @@ export const SelectionPanel = ({
   updateAgentMetadataList,
   updateDiscussionField,
   updateDiscussionNumber,
+  updateMemoryPolicyField,
+  updateMemoryPolicyList,
+  addMemoryRetrievalProfile,
+  removeMemoryRetrievalProfile,
+  updateMemoryRetrievalProfileField,
+  updateMemoryRetrievalProfileList,
+  updateMemoryRetrievalProfileNumber,
+  updateMemoryRetrievalProfileBoolean,
 }: SelectionPanelProps): ReactElement => {
   const form = useSelectionForm(schema, selection);
 
@@ -63,13 +79,13 @@ export const SelectionPanel = ({
   const agent = selection.kind === 'agent'
     ? schema.agents.find((candidate) => candidate.agent_id === selection.agentId)
     : undefined;
-  const workflowNode = selection.kind === 'workflowAgent'
+  const workflowNode = selection.kind === 'workflowNode'
     ? nodes.find((candidate) => candidate.id === selection.nodeId)
     : undefined;
 
   if (selection.kind === 'team') {
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -79,24 +95,24 @@ export const SelectionPanel = ({
           </Stack>
           <TeamSelectionView form={form} addDepartment={addDepartment} updateTeamField={updateTeamField} />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'department') {
     if (department === undefined) {
       return (
-        <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+        <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
           <Stack spacing={2}>
             <Typography variant="h5">Department</Typography>
             <Typography color="text.secondary">Department not found.</Typography>
           </Stack>
-        </Paper>
+        </Box>
       );
     }
 
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -113,24 +129,24 @@ export const SelectionPanel = ({
             updateDepartmentList={updateDepartmentList}
           />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'agent') {
     if (agent === undefined) {
       return (
-        <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+        <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
           <Stack spacing={2}>
             <Typography variant="h5">Agent</Typography>
             <Typography color="text.secondary">Agent not found.</Typography>
           </Stack>
-        </Paper>
+        </Box>
       );
     }
 
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -148,32 +164,32 @@ export const SelectionPanel = ({
             updateAgentMetadataList={updateAgentMetadataList}
           />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
-  if (selection.kind === 'workflowAgent') {
+  if (selection.kind === 'workflowNode') {
     if (workflowNode === undefined) {
       return (
-        <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+        <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
           <Stack spacing={2}>
-            <Typography variant="h5">Workflow Agent</Typography>
+            <Typography variant="h5">Workflow Node</Typography>
             <Typography color="text.secondary">Workflow node not found.</Typography>
           </Stack>
-        </Paper>
+        </Box>
       );
     }
 
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
               Inspector
             </Typography>
-            <Typography variant="h5">Workflow Agent</Typography>
+            <Typography variant="h5">Workflow Node</Typography>
           </Stack>
-          <WorkflowAgentSelectionView
+          <WorkflowNodeSelectionView
             schema={schema}
             workflowNode={workflowNode}
             updateWorkflowAgentNode={updateWorkflowAgentNode}
@@ -183,15 +199,23 @@ export const SelectionPanel = ({
             updateAgentList={updateAgentList}
             updateAgentMetadataField={updateAgentMetadataField}
             updateAgentMetadataList={updateAgentMetadataList}
+            updateMemoryPolicyField={updateMemoryPolicyField}
+            updateMemoryPolicyList={updateMemoryPolicyList}
+            addMemoryRetrievalProfile={addMemoryRetrievalProfile}
+            removeMemoryRetrievalProfile={removeMemoryRetrievalProfile}
+            updateMemoryRetrievalProfileField={updateMemoryRetrievalProfileField}
+            updateMemoryRetrievalProfileList={updateMemoryRetrievalProfileList}
+            updateMemoryRetrievalProfileNumber={updateMemoryRetrievalProfileNumber}
+            updateMemoryRetrievalProfileBoolean={updateMemoryRetrievalProfileBoolean}
           />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'discussion') {
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -205,13 +229,13 @@ export const SelectionPanel = ({
             updateDiscussionNumber={updateDiscussionNumber}
           />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'pipeline') {
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -221,13 +245,13 @@ export const SelectionPanel = ({
           </Stack>
           <PipelinePolicyView />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'review') {
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
         <Stack spacing={2}>
           <Stack spacing={0.75}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -237,12 +261,12 @@ export const SelectionPanel = ({
           </Stack>
           <ReviewPolicyView schema={schema} />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   return (
-    <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
+    <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
       <Stack spacing={2}>
         <Stack spacing={0.75}>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
@@ -250,8 +274,18 @@ export const SelectionPanel = ({
           </Typography>
           <Typography variant="h5">Selection</Typography>
         </Stack>
-        <MemoryPolicyView schema={schema} />
+        <MemoryPolicyView
+          schema={schema}
+          updateMemoryPolicyField={updateMemoryPolicyField}
+          updateMemoryPolicyList={updateMemoryPolicyList}
+          addMemoryRetrievalProfile={addMemoryRetrievalProfile}
+          removeMemoryRetrievalProfile={removeMemoryRetrievalProfile}
+          updateMemoryRetrievalProfileField={updateMemoryRetrievalProfileField}
+          updateMemoryRetrievalProfileList={updateMemoryRetrievalProfileList}
+          updateMemoryRetrievalProfileNumber={updateMemoryRetrievalProfileNumber}
+          updateMemoryRetrievalProfileBoolean={updateMemoryRetrievalProfileBoolean}
+        />
       </Stack>
-    </Paper>
+    </Box>
   );
 };

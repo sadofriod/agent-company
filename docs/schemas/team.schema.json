@@ -30,9 +30,92 @@
     "discussion_policy": { "$ref": "#/$defs/discussion_policy" },
     "pipeline_policy": { "$ref": "#/$defs/pipeline_policy" },
     "memory_policy": { "$ref": "#/$defs/memory_policy" },
-    "review_policy": { "$ref": "#/$defs/review_policy" }
+    "review_policy": { "$ref": "#/$defs/review_policy" },
+    "layout": { "$ref": "#/$defs/workflow_layout" }
   },
   "$defs": {
+    "json_value": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/json_value" }
+        },
+        {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/json_value" }
+        }
+      ]
+    },
+    "workflow_layout_position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "workflow_layout_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "position"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/$defs/workflow_layout_position" },
+        "data": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/json_value" }
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/json_value" }
+        }
+      }
+    },
+    "workflow_layout_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "target"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "sourceHandle": { "type": ["string", "null"] },
+        "targetHandle": { "type": ["string", "null"] },
+        "type": { "type": "string", "minLength": 1 },
+        "animated": { "type": "boolean" },
+        "data": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/json_value" }
+        },
+        "markerStart": { "$ref": "#/$defs/json_value" },
+        "markerEnd": { "$ref": "#/$defs/json_value" },
+        "style": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/json_value" }
+        }
+      }
+    },
+    "workflow_layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflow_layout_node" }
+        },
+        "edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflow_layout_edge" }
+        }
+      }
+    },
     "department": {
       "type": "object",
       "additionalProperties": false,

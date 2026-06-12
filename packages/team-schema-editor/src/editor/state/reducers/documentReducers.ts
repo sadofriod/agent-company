@@ -13,6 +13,7 @@ export const schemaLoadSucceeded: CaseReducer<EditorState, PayloadAction<TeamSch
   state.schemaLoadStatus = 'ready';
   state.schemaLoadError = null;
   state.selection = { kind: 'team' };
+  state.schemaDocumentRevision += 1;
 };
 
 export const schemaLoadFailed: CaseReducer<EditorState, PayloadAction<string>> = (state, action): void => {

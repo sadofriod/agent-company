@@ -291,10 +291,7 @@ const deleteSchema = async (
   }
 };
 
-export const useTeamSchemaService = (
-  schema: TeamSchemaDocument,
-  dispatch: AppDispatch,
-): TeamSchemaServiceModel => {
+export const useTeamSchemaService = (dispatch: AppDispatch): TeamSchemaServiceModel => {
   const { state, setState } = useServiceState();
   const recordsQuery = useListTeamSchemaRecordsQuery();
   const schemaQuery = useGetTeamSchemaQuery(state.selectedSchemaKey ?? skipToken);
@@ -340,12 +337,12 @@ export const useTeamSchemaService = (
 
   const serviceActions = {
     updateDraftSchemaKey,
-    createSchema: () => createSchema(schema, state.draftSchemaKey, schemaRecords, dispatch, recordsQuery, saveTeamSchema, setState),
+    createSchema: (schema: TeamSchemaDocument) => createSchema(schema, state.draftSchemaKey, schemaRecords, dispatch, recordsQuery, saveTeamSchema, setState),
     refreshSchemaRecords: () => refreshSchemaRecords(recordsQuery, setState),
     reloadSchema: () => reloadSchema(state.selectedSchemaKey, dispatch, setState, schemaQuery),
     selectSchemaKey,
-    validateSchema: () => validateSchema(schema, validateTeamSchema, setState),
-    saveSchema: () => saveSchema(schema, activeSchemaKey, schemaRecords, recordsQuery, saveTeamSchema, setState),
+    validateSchema: (schema: TeamSchemaDocument) => validateSchema(schema, validateTeamSchema, setState),
+    saveSchema: (schema: TeamSchemaDocument) => saveSchema(schema, activeSchemaKey, schemaRecords, recordsQuery, saveTeamSchema, setState),
     deleteSchema: () => deleteSchema(state.selectedSchemaKey, dispatch, recordsQuery, deleteTeamSchema, setState),
   };
 

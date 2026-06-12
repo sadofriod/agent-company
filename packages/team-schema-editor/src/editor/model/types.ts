@@ -103,6 +103,7 @@ export type TeamSchemaDocument = {
   pipeline_policy: PipelinePolicyDocument;
   memory_policy?: MemoryPolicyDocument;
   review_policy: ReviewPolicyDocument;
+  layout?: WorkflowLayoutDocument;
 };
 
 export type TeamSchemaRecord = {
@@ -225,11 +226,65 @@ export type GraphNodeData = {
 
 export type WorkflowGraphNode = Node<GraphNodeData, 'workflow'>;
 
+export type WorkflowLayoutJsonPrimitive = string | number | boolean | null;
+
+export type WorkflowLayoutJsonValue =
+  | WorkflowLayoutJsonPrimitive
+  | WorkflowLayoutJsonValue[]
+  | { [key: string]: WorkflowLayoutJsonValue };
+
+export type WorkflowLayoutJsonObject = { [key: string]: WorkflowLayoutJsonValue };
+
+export type WorkflowLayoutPositionDocument = {
+  x: number;
+  y: number;
+};
+
+export type WorkflowLayoutNodeDataDocument = {
+  kind: GraphNodeKind;
+  nodeName: string;
+  roleName?: string;
+  departmentName?: string;
+  detail?: string;
+  accent: string;
+  workflowNodeType?: WorkflowNodeType;
+  workflowAgentId?: string;
+  workflowMetadata?: WorkflowNodeMetadata;
+  memoryScope?: 'discussion' | 'session';
+};
+
+export type WorkflowLayoutNodeDocument = {
+  id: string;
+  type?: string;
+  position: WorkflowLayoutPositionDocument;
+  data?: WorkflowLayoutNodeDataDocument;
+  style?: WorkflowLayoutJsonObject;
+};
+
+export type WorkflowLayoutEdgeDocument = {
+  id: string;
+  source: string;
+  target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+  type?: string;
+  animated?: boolean;
+  data?: WorkflowLayoutJsonObject;
+  markerStart?: WorkflowLayoutJsonValue;
+  markerEnd?: WorkflowLayoutJsonValue;
+  style?: WorkflowLayoutJsonObject;
+};
+
+export type WorkflowLayoutDocument = {
+  nodes: WorkflowLayoutNodeDocument[];
+  edges: WorkflowLayoutEdgeDocument[];
+};
+
 export type Selection =
   | { kind: 'team' }
   | { kind: 'department'; departmentId: string }
   | { kind: 'agent'; agentId: string }
-  | { kind: 'workflowAgent'; nodeId: string }
+  | { kind: 'workflowNode'; nodeId: string }
   | { kind: 'discussion' }
   | { kind: 'pipeline' }
   | { kind: 'review' }

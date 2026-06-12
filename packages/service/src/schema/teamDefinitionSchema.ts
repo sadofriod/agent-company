@@ -241,6 +241,58 @@ const reviewPolicySchema = z
     }),
   );
 
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | readonly JsonValue[] | { readonly [key: string]: JsonValue };
+
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.array(jsonValueSchema),
+  z.record(jsonValueSchema),
+]));
+
+const workflowLayoutPositionSchema = z
+  .object({
+    x: z.number(),
+    y: z.number(),
+  })
+  .strict();
+
+const workflowLayoutNodeSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    type: nonEmptyStringSchema.optional(),
+    position: workflowLayoutPositionSchema,
+    data: z.record(jsonValueSchema).optional(),
+    style: z.record(jsonValueSchema).optional(),
+  })
+  .strict();
+
+const workflowLayoutEdgeSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    source: nonEmptyStringSchema,
+    target: nonEmptyStringSchema,
+    sourceHandle: z.string().nullable().optional(),
+    targetHandle: z.string().nullable().optional(),
+    type: nonEmptyStringSchema.optional(),
+    animated: z.boolean().optional(),
+    data: z.record(jsonValueSchema).optional(),
+    markerStart: jsonValueSchema.optional(),
+    markerEnd: jsonValueSchema.optional(),
+    style: z.record(jsonValueSchema).optional(),
+  })
+  .strict();
+
+const workflowLayoutSchema = z
+  .object({
+    nodes: z.array(workflowLayoutNodeSchema),
+    edges: z.array(workflowLayoutEdgeSchema),
+  })
+  .strict();
+
 export const teamSchema = z
   .object({
     schema_version: nonEmptyStringSchema,
@@ -252,6 +304,7 @@ export const teamSchema = z
     pipeline_policy: pipelinePolicySchema,
     memory_policy: memoryPolicySchema.optional(),
     review_policy: reviewPolicySchema,
+    layout: workflowLayoutSchema.optional(),
   })
   .strict()
   .transform(

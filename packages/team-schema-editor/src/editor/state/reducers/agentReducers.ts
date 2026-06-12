@@ -24,10 +24,22 @@ export const updateAgentField: CaseReducer<
   EditorState,
   PayloadAction<{ agentId: string; field: AgentField; value: string }>
 > = (state, action): void => {
-  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
-    ...agent,
-    [action.payload.field]: action.payload.value,
-  }));
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
+    if (action.payload.field === 'memory_access_policy') {
+      const value = action.payload.value.trim();
+
+      if (value.length === 0) {
+        const { memory_access_policy, ...agentWithoutMemoryProfile } = agent;
+        void memory_access_policy;
+
+        return agentWithoutMemoryProfile;
+      }
+
+      return { ...agent, memory_access_policy: value };
+    }
+
+    return { ...agent, [action.payload.field]: action.payload.value };
+  });
 
   Object.assign(state, withSchema(state, schema));
 };
@@ -107,7 +119,6 @@ export const addAgent: CaseReducer<EditorState, PayloadAction<string>> = (state,
         skills: [],
         mcp_servers: [],
         tools: [],
-        memory_access_policy: undefined,
         description: 'Describe the agent responsibilities.',
       },
     ],
