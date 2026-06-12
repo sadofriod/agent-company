@@ -12,6 +12,7 @@ import {
   createWorkflowAgentNode,
   createWorkflowEdge,
   createWorkflowPartNode,
+  createWorkflowPipelineNode,
   pickWorkflowDraftEdges,
   pickWorkflowDraftNodes,
 } from './helper/workflowGraphDraft';
@@ -42,6 +43,7 @@ export const useWorkflowGraphEditor = (
 ): WorkflowGraphEditorModel => {
   const [nodes, setNodes] = useState<WorkflowGraphNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  const [edgeConnectionError, setEdgeConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     const graph = buildGraph(schema);
@@ -65,12 +67,29 @@ export const useWorkflowGraphEditor = (
     setNodes((currentNodes) => currentNodes.concat(createWorkflowPartNode(currentNodes)));
   };
 
+  const addWorkflowPipelineNode = (): void => {
+    setNodes((currentNodes) => currentNodes.concat(createWorkflowPipelineNode(currentNodes)));
+  };
+
   const addWorkflowEdge = (connection: Connection, mode: WorkflowEdgeMode): void => {
     setEdges((currentEdges) => {
-      const nextEdge = createWorkflowEdge(connection, mode, currentEdges);
-      return nextEdge === null ? currentEdges : currentEdges.concat(nextEdge);
+      const result = createWorkflowEdge(connection, mode, currentEdges);
+
+      if (result.status === 'rejected') {
+        setEdgeConnectionError(
+          result.reason === 'pipeline_cycle'
+            ? 'Pipeline edge rejected: it would create a cycle. Pipeline children must form a DAG.'
+            : 'Connection rejected: missing source or target.',
+        );
+        return currentEdges;
+      }
+
+      setEdgeConnectionError(null);
+      return currentEdges.concat(result.edge);
     });
   };
+
+  const clearEdgeConnectionError = (): void => setEdgeConnectionError(null);
 
   return {
     nodes,
@@ -79,6 +98,9 @@ export const useWorkflowGraphEditor = (
     onNodeSelect,
     addWorkflowAgentNode,
     addWorkflowPartNode,
+    addWorkflowPipelineNode,
     addWorkflowEdge,
+    edgeConnectionError,
+    clearEdgeConnectionError,
   };
 };

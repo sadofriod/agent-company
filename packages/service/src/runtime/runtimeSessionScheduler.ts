@@ -9,6 +9,7 @@ import {
 } from '../domain/runtime';
 
 import { advanceRuntimeSession } from './advanceRuntimeSession';
+import type { AgentStepRunner } from './agentStepRunner';
 import { createExecutionContext } from './createExecutionContext';
 import { createRuntimePlan } from './createRuntimePlan';
 import {
@@ -31,6 +32,10 @@ type StartRuntimeSessionInput = {
 	readonly task: RuntimeTask;
 	readonly team: TeamDefinition;
 	readonly traceId?: string;
+};
+
+export type RuntimeSessionSchedulerOptions = {
+	readonly stepRunner?: AgentStepRunner;
 };
 
 export type RuntimeSessionScheduler = {
@@ -186,6 +191,7 @@ const applyAction = (
 const advanceSession = (
 	sessions: Map<ReturnType<typeof toRuntimeId>, RuntimeSession>,
 	sessionId: string,
+	options: RuntimeSessionSchedulerOptions,
 ): ValidationResult<RuntimeSession> => {
 	const runtimeId = toRuntimeId(sessionId);
 	const session = sessions.get(runtimeId);
@@ -198,7 +204,7 @@ const advanceSession = (
 		return createSessionNotRunning(session);
 	}
 
-	const advancedSession = advanceRuntimeSession(session);
+	const advancedSession = advanceRuntimeSession(session, { stepRunner: options.stepRunner });
 
 	if (!advancedSession.ok) {
 		return advancedSession;
@@ -228,7 +234,9 @@ const advanceSession = (
 	return { ok: true, value: nextSession };
 };
 
-export const createRuntimeSessionScheduler = (): RuntimeSessionScheduler => {
+export const createRuntimeSessionScheduler = (
+	options: RuntimeSessionSchedulerOptions = {},
+): RuntimeSessionScheduler => {
 	const sessions = new Map<ReturnType<typeof toRuntimeId>, RuntimeSession>();
 
 	return {
@@ -278,7 +286,7 @@ export const createRuntimeSessionScheduler = (): RuntimeSessionScheduler => {
 		resumeSession: (sessionId: string): ValidationResult<RuntimeSession> =>
 			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Resume),
 		advanceSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			advanceSession(sessions, sessionId),
+			advanceSession(sessions, sessionId, options),
 		terminateSession: (sessionId: string): ValidationResult<RuntimeSession> =>
 			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Terminate),
 	};

@@ -25,6 +25,7 @@ export const App = (): ReactElement => {
     schemaServiceMessage,
     schemaRecords,
     selectedSchemaKey,
+    draftSchemaKey,
     validationIssues,
     nodes,
     edges,
@@ -33,7 +34,12 @@ export const App = (): ReactElement => {
     onNodeSelect,
     addWorkflowAgentNode,
     addWorkflowPartNode,
+    addWorkflowPipelineNode,
     addWorkflowEdge,
+    edgeConnectionError,
+    clearEdgeConnectionError,
+    updateDraftSchemaKey,
+    createSchema,
     reloadSchema,
     refreshSchemaRecords,
     selectSchemaKey,
@@ -63,7 +69,10 @@ export const App = (): ReactElement => {
     <Box component="main" sx={{ minHeight: '100vh', p: { xs: 1.75, md: 3 }, display: 'grid', gap: 2.5 }}>
       <EditorHero
         mode={mode}
+        draftSchemaKey={draftSchemaKey}
         addDepartment={addDepartment}
+        updateDraftSchemaKey={updateDraftSchemaKey}
+        createSchema={createSchema}
         reloadSchema={reloadSchema}
         refreshSchemaRecords={refreshSchemaRecords}
         validateSchema={validateSchema}
@@ -113,12 +122,15 @@ export const App = (): ReactElement => {
             nodes={nodes}
             edges={edges}
             selectedWorkflowAgentId={selectedWorkflowAgentId}
+            edgeConnectionError={edgeConnectionError}
             onNodesChange={onNodesChange}
             onNodeSelect={onNodeSelect}
             onWorkflowAgentChange={setSelectedWorkflowAgentId}
             onAddWorkflowAgentNode={addWorkflowAgentNode}
             onAddWorkflowPartNode={addWorkflowPartNode}
+            onAddWorkflowPipelineNode={addWorkflowPipelineNode}
             onWorkflowConnect={addWorkflowEdge}
+            onClearEdgeConnectionError={clearEdgeConnectionError}
           />
 
           <SelectionPanel
@@ -162,7 +174,7 @@ export const App = (): ReactElement => {
             <RuntimePanel
               schema={schema}
               runtime={runtime}
-              onCreateSession={() => runtime.createSession(schema)}
+              onRunGoal={() => runtime.runGoal(schema)}
             />
             <GraphPanel
               schema={schema}
@@ -170,12 +182,15 @@ export const App = (): ReactElement => {
               nodes={nodes}
               edges={edges}
               selectedWorkflowAgentId={selectedWorkflowAgentId}
+              edgeConnectionError={edgeConnectionError}
               onNodesChange={onNodesChange}
               onNodeSelect={onNodeSelect}
               onWorkflowAgentChange={setSelectedWorkflowAgentId}
               onAddWorkflowAgentNode={addWorkflowAgentNode}
               onAddWorkflowPartNode={addWorkflowPartNode}
+              onAddWorkflowPipelineNode={addWorkflowPipelineNode}
               onWorkflowConnect={addWorkflowEdge}
+              onClearEdgeConnectionError={clearEdgeConnectionError}
             />
           </Stack>
         </Box>

@@ -16,7 +16,7 @@ import type {
 	MemoryContextPackage,
 	RetrievedMemory,
 } from '../../domain/memory';
-import { createAgentAssemblyFactory } from '../../agent/assembly';
+import { createAgentAssemblyFactory, type AgentAssembly } from '../../agent/assembly';
 import {
 	CAPABILITY_EXPIRY,
 	CAPABILITY_SCOPE,
@@ -24,6 +24,11 @@ import {
 	type CapabilityGrant,
 	type CapabilityLoadPlan,
 } from '../../domain/capability';
+import {
+	runLocalAgentStep,
+	type AgentStepExecution,
+	type AgentStepRunner,
+} from '../agentStepRunner';
 
 import {
 	createIssue,
@@ -46,6 +51,10 @@ import {
 	uniqueValues,
 	updateRuntimeSession,
 } from './shared';
+
+type ExecutePipelineStageOptions = {
+	readonly stepRunner?: AgentStepRunner;
+};
 
 const validatePipelineDag = (
 	session: RuntimeSession,
@@ -326,6 +335,30 @@ const loadStepCapabilities = (
 	};
 };
 
+const assembleStepAgent = (
+	session: RuntimeSession,
+	step: PipelineStep,
+): ValidationResult<AgentAssembly> => {
+	if (!session.runtimePlan.agentsById.has(step.ownerAgentId)) {
+		return {
+			ok: false,
+			issues: [
+				createIssue(
+					'agent_missing',
+					['owner_agent_id'],
+					`Pipeline step owner agent ${step.ownerAgentId} is missing from the runtime plan.`,
+					'Return to discussion and select an agent declared in the Team Schema.',
+				),
+			],
+		};
+	}
+
+	return {
+		ok: true,
+		value: createAgentAssemblyFactory(session.runtimePlan).assemble(step.ownerAgentId),
+	};
+};
+
 export const promoteNextTicket = (session: RuntimeSession): ValidationResult<RuntimeSession> => {
 	if (session.state.activeTicket !== undefined || session.state.activePipeline !== undefined) {
 		return { ok: true, value: session };
@@ -414,6 +447,7 @@ const createStepEvidenceRefs = (
 const createStepResult = (
 	session: RuntimeSession,
 	step: PipelineStep,
+	agentExecution: AgentStepExecution,
 	memoryPackage: MemoryContextPackage | undefined,
 	capabilityLoadPlan: CapabilityLoadPlan,
 	evidenceRefs: readonly EvidenceRef[],
@@ -423,13 +457,27 @@ const createStepResult = (
 	ticketId: step.ticketId,
 	ownerAgentId: step.ownerAgentId,
 	output: {
-		summary: `${step.title} completed for ${session.state.context.task.title}.`,
+		...agentExecution.output,
+		summary: agentExecution.responseSummary,
 		goal: session.state.activeTicket?.goal ?? session.state.context.task.goal,
 		inputContract: step.inputContract,
 		outputContract: step.outputContract,
 		consumedHandoffIds: upstreamHandoffs.map((handoff) => handoff.handoffId),
 		retrievedMemoryIds: memoryPackage?.retrievedMemoryIds ?? [],
 		grantedCapabilities: capabilityLoadPlan.grants.map((grant) => grant.capabilityId),
+		executedToolCalls: agentExecution.toolCalls,
+		agentExecution: {
+			runner: agentExecution.runner,
+			agentId: agentExecution.agentId,
+			role: agentExecution.role,
+			model: agentExecution.model,
+			gatewayProvider: agentExecution.gatewayProvider,
+			promptSummary: agentExecution.promptSummary,
+			responseSummary: agentExecution.responseSummary,
+			memoryIds: agentExecution.memoryIds,
+			consumedHandoffIds: agentExecution.consumedHandoffIds,
+			toolCalls: agentExecution.toolCalls,
+		},
 		completedBy: step.ownerAgentId,
 	},
 	evidenceRefs,
@@ -476,6 +524,7 @@ const executeSingleStep = (
 	session: RuntimeSession,
 	pipeline: Pipeline,
 	step: PipelineStep,
+	options: ExecutePipelineStageOptions,
 ): ValidationResult<RuntimeSession> => {
 	const upstreamHandoffs = session.state.generatedHandoffs.filter(
 		(handoff) => handoff.ticketId === step.ticketId && step.dependsOn.includes(handoff.fromStepId),
@@ -533,6 +582,24 @@ const executeSingleStep = (
 		};
 	}
 
+	const agentAssembly = assembleStepAgent(session, step);
+
+	if (!agentAssembly.ok) {
+		return {
+			ok: true,
+			value: applyInterruption(
+				session,
+				createPipelineInterruption(
+					'reload_capability',
+					'Pipeline step owner agent could not be assembled for execution.',
+					'reload_capability',
+					pipeline.pipelineId,
+					step.stepId,
+				),
+			),
+		};
+	}
+
 	let workingSession = updateRuntimeSession(
 		session,
 		{
@@ -562,11 +629,53 @@ const executeSingleStep = (
 			},
 		},
 	);
+	workingSession = updateRuntimeSession(
+		workingSession,
+		{},
+		{
+			eventType: 'agent.execution_started',
+			reason: `Started agent ${step.ownerAgentId} for step ${step.stepId}.`,
+			metadata: {
+				pipelineId: pipeline.pipelineId,
+				stepId: step.stepId,
+				agentId: agentAssembly.value.agentId,
+				role: agentAssembly.value.role,
+				model: agentAssembly.value.gateway.llm.model,
+				gatewayProvider: agentAssembly.value.gateway.llm.provider,
+			},
+		},
+	);
 
 	const evidenceRefs = createStepEvidenceRefs(workingSession, step, memoryPackage, upstreamHandoffs);
+	const agentExecution = (options.stepRunner ?? runLocalAgentStep)({
+		session: workingSession,
+		step,
+		agent: agentAssembly.value,
+		...(memoryPackage === undefined ? {} : { memoryPackage }),
+		capabilityLoadPlan,
+		upstreamHandoffs,
+		evidenceRefs,
+	});
+	workingSession = updateRuntimeSession(
+		workingSession,
+		{},
+		{
+			eventType: 'agent.execution_completed',
+			reason: agentExecution.responseSummary,
+			metadata: {
+				pipelineId: pipeline.pipelineId,
+				stepId: step.stepId,
+				agentId: agentExecution.agentId,
+				runner: agentExecution.runner,
+				toolCallCount: agentExecution.toolCalls.length,
+				retrievedMemoryCount: agentExecution.memoryIds.length,
+			},
+		},
+	);
 	const stepResult = createStepResult(
 		workingSession,
 		step,
+		agentExecution,
 		memoryPackage,
 		capabilityLoadPlan,
 		evidenceRefs,
@@ -689,7 +798,10 @@ const completeActivePipeline = (session: RuntimeSession): ValidationResult<Runti
 	return promoteNextTicket(completedSession);
 };
 
-export const executePipelineStage = (session: RuntimeSession): ValidationResult<RuntimeSession> => {
+export const executePipelineStage = (
+	session: RuntimeSession,
+	options: ExecutePipelineStageOptions = {},
+): ValidationResult<RuntimeSession> => {
 	const promotion = promoteNextTicket(session);
 
 	if (!promotion.ok) {
@@ -734,7 +846,7 @@ export const executePipelineStage = (session: RuntimeSession): ValidationResult<
 	}
 
 	for (const step of readySteps) {
-		const result = executeSingleStep(workingSession, pipeline, step);
+		const result = executeSingleStep(workingSession, pipeline, step, options);
 
 		if (!result.ok) {
 			return result;
@@ -747,5 +859,20 @@ export const executePipelineStage = (session: RuntimeSession): ValidationResult<
 		}
 	}
 
-	return completeActivePipeline(workingSession);
+	const nextCompletedStepIds = new Set(
+		workingSession.state.completedStepResults
+			.filter((stepResult) => stepResult.ticketId === pipeline.ticketId)
+			.map((stepResult) => stepResult.stepId),
+	);
+
+	if (nextCompletedStepIds.size === pipeline.steps.length) {
+		return completeActivePipeline(workingSession);
+	}
+
+	return {
+		ok: true,
+		value: updateRuntimeSession(workingSession, {
+			nextAction: `Continue pipeline ${pipeline.pipelineId}.`,
+		}),
+	};
 };

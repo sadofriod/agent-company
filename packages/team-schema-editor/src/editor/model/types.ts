@@ -9,6 +9,19 @@ export type AgentMetadataDocument = {
   tools?: string[];
   allowed_commands?: string[];
   required_commands?: string[];
+  llm?: AgentLlmDocument;
+};
+
+export type AgentLlmDocument = {
+  provider: string;
+  model?: string;
+  api_format?: string;
+  base_url?: string;
+  api_key_env?: string;
+  headers?: Record<string, string>;
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
 };
 
 export type DepartmentDocument = {
@@ -131,6 +144,7 @@ export type RuntimeSessionSnapshot = {
     completedStepResults?: unknown[];
     reviewResults?: unknown[];
     generatedHandoffs?: unknown[];
+    interruption?: unknown;
     nextAction?: string;
   };
 };
@@ -149,16 +163,35 @@ export const enum RuntimeStatus {
 
 export const enum WorkflowEdgeMode {
   Discuss = 'discuss',
+  DiscussBroadcast = 'discuss_broadcast',
   Pipeline = 'pipeline',
+}
+
+export const enum WorkflowEdgeType {
+  SchemaRelation = 'schema-relation',
+  DiscussAgents = 'discuss-agents',
+  DiscussBroadcast = 'discuss-broadcast',
+  PipelineHandoff = 'pipeline-handoff',
 }
 
 export const enum WorkflowNodeType {
   Agent = 'agent',
   Part = 'part',
+  Pipeline = 'pipeline',
 }
 
+export type WorkflowEdgeData = {
+  mode: WorkflowEdgeMode;
+};
+
+export type SchemaEdgeTone = 'structure' | 'governance' | 'memory';
+
+export type SchemaEdgeData = {
+  label?: string;
+  tone: SchemaEdgeTone;
+};
+
 export const enum GraphNodeKind {
-  Team = 'team',
   Department = 'department',
   Agent = 'agent',
   Part = 'part',
@@ -176,6 +209,11 @@ export type GraphNodeData = {
   detail?: string;
   accent: string;
   workflowNodeType?: WorkflowNodeType;
+  memoryScope?: 'discussion' | 'session';
+  department?: DepartmentDocument;
+  agent?: AgentDocument;
+  discussionPolicy?: DiscussionPolicyDocument;
+  memoryPolicy?: MemoryPolicyDocument;
 };
 
 export type WorkflowGraphNode = Node<GraphNodeData, 'workflow'>;

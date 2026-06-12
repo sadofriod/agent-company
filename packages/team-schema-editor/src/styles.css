@@ -23,31 +23,56 @@ textarea {
   font: inherit;
 }
 
-.react-flow__node {
-  min-width: 180px;
-  border-radius: 18px;
-  border: 1px solid rgba(28, 42, 35, 0.12);
-  background: #fffdf8;
-  box-shadow: 0 18px 40px rgba(38, 49, 44, 0.08);
+.flow-workbench {
+  --xy-controls-button-background-color: #ffffff;
+  --xy-controls-button-background-color-hover: #f2f4f7;
+  --xy-controls-button-color: #344054;
+  --xy-controls-button-color-hover: #101828;
+  --xy-controls-button-border-color: #d7dde5;
+  background:
+    linear-gradient(90deg, rgba(203, 213, 225, 0.28) 1px, transparent 1px),
+    linear-gradient(rgba(203, 213, 225, 0.28) 1px, transparent 1px),
+    #eef2f6;
+  background-size: 96px 96px, 96px 96px, auto;
 }
 
-.react-flow__node-default {
-  padding: 14px 16px;
-}
-
-.react-flow__node-default.selected,
-.react-flow__node-default:focus {
-  box-shadow: 0 0 0 2px rgba(217, 108, 63, 0.28), 0 18px 40px rgba(38, 49, 44, 0.08);
-}
-
-.react-flow__node-workflow {
-  min-width: 0;
-  border: 0;
+.flow-workbench .react-flow__node-workflow {
   background: transparent;
+  border: 0;
   box-shadow: none;
+  min-width: 0;
 }
 
-.react-flow__node-workflow.selected,
-.react-flow__node-workflow:focus {
+.flow-workbench .react-flow__node-workflow.selected,
+.flow-workbench .react-flow__node-workflow:focus,
+.flow-workbench .react-flow__node-workflow:focus-visible {
   box-shadow: none;
+  outline: none;
+}
+
+.flow-workbench .react-flow__handle {
+  opacity: 0.96;
+}
+
+.flow-workbench .react-flow__controls {
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.flow-workbench .react-flow__controls-button {
+  border-bottom-color: #d7dde5;
+}
+
+.flow-workbench .react-flow__minimap {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.flow-workbench .react-flow__edge-path {
+  stroke-linecap: square;
 }

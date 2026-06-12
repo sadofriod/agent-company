@@ -18,6 +18,7 @@ import type { SchemaServiceStatus, TeamSchemaServiceModel } from './helper/teamE
 
 type ServiceState = {
   selectedSchemaKey: string | null;
+  draftSchemaKey: string;
   resolvedInitialSchema: boolean;
   schemaServiceStatus: SchemaServiceStatus;
   schemaServiceError: string | null;
@@ -35,6 +36,7 @@ const useServiceState = (): {
 } => {
   const [state, setState] = useState<ServiceState>({
     selectedSchemaKey: null,
+    draftSchemaKey: 'current',
     resolvedInitialSchema: false,
     schemaServiceStatus: 'idle',
     schemaServiceError: null,
@@ -72,11 +74,16 @@ const useResolveInitialSchema = (
 
     if (preferredKey === undefined) {
       dispatch(schemaLoadSucceeded(createPendingTeamSchema()));
-      setState((current) => ({ ...current, resolvedInitialSchema: true }));
+      setState((current) => ({ ...current, draftSchemaKey: 'current', resolvedInitialSchema: true }));
       return;
     }
 
-    setState((current) => ({ ...current, selectedSchemaKey: preferredKey, resolvedInitialSchema: true }));
+    setState((current) => ({
+      ...current,
+      selectedSchemaKey: preferredKey,
+      draftSchemaKey: preferredKey,
+      resolvedInitialSchema: true,
+    }));
   }, [dispatch, error, isError, isSuccess, schemaRecords, setState, state.resolvedInitialSchema]);
 };
 
@@ -214,6 +221,45 @@ const saveSchema = async (
   }
 };
 
+const createSchema = async (
+  schema: TeamSchemaDocument,
+  draftSchemaKey: string,
+  schemaRecords: TeamSchemaRecord[],
+  dispatch: AppDispatch,
+  recordsQuery: RecordsQuery,
+  saveTeamSchema: ReturnType<typeof useSaveTeamSchemaMutation>[0],
+  setState: Dispatch<SetStateAction<ServiceState>>,
+): Promise<void> => {
+  const nextSchemaKey = draftSchemaKey.trim();
+
+  if (nextSchemaKey.length === 0) {
+    setServiceError(setState, 'Schema key is required.');
+    return;
+  }
+
+  if (schemaRecords.some((record) => record.key === nextSchemaKey)) {
+    setServiceError(setState, `Schema ${nextSchemaKey} already exists. Use Save to update it.`);
+    return;
+  }
+
+  setServiceLoading(setState, 'saving');
+
+  try {
+    const nextSchema = await saveTeamSchema({ key: nextSchemaKey, schema, method: 'POST' }).unwrap();
+    await recordsQuery.refetch().unwrap();
+    dispatch(schemaLoadSucceeded(nextSchema));
+    setState((current) => ({
+      ...current,
+      selectedSchemaKey: nextSchemaKey,
+      draftSchemaKey: nextSchemaKey,
+      resolvedInitialSchema: true,
+    }));
+    setServiceMessage(setState, `Created schema ${nextSchemaKey}.`);
+  } catch (error: unknown) {
+    setServiceError(setState, toErrorMessage(error));
+  }
+};
+
 const deleteSchema = async (
   selectedSchemaKey: string | null,
   dispatch: AppDispatch,
@@ -232,8 +278,13 @@ const deleteSchema = async (
   try {
     await deleteTeamSchema(keyToDelete).unwrap();
     const records = await recordsQuery.refetch().unwrap();
+    const nextSchemaKey = records[0]?.key ?? null;
     dispatch(schemaLoadSucceeded(createPendingTeamSchema()));
-    setState((current) => ({ ...current, selectedSchemaKey: records[0]?.key ?? null }));
+    setState((current) => ({
+      ...current,
+      selectedSchemaKey: nextSchemaKey,
+      draftSchemaKey: nextSchemaKey ?? 'current',
+    }));
     setServiceMessage(setState, `Deleted schema ${keyToDelete}.`);
   } catch (error: unknown) {
     setServiceError(setState, toErrorMessage(error));
@@ -275,6 +326,7 @@ export const useTeamSchemaService = (
     setState((current) => ({
       ...current,
       selectedSchemaKey: key,
+      draftSchemaKey: key,
       resolvedInitialSchema: true,
       schemaServiceError: null,
       schemaServiceMessage: null,
@@ -282,7 +334,13 @@ export const useTeamSchemaService = (
     dispatch(startSchemaLoad());
   };
 
+  const updateDraftSchemaKey = (key: string): void => {
+    setState((current) => ({ ...current, draftSchemaKey: key, schemaServiceError: null, schemaServiceMessage: null }));
+  };
+
   const serviceActions = {
+    updateDraftSchemaKey,
+    createSchema: () => createSchema(schema, state.draftSchemaKey, schemaRecords, dispatch, recordsQuery, saveTeamSchema, setState),
     refreshSchemaRecords: () => refreshSchemaRecords(recordsQuery, setState),
     reloadSchema: () => reloadSchema(state.selectedSchemaKey, dispatch, setState, schemaQuery),
     selectSchemaKey,
@@ -297,6 +355,7 @@ export const useTeamSchemaService = (
     schemaServiceMessage: state.schemaServiceMessage,
     schemaRecords,
     selectedSchemaKey: activeSchemaKey,
+    draftSchemaKey: state.draftSchemaKey,
     ...serviceActions,
   };
 };

@@ -8,9 +8,17 @@ import {
 	createNotRunningIssues,
 	updateRuntimeSession,
 } from './advanceRuntimeSession/shared';
+import type { AgentStepRunner } from './agentStepRunner';
 import { routeWorkMode } from './routeWorkMode';
 
-export const advanceRuntimeSession = (session: RuntimeSession): ValidationResult<RuntimeSession> => {
+export type AdvanceRuntimeSessionOptions = {
+	readonly stepRunner?: AgentStepRunner;
+};
+
+export const advanceRuntimeSession = (
+	session: RuntimeSession,
+	options: AdvanceRuntimeSessionOptions = {},
+): ValidationResult<RuntimeSession> => {
 	if (session.status !== 'running') {
 		return { ok: false, issues: createNotRunningIssues(session.status) };
 	}
@@ -49,5 +57,5 @@ export const advanceRuntimeSession = (session: RuntimeSession): ValidationResult
 
 	return workModeDecision.mode === WORK_MODE.Discussion
 		? executeDiscussionStage(nextSession)
-		: executePipelineStage(nextSession);
+		: executePipelineStage(nextSession, { stepRunner: options.stepRunner });
 };

@@ -54,16 +54,33 @@ const useSessionMutationRunner = (
   };
 };
 
+const MAX_GOAL_ADVANCE_STEPS = 20;
+
+const isSessionFinished = (session: RuntimeSessionSnapshot): boolean => {
+  if (session.status !== 'running') {
+    return true;
+  }
+
+  if (session.state.interruption !== undefined) {
+    return true;
+  }
+
+  return session.state.nextAction?.toLowerCase().includes('completed') === true;
+};
+
 const useSessionOperations = (
   session: RuntimeSessionSnapshot | null,
   taskDraft: RuntimeTaskDraft,
+  setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>,
+  setStatus: Dispatch<SetStateAction<RuntimeSessionOperationStatus>>,
   setMessage: Dispatch<SetStateAction<string | null>>,
+  setError: Dispatch<SetStateAction<string | null>>,
   runMutation: (
     nextStatus: RuntimeSessionOperationStatus,
     mutation: () => Promise<RuntimeSessionSnapshot>,
     successMessage: string,
   ) => Promise<void>,
-): Pick<RuntimeSessionModel, 'createSession' | 'refreshSession' | 'advanceSession' | 'pauseSession' | 'resumeSession' | 'terminateSession'> => {
+): Pick<RuntimeSessionModel, 'runGoal' | 'refreshSession' | 'pauseSession' | 'resumeSession' | 'terminateSession'> => {
   const [startRuntimeSession] = useStartRuntimeSessionMutation();
   const [loadRuntimeSession] = useLazyGetRuntimeSessionQuery();
   const [advanceRuntimeSession] = useAdvanceRuntimeSessionMutation();
@@ -85,10 +102,40 @@ const useSessionOperations = (
   };
 
   return {
-    createSession: async (team: TeamSchemaDocument) =>
-      runMutation('starting', () => startRuntimeSession({ task: taskDraft, team }).unwrap(), 'Runtime session created.'),
+    runGoal: async (team: TeamSchemaDocument): Promise<void> => {
+      setStatus('runningGoal');
+      setError(null);
+      setMessage(null);
+
+      try {
+        let nextSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
+        let advanceCount = 0;
+
+        while (!isSessionFinished(nextSession) && advanceCount < MAX_GOAL_ADVANCE_STEPS) {
+          nextSession = await advanceRuntimeSession(nextSession.sessionId).unwrap();
+          advanceCount += 1;
+        }
+
+        setSession(nextSession);
+        setStatus('idle');
+
+        if (nextSession.state.interruption !== undefined) {
+          setMessage(`Goal run paused with runtime interruption after ${advanceCount} execution step(s).`);
+          return;
+        }
+
+        if (advanceCount >= MAX_GOAL_ADVANCE_STEPS && !isSessionFinished(nextSession)) {
+          setMessage(`Goal run paused after ${MAX_GOAL_ADVANCE_STEPS} execution step(s).`);
+          return;
+        }
+
+        setMessage(`Goal completed after ${advanceCount} execution step(s).`);
+      } catch (mutationError: unknown) {
+        setStatus('error');
+        setError(formatError(mutationError));
+      }
+    },
     refreshSession: async () => runIfSessionExists('refreshing', (sessionId) => loadRuntimeSession(sessionId).unwrap(), 'Runtime session refreshed.'),
-    advanceSession: async () => runIfSessionExists('advancing', (sessionId) => advanceRuntimeSession(sessionId).unwrap(), 'Runtime session advanced.'),
     pauseSession: async () => runIfSessionExists('pausing', (sessionId) => pauseRuntimeSession(sessionId).unwrap(), 'Runtime session paused.'),
     resumeSession: async () => runIfSessionExists('resuming', (sessionId) => resumeRuntimeSession(sessionId).unwrap(), 'Runtime session resumed.'),
     terminateSession: async () => runIfSessionExists('terminating', (sessionId) => terminateRuntimeSession(sessionId).unwrap(), 'Runtime session terminated.'),
@@ -107,7 +154,7 @@ export const useRuntimeSession = (): RuntimeSessionModel => {
   const [error, setError] = useState<string | null>(null);
   const taskDraftEditors = useTaskDraftEditors(setTaskDraft);
   const runMutation = useSessionMutationRunner(setSession, setStatus, setMessage, setError);
-  const operations = useSessionOperations(session, taskDraft, setMessage, runMutation);
+  const operations = useSessionOperations(session, taskDraft, setSession, setStatus, setMessage, setError, runMutation);
 
   return {
     session,

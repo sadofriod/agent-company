@@ -39,7 +39,7 @@ export const selectNode: CaseReducer<EditorState, PayloadAction<string | null>> 
     return;
   }
 
-  if (nodeId === 'memory') {
+  if (nodeId === 'memory' || nodeId.startsWith('memory:')) {
     state.selection = { kind: 'memory' };
   }
 };

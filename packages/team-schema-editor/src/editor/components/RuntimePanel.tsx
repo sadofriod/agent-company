@@ -7,10 +7,10 @@ import type { RuntimeSessionModel } from '../hooks/useRuntimeSession';
 type RuntimePanelProps = {
   schema: TeamSchemaDocument;
   runtime: RuntimeSessionModel;
-  onCreateSession: () => Promise<void>;
+  onRunGoal: () => Promise<void>;
 };
 
-export const RuntimePanel = ({ schema, runtime, onCreateSession }: RuntimePanelProps): ReactElement => {
+export const RuntimePanel = ({ schema, runtime, onRunGoal }: RuntimePanelProps): ReactElement => {
   const schemeName = schema.team_name ?? schema.team_id;
   const canInteract = runtime.session !== null;
   const isBusy = runtime.status !== 'idle';
@@ -38,17 +38,14 @@ export const RuntimePanel = ({ schema, runtime, onCreateSession }: RuntimePanelP
 
         <Stack spacing={1} sx={{ minWidth: { xs: '100%', md: 360 } }}>
           <TextField label="Task title" value={runtime.taskDraft.title} onChange={(event) => runtime.setTaskTitle(event.target.value)} size="small" />
-          <TextField label="Task goal" value={runtime.taskDraft.goal} onChange={(event) => runtime.setTaskGoal(event.target.value)} size="small" multiline minRows={2} />
+          <TextField label="Goal" value={runtime.taskDraft.goal} onChange={(event) => runtime.setTaskGoal(event.target.value)} size="small" multiline minRows={3} />
           <TextField label="Task constraints" value={runtime.taskDraft.constraints} onChange={(event) => runtime.setTaskConstraints(event.target.value)} size="small" multiline minRows={3} />
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-            <Button variant="contained" color="secondary" onClick={onCreateSession} disabled={isBusy}>
-              Start Session
+            <Button variant="contained" color="secondary" onClick={onRunGoal} disabled={isBusy || runtime.taskDraft.goal.trim().length === 0}>
+              Run Goal
             </Button>
             <Button variant="outlined" color="secondary" onClick={runtime.refreshSession} disabled={!canInteract || isBusy}>
               Refresh
-            </Button>
-            <Button variant="outlined" color="secondary" onClick={runtime.advanceSession} disabled={!canInteract || isBusy || runtime.session?.status !== 'running'}>
-              Advance
             </Button>
             <Button variant="outlined" color="secondary" onClick={runtime.pauseSession} disabled={!canInteract || isBusy || runtime.session?.status !== 'running'}>
               Pause

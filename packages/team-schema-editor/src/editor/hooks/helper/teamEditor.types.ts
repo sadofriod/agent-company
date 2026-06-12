@@ -18,6 +18,9 @@ export type TeamSchemaServiceModel = {
   schemaServiceMessage: string | null;
   schemaRecords: TeamSchemaRecord[];
   selectedSchemaKey: string;
+  draftSchemaKey: string;
+  updateDraftSchemaKey: (key: string) => void;
+  createSchema: () => Promise<void>;
   refreshSchemaRecords: () => Promise<void>;
   reloadSchema: () => Promise<void>;
   selectSchemaKey: (key: string) => Promise<void>;
@@ -33,7 +36,10 @@ export type WorkflowGraphEditorModel = {
   onNodeSelect: (nodeId: string | null) => void;
   addWorkflowAgentNode: (agentId: string) => void;
   addWorkflowPartNode: () => void;
+  addWorkflowPipelineNode: () => void;
   addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
+  edgeConnectionError: string | null;
+  clearEdgeConnectionError: () => void;
 };
 
 export type TeamEditorModel = {
@@ -45,6 +51,7 @@ export type TeamEditorModel = {
   schemaServiceMessage: string | null;
   schemaRecords: TeamSchemaRecord[];
   selectedSchemaKey: string;
+  draftSchemaKey: string;
   validationIssues: readonly ValidationIssue[];
   nodes: WorkflowGraphNode[];
   edges: Edge[];
@@ -53,7 +60,10 @@ export type TeamEditorModel = {
   onNodeSelect: (nodeId: string | null) => void;
   addWorkflowAgentNode: (agentId: string) => void;
   addWorkflowPartNode: () => void;
+  addWorkflowPipelineNode: () => void;
   addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
+  edgeConnectionError: string | null;
+  clearEdgeConnectionError: () => void;
   updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
   updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
   updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
@@ -65,6 +75,8 @@ export type TeamEditorModel = {
   removeDepartment: (departmentId: string) => void;
   addAgent: (departmentId: string) => void;
   removeAgent: (agentId: string) => void;
+  updateDraftSchemaKey: (key: string) => void;
+  createSchema: () => Promise<void>;
   refreshSchemaRecords: () => Promise<void>;
   reloadSchema: () => Promise<void>;
   selectSchemaKey: (key: string) => Promise<void>;
