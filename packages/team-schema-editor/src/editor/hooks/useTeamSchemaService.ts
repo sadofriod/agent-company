@@ -74,14 +74,18 @@ const useResolveInitialSchema = (
 
     if (preferredKey === undefined) {
       dispatch(schemaLoadSucceeded(createPendingTeamSchema()));
-      setState((current) => ({ ...current, draftSchemaKey: 'current', resolvedInitialSchema: true }));
+      setState((current) => ({
+        ...current,
+        draftSchemaKey: current.draftSchemaKey === 'current' ? 'current' : current.draftSchemaKey,
+        resolvedInitialSchema: true,
+      }));
       return;
     }
 
     setState((current) => ({
       ...current,
       selectedSchemaKey: preferredKey,
-      draftSchemaKey: preferredKey,
+      draftSchemaKey: current.draftSchemaKey === 'current' ? preferredKey : current.draftSchemaKey,
       resolvedInitialSchema: true,
     }));
   }, [dispatch, error, isError, isSuccess, schemaRecords, setState, state.resolvedInitialSchema]);
@@ -328,7 +332,9 @@ export const useTeamSchemaService = (dispatch: AppDispatch): TeamSchemaServiceMo
       schemaServiceError: null,
       schemaServiceMessage: null,
     }));
-    dispatch(startSchemaLoad());
+    if (state.selectedSchemaKey !== key) {
+      dispatch(startSchemaLoad());
+    }
   };
 
   const updateDraftSchemaKey = (key: string): void => {
@@ -351,7 +357,7 @@ export const useTeamSchemaService = (dispatch: AppDispatch): TeamSchemaServiceMo
     schemaServiceError: state.schemaServiceError,
     schemaServiceMessage: state.schemaServiceMessage,
     schemaRecords,
-    selectedSchemaKey: activeSchemaKey,
+    selectedSchemaKey: state.selectedSchemaKey,
     draftSchemaKey: state.draftSchemaKey,
     ...serviceActions,
   };

@@ -32,9 +32,50 @@ export const editorTheme = createTheme({
       lineHeight: 0.96,
       letterSpacing: '-0.04em',
     },
+    h5: {
+      fontSize: '22px',
+      fontWeight: 850,
+      lineHeight: 1.18,
+      letterSpacing: 0,
+    },
+    h6: {
+      fontSize: '16px',
+      fontWeight: 850,
+      lineHeight: 1.25,
+      letterSpacing: 0,
+    },
+    subtitle1: {
+      fontSize: '14px',
+      fontWeight: 750,
+      lineHeight: 1.35,
+      letterSpacing: 0,
+    },
+    subtitle2: {
+      fontSize: '12px',
+      fontWeight: 750,
+      lineHeight: 1.35,
+      letterSpacing: 0,
+    },
+    body1: {
+      fontSize: '12px',
+      lineHeight: 1.45,
+      letterSpacing: 0,
+    },
+    body2: {
+      fontSize: '12px',
+      lineHeight: 1.45,
+      letterSpacing: 0,
+    },
+    overline: {
+      fontSize: '12px',
+      fontWeight: 850,
+      lineHeight: 1.2,
+      letterSpacing: 0,
+      textTransform: 'none',
+    },
   },
   shape: {
-    borderRadius: 16,
+    borderRadius: 8,
   },
   components: {
     MuiCssBaseline: {
@@ -76,6 +117,50 @@ export const editorTheme = createTheme({
     MuiTextField: {
       defaultProps: {
         variant: 'outlined',
+        size: 'small',
+      },
+    },
+    MuiFormLabel: {
+      styleOverrides: {
+        root: {
+          fontSize: '12px',
+          lineHeight: 1.2,
+        },
+      },
+    },
+    MuiInputBase: {
+      styleOverrides: {
+        root: {
+          fontSize: '12px',
+          lineHeight: 1.35,
+        },
+        input: {
+          padding: '8px 10px',
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: 6,
+          backgroundColor: '#fbfcfe',
+        },
+      },
+    },
+    MuiFormControlLabel: {
+      styleOverrides: {
+        label: {
+          fontSize: '12px',
+          lineHeight: 1.35,
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          fontSize: '12px',
+          minHeight: 32,
+        },
       },
     },
   },

@@ -1,5 +1,5 @@
 import { useEffect, type ReactElement } from 'react';
-import { Alert, Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -44,17 +44,29 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
   };
 
   return (
-    <Box component="main" sx={{ minHeight: '100vh', p: { xs: 1.75, md: 3 }, display: 'grid', alignContent: 'start', gap: 2.5 }}>
-      <Paper sx={{ p: { xs: 1.5, md: 2 }, display: 'flex', alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between', gap: 1.5, flexDirection: { xs: 'column', md: 'row' } }}>
+    <Box component="main" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#eef2f6' }}>
+      <Box
+        sx={{
+          px: { xs: 1.25, md: 1.5 },
+          py: 1.25,
+          display: 'flex',
+          alignItems: { xs: 'stretch', md: 'center' },
+          justifyContent: 'space-between',
+          gap: 1.5,
+          flexDirection: { xs: 'column', md: 'row' },
+          borderBottom: '1px solid #d7dde5',
+          bgcolor: '#fbfcfe',
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
           <Button variant="outlined" color="secondary" startIcon={<ArrowLeft size={16} />} onClick={() => navigate('/')} sx={{ flexShrink: 0 }}>
             Workspaces
           </Button>
-          <Stack spacing={0.4} sx={{ minWidth: 0 }}>
+          <Stack spacing={0.35} sx={{ minWidth: 0 }}>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0, fontWeight: 850 }}>
               Workspace Editor
             </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 850, lineHeight: 1.15, wordBreak: 'break-word' }}>
+            <Typography variant="h5" sx={{ wordBreak: 'break-word' }}>
               {workspaceName}
             </Typography>
             <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
@@ -77,20 +89,20 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
           onModeChange={onModeChange}
           onOpenAgentMarkdown={openAgentMarkdown}
         />
-      </Paper>
+      </Box>
 
-      {editor.schemaLoadError === null ? null : <Alert severity="error">{editor.schemaLoadError}</Alert>}
-      {editor.validationIssues.length === 0 ? null : <Alert severity="warning">Loaded schema has {editor.validationIssues.length} validation issue(s).</Alert>}
+      {editor.schemaLoadError === null ? null : <Alert severity="error" sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>{editor.schemaLoadError}</Alert>}
+      {editor.validationIssues.length === 0 ? null : <Alert severity="warning" sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>Loaded schema has {editor.validationIssues.length} validation issue(s).</Alert>}
 
       {isSchemaReady ? null : (
-        <Paper sx={{ p: 2.25 }}>
+        <Box sx={{ m: { xs: 1.25, md: 1.5 }, p: 1.5, border: '1px solid #d7dde5', bgcolor: '#fbfcfe' }}>
           <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0 }}>
               Workspace
             </Typography>
-            <Typography variant="h5">Loading from service</Typography>
+            <Typography variant="h6">Loading from service</Typography>
           </Stack>
-        </Paper>
+        </Box>
       )}
 
       {isSchemaReady && mode === EditorMode.Edit ? (
@@ -143,7 +155,7 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
       ) : null}
 
       {isSchemaReady && mode === EditorMode.Run ? (
-        <Stack spacing={2.5} sx={{ minWidth: 0 }}>
+        <Stack spacing={1.5} sx={{ flex: '1 1 auto', minWidth: 0, minHeight: 0 }}>
           <RuntimePanel
             schema={editor.schema}
             runtime={runtime}

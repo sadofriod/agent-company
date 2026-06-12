@@ -33,7 +33,7 @@ export const SelectionFormField = ({
           label={label}
           type={type}
           multiline={multiline}
-          minRows={multiline ? 4 : undefined}
+          minRows={multiline ? 3 : undefined}
           value={field.value ?? ''}
           onChange={(event) => {
             field.onChange(event.target.value);

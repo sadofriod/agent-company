@@ -14,7 +14,7 @@ type DiscussionSelectionViewProps = {
 export const DiscussionSelectionView = ({ form, updateDiscussionField, updateDiscussionNumber }: DiscussionSelectionViewProps): ReactElement => {
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Discussion Policy</Typography>
+      <Typography variant="h6">Discussion Policy</Typography>
       <SelectionFormField form={form} name="mode" label="Mode" onValueChange={(value) => updateDiscussionField('mode', value)} />
       <SelectionFormField form={form} name="max_rounds" label="Max Rounds" type="number" onValueChange={(value) => updateDiscussionNumber('max_rounds', Number.parseInt(value, 10))} />
       <SelectionFormField form={form} name="supervisor_agent_id" label="Supervisor Agent Id" onValueChange={(value) => updateDiscussionField('supervisor_agent_id', value)} />

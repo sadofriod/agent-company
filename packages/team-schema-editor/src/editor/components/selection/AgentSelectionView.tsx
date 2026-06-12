@@ -27,7 +27,7 @@ export const AgentSelectionView = ({
 }: AgentSelectionViewProps): ReactElement => {
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">{agent.metadata?.name ?? agent.agent_id}</Typography>
+      <Typography variant="h6">{agent.metadata?.name ?? agent.agent_id}</Typography>
       <Button color="error" variant="outlined" onClick={() => removeAgent(agent.agent_id)} sx={{ alignSelf: 'flex-start' }}>
         Delete Agent
       </Button>

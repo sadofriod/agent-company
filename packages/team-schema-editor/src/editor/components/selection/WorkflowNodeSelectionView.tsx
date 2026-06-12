@@ -92,7 +92,7 @@ export const WorkflowNodeSelectionView = ({
   return (
     <Stack spacing={2}>
       <Stack spacing={0.5}>
-        <Typography variant="h5">{workflowNode.data.workflowMetadata?.name ?? workflowNode.data.nodeName}</Typography>
+        <Typography variant="h6">{workflowNode.data.workflowMetadata?.name ?? workflowNode.data.nodeName}</Typography>
         <Typography color="text.secondary" sx={{ fontSize: '0.86rem', wordBreak: 'break-all' }}>
           {toWorkflowNodeTitle(workflowNode)} · {workflowNode.id}
         </Typography>

@@ -2,7 +2,7 @@ import type { Selection, TeamSchemaDocument } from '../../model/types';
 
 export type SelectionFormValues = Record<string, string | number>;
 
-const renderListValue = (items: string[]): string => items.join('\n');
+const renderListValue = (items?: string[] | null): string => (items ?? []).join('\n');
 
 export const buildSelectionFormValues = (schema: TeamSchemaDocument, selection: Selection): SelectionFormValues => {
   if (selection.kind === 'team') {

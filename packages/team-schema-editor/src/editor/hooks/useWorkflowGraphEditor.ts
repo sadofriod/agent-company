@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { Connection, Edge, OnEdgesChange, OnNodesChange } from '@xyflow/react';
+import type { Connection, Edge, NodeChange, NodePositionChange, OnEdgesChange, OnNodesChange, XYPosition } from '@xyflow/react';
 import { applyEdgeChanges, applyNodeChanges } from '@xyflow/react';
 
-import { buildGraph } from '../model/graphLayout';
-import { WorkflowNodeType } from '../model/types';
-import type { AgentDocument, TeamSchemaDocument, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
+import { GOAL_NODE_ID, PIPELINE_NODE_ID, buildGraph } from '../model/graphLayout';
+import { WorkflowEdgeMode, WorkflowNodeType } from '../model/types';
+import type { AgentDocument, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { applyWorkflowLayoutDocument } from '../model/workflowLayout';
 import { selectNode } from '../state/core/editorSlice';
 import type { AppDispatch } from '../state/core/editorStore';
 import type { WorkflowGraphEditorModel } from './helper/teamEditor.types';
 import {
   WORKFLOW_AGENT_NODE_PREFIX,
+  WORKFLOW_PIPELINE_NODE_PREFIX,
   createWorkflowAgentNode,
   createWorkflowEdge,
   createWorkflowPartNode,
@@ -26,6 +27,9 @@ type SetEdgeConnectionError = Dispatch<SetStateAction<string | null>>;
 type SchemaDocumentRevisionRef = { current: number | null };
 type CreateWorkflowNode = (currentNodes: WorkflowGraphNode[]) => WorkflowGraphNode;
 type WorkflowMetadataField = 'name' | 'description';
+type NodePositionDelta = { readonly x: number; readonly y: number };
+type ParentNodeDelta = { readonly parentId: string; readonly delta: NodePositionDelta };
+type PositionedNodeChange = NodePositionChange & { readonly position: XYPosition };
 
 const mergeLayoutNodes = (layoutNodes: WorkflowGraphNode[], currentNodes: WorkflowGraphNode[]): WorkflowGraphNode[] =>
   layoutNodes.map((node) => {
@@ -33,6 +37,148 @@ const mergeLayoutNodes = (layoutNodes: WorkflowGraphNode[], currentNodes: Workfl
 
     return existingNode === undefined ? node : { ...node, position: existingNode.position };
   });
+
+const isDepartmentNodeId = (nodeId: string): boolean => nodeId.startsWith('department:');
+
+const toDepartmentId = (nodeId: string): string => nodeId.replace('department:', '');
+
+const getEdgeMode = (edge: Edge): WorkflowEdgeMode | null => {
+  const data = edge.data as { mode?: WorkflowEdgeMode } | undefined;
+
+  return data?.mode ?? null;
+};
+
+const isPipelineNode = (node: WorkflowGraphNode): boolean =>
+  node.id === PIPELINE_NODE_ID || node.id.startsWith(WORKFLOW_PIPELINE_NODE_PREFIX);
+
+const collectPipelineChildIds = (parentId: string, edges: Edge[]): Set<string> => {
+  const pipelineEdges = edges.filter((edge) => getEdgeMode(edge) === WorkflowEdgeMode.Pipeline);
+  const childIds = new Set<string>();
+  const pendingIds = pipelineEdges
+    .filter((edge) => edge.source === parentId)
+    .map((edge) => edge.target);
+
+  while (pendingIds.length > 0) {
+    const childId = pendingIds.pop();
+
+    if (childId === undefined) {
+      continue;
+    }
+
+    if (childId === parentId || childIds.has(childId)) {
+      continue;
+    }
+
+    childIds.add(childId);
+    pipelineEdges
+      .filter((edge) => edge.source === childId)
+      .forEach((edge) => pendingIds.push(edge.target));
+  }
+
+  return childIds;
+};
+
+const collectUiChildNodeIds = (parent: WorkflowGraphNode, nodes: WorkflowGraphNode[], edges: Edge[]): Set<string> => {
+  if (parent.id === GOAL_NODE_ID) {
+    return new Set(nodes.filter((node) => node.id !== parent.id).map((node) => node.id));
+  }
+
+  if (isDepartmentNodeId(parent.id)) {
+    const departmentId = toDepartmentId(parent.id);
+
+    return new Set(nodes
+      .filter((node) => node.data.agent?.department_id === departmentId)
+      .map((node) => node.id));
+  }
+
+  if (isPipelineNode(parent)) {
+    return collectPipelineChildIds(parent.id, edges);
+  }
+
+  return new Set<string>();
+};
+
+const isPositionedNodeChange = (change: NodeChange<WorkflowGraphNode>): change is PositionedNodeChange =>
+  change.type === 'position' && change.position !== undefined;
+
+const toParentNodeDeltas = (
+  changes: NodeChange<WorkflowGraphNode>[],
+  currentNodes: WorkflowGraphNode[],
+): ParentNodeDelta[] => changes
+  .filter(isPositionedNodeChange)
+  .map((change) => {
+    const currentNode = currentNodes.find((node) => node.id === change.id);
+
+    if (currentNode === undefined) {
+      return null;
+    }
+
+    const delta = {
+      x: change.position.x - currentNode.position.x,
+      y: change.position.y - currentNode.position.y,
+    };
+
+    if (delta.x === 0 && delta.y === 0) {
+      return null;
+    }
+
+    return { parentId: change.id, delta };
+  })
+  .filter((change): change is ParentNodeDelta => change !== null);
+
+const applyUiParentNodeMovement = (
+  nodes: WorkflowGraphNode[],
+  edges: Edge[],
+  parentDeltas: ParentNodeDelta[],
+): WorkflowGraphNode[] => {
+  if (parentDeltas.length === 0) {
+    return nodes;
+  }
+
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const directPositionChangeIds = new Set(parentDeltas.map((change) => change.parentId));
+  const childDeltas = new Map<string, NodePositionDelta>();
+
+  parentDeltas.forEach((parentDelta) => {
+    const parent = nodesById.get(parentDelta.parentId);
+
+    if (parent === undefined) {
+      return;
+    }
+
+    collectUiChildNodeIds(parent, nodes, edges).forEach((childId) => {
+      if (directPositionChangeIds.has(childId)) {
+        return;
+      }
+
+      const currentDelta = childDeltas.get(childId) ?? { x: 0, y: 0 };
+      childDeltas.set(childId, {
+        x: currentDelta.x + parentDelta.delta.x,
+        y: currentDelta.y + parentDelta.delta.y,
+      });
+    });
+  });
+
+  if (childDeltas.size === 0) {
+    return nodes;
+  }
+
+  return nodes.map((node) => {
+    const delta = childDeltas.get(node.id);
+
+    if (delta === undefined) {
+      return node;
+    }
+
+    return {
+      ...node,
+      position: {
+        x: node.position.x + delta.x,
+        y: node.position.y + delta.y,
+      },
+    };
+  });
+};
 
 const createNodeSelectHandler = (dispatch: AppDispatch) => (nodeId: string | null): void => {
   dispatch(selectNode(nodeId));
@@ -91,8 +237,13 @@ const syncWorkflowGraph = (
   setEdges((currentEdges) => graph.edges.concat(pickWorkflowDraftEdges(currentEdges)));
 };
 
-const createNodesChangeHandler = (setNodes: SetWorkflowNodes): OnNodesChange<WorkflowGraphNode> => (changes) => {
-  setNodes((currentNodes) => applyNodeChanges(changes, currentNodes));
+const createNodesChangeHandler = (setNodes: SetWorkflowNodes, edges: Edge[]): OnNodesChange<WorkflowGraphNode> => (changes) => {
+  setNodes((currentNodes) => {
+    const parentDeltas = toParentNodeDeltas(changes, currentNodes);
+    const changedNodes = applyNodeChanges(changes, currentNodes);
+
+    return applyUiParentNodeMovement(changedNodes, edges, parentDeltas);
+  });
 };
 
 const createEdgesChangeHandler = (setEdges: SetWorkflowEdges): OnEdgesChange<Edge> => (changes) => {
@@ -240,7 +391,7 @@ export const useWorkflowGraphEditor = (
     syncWorkflowGraph(schema, schemaDocumentRevision, appliedDocumentRevision, setNodes, setEdges);
   }, [schema, schemaDocumentRevision]);
 
-  const onNodesChange = createNodesChangeHandler(setNodes);
+  const onNodesChange = createNodesChangeHandler(setNodes, edges);
   const onEdgesChange = createEdgesChangeHandler(setEdges);
   const onNodeSelect = createNodeSelectHandler(dispatch);
   const appendWorkflowNode = createWorkflowNodeAppender(dispatch, setNodes);

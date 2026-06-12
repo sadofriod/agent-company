@@ -17,7 +17,7 @@ export type TeamSchemaServiceModel = {
   schemaServiceError: string | null;
   schemaServiceMessage: string | null;
   schemaRecords: TeamSchemaRecord[];
-  selectedSchemaKey: string;
+  selectedSchemaKey: string | null;
   draftSchemaKey: string;
   updateDraftSchemaKey: (key: string) => void;
   createSchema: (schema: TeamSchemaDocument) => Promise<void>;
@@ -54,7 +54,7 @@ export type TeamEditorModel = {
   schemaServiceError: string | null;
   schemaServiceMessage: string | null;
   schemaRecords: TeamSchemaRecord[];
-  selectedSchemaKey: string;
+  selectedSchemaKey: string | null;
   draftSchemaKey: string;
   validationIssues: readonly ValidationIssue[];
   nodes: WorkflowGraphNode[];

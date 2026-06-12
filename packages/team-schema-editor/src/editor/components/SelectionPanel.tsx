@@ -12,6 +12,9 @@ import { WorkflowNodeSelectionView } from './selection/WorkflowNodeSelectionView
 import type { Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
 
+const inspectorPanelSx = { p: 1.5, minHeight: { xs: 'auto', lg: '100%' } } as const;
+const inspectorKickerSx = { letterSpacing: 0 } as const;
+
 type SelectionPanelProps = {
   schema: TeamSchemaDocument;
   nodes: WorkflowGraphNode[];
@@ -85,10 +88,10 @@ export const SelectionPanel = ({
 
   if (selection.kind === 'team') {
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -102,9 +105,9 @@ export const SelectionPanel = ({
   if (selection.kind === 'department') {
     if (department === undefined) {
       return (
-        <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-          <Stack spacing={2}>
-            <Typography variant="h5">Department</Typography>
+        <Box sx={inspectorPanelSx}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Department</Typography>
             <Typography color="text.secondary">Department not found.</Typography>
           </Stack>
         </Box>
@@ -112,10 +115,10 @@ export const SelectionPanel = ({
     }
 
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -136,9 +139,9 @@ export const SelectionPanel = ({
   if (selection.kind === 'agent') {
     if (agent === undefined) {
       return (
-        <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-          <Stack spacing={2}>
-            <Typography variant="h5">Agent</Typography>
+        <Box sx={inspectorPanelSx}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Agent</Typography>
             <Typography color="text.secondary">Agent not found.</Typography>
           </Stack>
         </Box>
@@ -146,10 +149,10 @@ export const SelectionPanel = ({
     }
 
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -171,9 +174,9 @@ export const SelectionPanel = ({
   if (selection.kind === 'workflowNode') {
     if (workflowNode === undefined) {
       return (
-        <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-          <Stack spacing={2}>
-            <Typography variant="h5">Workflow Node</Typography>
+        <Box sx={inspectorPanelSx}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Workflow Node</Typography>
             <Typography color="text.secondary">Workflow node not found.</Typography>
           </Stack>
         </Box>
@@ -181,10 +184,10 @@ export const SelectionPanel = ({
     }
 
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Workflow Node</Typography>
@@ -215,10 +218,10 @@ export const SelectionPanel = ({
 
   if (selection.kind === 'discussion') {
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -235,10 +238,10 @@ export const SelectionPanel = ({
 
   if (selection.kind === 'pipeline') {
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -251,10 +254,10 @@ export const SelectionPanel = ({
 
   if (selection.kind === 'review') {
     return (
-      <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -266,10 +269,10 @@ export const SelectionPanel = ({
   }
 
   return (
-    <Box sx={{ p: 2.25, minHeight: { xs: 'auto', lg: '100%' } }}>
-      <Stack spacing={2}>
-        <Stack spacing={0.75}>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+    <Box sx={inspectorPanelSx}>
+      <Stack spacing={1.5}>
+        <Stack spacing={0.5}>
+          <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
             Inspector
           </Typography>
           <Typography variant="h5">Selection</Typography>

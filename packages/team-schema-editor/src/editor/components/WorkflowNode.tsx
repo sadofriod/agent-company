@@ -13,6 +13,7 @@ import { SessionMemoryNode } from '../customNodes/SessionMemoryNode';
 import { nodeTextSx } from '../customNodes/nodeStyles';
 
 const nodeKindLabels: Record<GraphNodeKind, string> = {
+  goal: 'Goal',
   department: 'Department',
   agent: 'Agent',
   part: 'Part',
@@ -24,6 +25,25 @@ const nodeKindLabels: Record<GraphNodeKind, string> = {
 
 export const WorkflowNode = (props: NodeProps<WorkflowGraphNode>): ReactElement => {
   const { data, selected } = props;
+
+  if (data.kind === 'goal') {
+    return (
+      <NodeShell eyebrow="Goal" title={data.nodeName} accent={data.accent} selected={selected}>
+        <Stack spacing={0.65}>
+          {data.roleName === undefined ? null : (
+            <Typography sx={nodeTextSx}>
+              {data.roleName}
+            </Typography>
+          )}
+          {data.detail === undefined ? null : (
+            <Typography sx={nodeTextSx}>
+              {data.detail}
+            </Typography>
+          )}
+        </Stack>
+      </NodeShell>
+    );
+  }
 
   if (data.kind === 'department') {
     return <DepartmentNode {...props} />;

@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogTitle,
   MenuItem,
-  Paper,
   Snackbar,
   Stack,
   TextField,
@@ -128,7 +127,7 @@ export const GraphPanel = ({
   }, [linkTargetId, nodes]);
 
   return (
-    <Paper sx={{ minHeight: { xs: 640, xl: 'calc(100vh - 122px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{ flex: '1 1 auto', minHeight: { xs: 640, xl: 'calc(100vh - 84px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Box
         sx={{
           display: 'flex',
@@ -326,6 +325,6 @@ export const GraphPanel = ({
           {edgeConnectionError ?? ''}
         </Alert>
       </Snackbar>
-    </Paper>
+    </Box>
   );
 };

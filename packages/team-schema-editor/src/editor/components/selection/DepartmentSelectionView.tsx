@@ -25,7 +25,7 @@ export const DepartmentSelectionView = ({
 }: DepartmentSelectionViewProps): ReactElement => {
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">{department.name}</Typography>
+      <Typography variant="h6">{department.name}</Typography>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
         <Button variant="contained" onClick={() => addAgent(department.department_id)}>Add Agent</Button>
         <Button color="error" variant="outlined" onClick={() => removeDepartment(department.department_id)}>Delete Department</Button>

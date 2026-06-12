@@ -198,6 +198,7 @@ export type SchemaEdgeData = {
 };
 
 export const enum GraphNodeKind {
+  Goal = 'goal',
   Department = 'department',
   Agent = 'agent',
   Part = 'part',

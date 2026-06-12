@@ -14,6 +14,11 @@ export const selectNode: CaseReducer<EditorState, PayloadAction<string | null>> 
     return;
   }
 
+  if (nodeId === 'goal') {
+    state.selection = { kind: 'team' };
+    return;
+  }
+
   if (nodeId.startsWith('department:')) {
     state.selection = { kind: 'department', departmentId: nodeId.replace('department:', '') };
     return;

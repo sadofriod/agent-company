@@ -38,7 +38,7 @@ export const MemoryPolicyView = ({
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Memory Policy</Typography>
+      <Typography variant="h6">Memory Policy</Typography>
       <TextField
         fullWidth
         label="Retrieval Mode"

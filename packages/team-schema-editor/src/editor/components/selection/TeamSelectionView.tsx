@@ -14,7 +14,7 @@ type TeamSelectionViewProps = {
 export const TeamSelectionView = ({ form, addDepartment, updateTeamField }: TeamSelectionViewProps): ReactElement => {
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Team</Typography>
+      <Typography variant="h6">Team</Typography>
       <Button variant="contained" onClick={addDepartment} sx={{ alignSelf: 'flex-start' }}>
         Add Department
       </Button>
