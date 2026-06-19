@@ -4,11 +4,12 @@ import type { UseFormReturn } from 'react-hook-form';
 
 import { SelectionFormField } from './SelectionFormField';
 import type { SelectionFormValues } from './selectionFormValues';
+import { SchemaField } from '../../state/core/editorShared';
 
 type TeamSelectionViewProps = {
   form: UseFormReturn<SelectionFormValues>;
   addDepartment: () => void;
-  updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
+  updateTeamField: (field: SchemaField, value: string) => void;
 };
 
 export const TeamSelectionView = ({ form, addDepartment, updateTeamField }: TeamSelectionViewProps): ReactElement => {
@@ -18,9 +19,9 @@ export const TeamSelectionView = ({ form, addDepartment, updateTeamField }: Team
       <Button variant="contained" onClick={addDepartment} sx={{ alignSelf: 'flex-start' }}>
         Add Department
       </Button>
-      <SelectionFormField form={form} name="schema_version" label="Schema Version" onValueChange={(value) => updateTeamField('schema_version', value)} />
-      <SelectionFormField form={form} name="team_id" label="Team Id" onValueChange={(value) => updateTeamField('team_id', value)} />
-      <SelectionFormField form={form} name="team_name" label="Team Name" onValueChange={(value) => updateTeamField('team_name', value)} />
+      <SelectionFormField form={form} name="schema_version" label="Schema Version" onValueChange={(value) => updateTeamField(SchemaField.SchemaVersion, value)} />
+      <SelectionFormField form={form} name="team_id" label="Team Id" onValueChange={(value) => updateTeamField(SchemaField.TeamId, value)} />
+      <SelectionFormField form={form} name="team_name" label="Team Name" onValueChange={(value) => updateTeamField(SchemaField.TeamName, value)} />
     </Stack>
   );
 };

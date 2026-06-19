@@ -3,9 +3,9 @@ import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 import type { MemoryRetrievalProfileDocument } from '../../model/types';
 import {
   createDefaultMemoryProfile,
+  MemoryPolicyField,
   parseList,
   type EditorState,
-  type MemoryPolicyField,
   type MemoryPolicyListField,
   type MemoryRetrievalProfileField,
   type MemoryRetrievalProfileBooleanField,
@@ -47,7 +47,7 @@ export const updateMemoryPolicyField: CaseReducer<
 > = (state, action): void => {
   const schema = withMemoryPolicy(state.schema, (memoryPolicy) => ({
     ...memoryPolicy,
-    [action.payload.field]: action.payload.field === 'vector_store' || action.payload.field === 'graph_store'
+    [action.payload.field]: action.payload.field === MemoryPolicyField.VectorStore || action.payload.field === MemoryPolicyField.GraphStore
       ? toOptionalValue(action.payload.value)
       : action.payload.value,
   }));

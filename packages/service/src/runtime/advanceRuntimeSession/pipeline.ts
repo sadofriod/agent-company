@@ -1,4 +1,5 @@
 import type { EvidenceRef, SchemaIssue, ValidationResult } from '../../domain/base';
+import { PipelineInterruptionKind } from '../../domain/delivery';
 import type {
 	Handoff,
 	Pipeline,
@@ -387,8 +388,8 @@ export const promoteNextTicket = (session: RuntimeSession): ValidationResult<Run
 				session,
 				createPipelineInterruption(
 					pipelineValidation.issues.some((issue) => issue.code === 'pipeline_cycle_detected')
-						? 'pipeline_cycle_detected'
-						: 'return_to_discussion',
+						? PipelineInterruptionKind.PipelineCycleDetected
+						: PipelineInterruptionKind.ReturnToDiscussion,
 					'Pipeline validation failed during ticket promotion.',
 					'return_to_discussion',
 				),
@@ -536,7 +537,7 @@ const executeSingleStep = (
 			value: applyInterruption(
 				session,
 				createPipelineInterruption(
-					'revise_upstream',
+					PipelineInterruptionKind.ReviseUpstream,
 					'Upstream handoff is missing required fields for the current pipeline step.',
 					'revise_upstream',
 					pipeline.pipelineId,
@@ -554,7 +555,7 @@ const executeSingleStep = (
 			value: applyInterruption(
 				session,
 				createPipelineInterruption(
-					'return_to_discussion',
+					PipelineInterruptionKind.ReturnToDiscussion,
 					'Memory retrieval returned conflicts that require review or supervisor arbitration.',
 					'return_to_discussion',
 					pipeline.pipelineId,
@@ -572,7 +573,7 @@ const executeSingleStep = (
 			value: applyInterruption(
 				session,
 				createPipelineInterruption(
-					'reload_capability',
+					PipelineInterruptionKind.ReloadCapability,
 					'Step requested capabilities that are not authorized for the owner agent.',
 					'reload_capability',
 					pipeline.pipelineId,
@@ -590,7 +591,7 @@ const executeSingleStep = (
 			value: applyInterruption(
 				session,
 				createPipelineInterruption(
-					'reload_capability',
+					PipelineInterruptionKind.ReloadCapability,
 					'Pipeline step owner agent could not be assembled for execution.',
 					'reload_capability',
 					pipeline.pipelineId,
@@ -698,7 +699,7 @@ const executeSingleStep = (
 			value: applyInterruption(
 				workingSession,
 				createPipelineInterruption(
-					'return_to_discussion',
+					PipelineInterruptionKind.ReturnToDiscussion,
 					'Step review blocked further execution.',
 					'return_to_discussion',
 					pipeline.pipelineId,
@@ -714,7 +715,7 @@ const executeSingleStep = (
 			value: applyInterruption(
 				workingSession,
 				createPipelineInterruption(
-					'revise_upstream',
+					PipelineInterruptionKind.ReviseUpstream,
 					'Step review requested upstream revision before continuing.',
 					'revise_upstream',
 					pipeline.pipelineId,
@@ -836,7 +837,7 @@ export const executePipelineStage = (
 			value: applyInterruption(
 				workingSession,
 				createPipelineInterruption(
-					'pipeline_cycle_detected',
+					PipelineInterruptionKind.PipelineCycleDetected,
 					'No executable pipeline step was available although the pipeline is incomplete.',
 					'return_to_discussion',
 					pipeline.pipelineId,

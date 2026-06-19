@@ -11,7 +11,7 @@ import {
   useTerminateRuntimeSessionMutation,
 } from '../api/runtimeSessionApi';
 import type { RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../model/types';
-import type { RuntimeSessionModel, RuntimeSessionOperationStatus } from './helper/runtimeSession.types';
+import { RuntimeSessionOperationStatus, type RuntimeSessionModel } from './helper/runtimeSession.types';
 
 export type { RuntimeSessionModel } from './helper/runtimeSession.types';
 
@@ -45,10 +45,10 @@ const useSessionMutationRunner = (
     try {
       const nextSession = await mutation();
       setSession(nextSession);
-      setStatus('idle');
+      setStatus(RuntimeSessionOperationStatus.Idle);
       setMessage(successMessage);
     } catch (mutationError: unknown) {
-      setStatus('error');
+      setStatus(RuntimeSessionOperationStatus.Error);
       setError(formatError(mutationError));
     }
   };
@@ -103,7 +103,7 @@ const useSessionOperations = (
 
   return {
     runGoal: async (team: TeamSchemaDocument): Promise<void> => {
-      setStatus('runningGoal');
+      setStatus(RuntimeSessionOperationStatus.RunningGoal);
       setError(null);
       setMessage(null);
 
@@ -117,7 +117,7 @@ const useSessionOperations = (
         }
 
         setSession(nextSession);
-        setStatus('idle');
+        setStatus(RuntimeSessionOperationStatus.Idle);
 
         if (nextSession.state.interruption !== undefined) {
           setMessage(`Goal run paused with runtime interruption after ${advanceCount} execution step(s).`);
@@ -131,14 +131,18 @@ const useSessionOperations = (
 
         setMessage(`Goal completed after ${advanceCount} execution step(s).`);
       } catch (mutationError: unknown) {
-        setStatus('error');
+        setStatus(RuntimeSessionOperationStatus.Error);
         setError(formatError(mutationError));
       }
     },
-    refreshSession: async () => runIfSessionExists('refreshing', (sessionId) => loadRuntimeSession(sessionId).unwrap(), 'Runtime session refreshed.'),
-    pauseSession: async () => runIfSessionExists('pausing', (sessionId) => pauseRuntimeSession(sessionId).unwrap(), 'Runtime session paused.'),
-    resumeSession: async () => runIfSessionExists('resuming', (sessionId) => resumeRuntimeSession(sessionId).unwrap(), 'Runtime session resumed.'),
-    terminateSession: async () => runIfSessionExists('terminating', (sessionId) => terminateRuntimeSession(sessionId).unwrap(), 'Runtime session terminated.'),
+    refreshSession: async () =>
+      runIfSessionExists(RuntimeSessionOperationStatus.Refreshing, (sessionId) => loadRuntimeSession(sessionId).unwrap(), 'Runtime session refreshed.'),
+    pauseSession: async () =>
+      runIfSessionExists(RuntimeSessionOperationStatus.Pausing, (sessionId) => pauseRuntimeSession(sessionId).unwrap(), 'Runtime session paused.'),
+    resumeSession: async () =>
+      runIfSessionExists(RuntimeSessionOperationStatus.Resuming, (sessionId) => resumeRuntimeSession(sessionId).unwrap(), 'Runtime session resumed.'),
+    terminateSession: async () =>
+      runIfSessionExists(RuntimeSessionOperationStatus.Terminating, (sessionId) => terminateRuntimeSession(sessionId).unwrap(), 'Runtime session terminated.'),
   };
 };
 
@@ -149,7 +153,7 @@ export const useRuntimeSession = (): RuntimeSessionModel => {
     goal: 'Ship MVP onboarding in this sprint',
     constraints: 'Keep current database schema',
   });
-  const [status, setStatus] = useState<RuntimeSessionOperationStatus>('idle');
+  const [status, setStatus] = useState<RuntimeSessionOperationStatus>(RuntimeSessionOperationStatus.Idle);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const taskDraftEditors = useTaskDraftEditors(setTaskDraft);

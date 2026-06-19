@@ -3,7 +3,8 @@ import { Box, Button, Chip, List, ListItemButton, ListItemText, Paper, Stack, Te
 import { FolderOpen, Plus, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
+import { SchemaServiceStatus, type TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
+import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
 
 type WorkspaceListPageProps = {
   editor: TeamEditorModel;
@@ -11,7 +12,7 @@ type WorkspaceListPageProps = {
 
 export const WorkspaceListPage = ({ editor }: WorkspaceListPageProps): ReactElement => {
   const navigate = useNavigate();
-  const isBusy = editor.schemaServiceStatus !== 'idle';
+  const isBusy = editor.schemaServiceStatus !== SchemaServiceStatus.Idle;
   const workspaceItems = editor.schemaRecords.map((record) => (
     <ListItemButton
       key={record.key}
@@ -70,7 +71,7 @@ export const WorkspaceListPage = ({ editor }: WorkspaceListPageProps): ReactElem
                       }
                     });
                   }}
-                  disabled={editor.schemaLoadStatus !== 'ready' || isBusy}
+                  disabled={editor.schemaLoadStatus !== SchemaLoadStatus.Ready || isBusy}
                 >
                   Create
                 </Button>

@@ -112,7 +112,11 @@ export type TeamSchemaRecord = {
   updatedAt: string;
 };
 
-export type RuntimeSessionStatus = 'running' | 'paused' | 'terminated';
+export enum RuntimeSessionStatus {
+  Running = 'running',
+  Paused = 'paused',
+  Terminated = 'terminated',
+}
 
 export type RuntimeTaskDraft = {
   title: string;
@@ -190,7 +194,16 @@ export type WorkflowEdgeData = {
   mode: WorkflowEdgeMode;
 };
 
-export type SchemaEdgeTone = 'structure' | 'governance' | 'memory';
+export enum SchemaEdgeTone {
+  Structure = 'structure',
+  Governance = 'governance',
+  Memory = 'memory',
+}
+
+export enum MemoryScope {
+  Discussion = 'discussion',
+  Session = 'session',
+}
 
 export type SchemaEdgeData = {
   label?: string;
@@ -218,7 +231,7 @@ export type GraphNodeData = {
   workflowNodeType?: WorkflowNodeType;
   workflowAgentId?: string;
   workflowMetadata?: WorkflowNodeMetadata;
-  memoryScope?: 'discussion' | 'session';
+  memoryScope?: MemoryScope;
   department?: DepartmentDocument;
   agent?: AgentDocument;
   discussionPolicy?: DiscussionPolicyDocument;
@@ -251,7 +264,7 @@ export type WorkflowLayoutNodeDataDocument = {
   workflowNodeType?: WorkflowNodeType;
   workflowAgentId?: string;
   workflowMetadata?: WorkflowNodeMetadata;
-  memoryScope?: 'discussion' | 'session';
+  memoryScope?: MemoryScope;
 };
 
 export type WorkflowLayoutNodeDocument = {

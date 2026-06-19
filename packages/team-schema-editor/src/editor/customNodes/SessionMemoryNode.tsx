@@ -3,7 +3,7 @@ import { Chip, Stack, Typography } from '@mui/material';
 import type { NodeProps } from '@xyflow/react';
 
 import type { WorkflowGraphNode } from '../model/types';
-import { NodeShell } from './NodeShell';
+import { NodeShell, NodeShellVariant } from './NodeShell';
 import { nodeMetricChipSx, nodeTextSx } from './nodeStyles';
 
 const defaultSessionScopes = ['system', 'ticket'];
@@ -14,7 +14,7 @@ export const SessionMemoryNode = ({ data, selected }: NodeProps<WorkflowGraphNod
 	const scopes = retrievalProfile?.allowed_scopes ?? defaultSessionScopes;
 
 	return (
-		<NodeShell eyebrow="Session Memory" title={data.nodeName} accent={data.accent} selected={selected} variant="memory" workflowNodeType={data.workflowNodeType}>
+		<NodeShell eyebrow="Session Memory" title={data.nodeName} accent={data.accent} selected={selected} variant={NodeShellVariant.Memory} workflowNodeType={data.workflowNodeType}>
 			<Stack spacing={0.75}>
 				<Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
 					<Chip size="small" variant="outlined" label={`Profiles ${policy?.retrieval_profiles?.length ?? 0}`} sx={nodeMetricChipSx} />

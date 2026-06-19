@@ -226,6 +226,13 @@ export type MemoryRetrievalProfile = {
   readonly requireReviewedMemory: boolean;
 };
 
+export enum EvidenceRequiredOutputType {
+  Decision = 'decision',
+  Ticket = 'ticket',
+  Handoff = 'handoff',
+  ReviewResult = 'review_result',
+}
+
 /**
  * 描述团队级记忆治理与索引策略。
  */
@@ -241,12 +248,7 @@ export type MemoryPolicy = {
   /** 团队声明的检索配置档。 */
   readonly retrievalProfiles: readonly MemoryRetrievalProfile[];
   /** 必须附带证据引用的输出对象类型。 */
-  readonly evidenceRequiredForOutputs: readonly (
-    | 'decision'
-    | 'ticket'
-    | 'handoff'
-    | 'review_result'
-  )[];
+  readonly evidenceRequiredForOutputs: readonly EvidenceRequiredOutputType[];
   /** 召回到冲突记忆时的治理策略。 */
   readonly conflictStrategy: MemoryConflictStrategy;
 };

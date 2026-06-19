@@ -174,6 +174,16 @@ type EdgeVisual = {
   bidirectional: boolean;
 };
 
+export enum CreateWorkflowEdgeStatus {
+  Ok = 'ok',
+  Rejected = 'rejected',
+}
+
+export enum CreateWorkflowEdgeRejectionReason {
+  InvalidConnection = 'invalid_connection',
+  PipelineCycle = 'pipeline_cycle',
+}
+
 const resolveEdgeVisual = (mode: WorkflowEdgeMode): EdgeVisual => {
   if (mode === WorkflowEdgeMode.Discuss) {
     return { type: WorkflowEdgeType.DiscussAgents, color: '#2f7b6d', animated: true, bidirectional: true };
@@ -187,8 +197,8 @@ const resolveEdgeVisual = (mode: WorkflowEdgeMode): EdgeVisual => {
 };
 
 export type CreateWorkflowEdgeResult =
-  | { status: 'ok'; edge: Edge }
-  | { status: 'rejected'; reason: 'invalid_connection' | 'pipeline_cycle' };
+  | { status: CreateWorkflowEdgeStatus.Ok; edge: Edge }
+  | { status: CreateWorkflowEdgeStatus.Rejected; reason: CreateWorkflowEdgeRejectionReason };
 
 export const createWorkflowEdge = (
   connection: Connection,
@@ -196,11 +206,11 @@ export const createWorkflowEdge = (
   existingEdges: Edge[],
 ): CreateWorkflowEdgeResult => {
   if (!isCompleteConnection(connection)) {
-    return { status: 'rejected', reason: 'invalid_connection' };
+    return { status: CreateWorkflowEdgeStatus.Rejected, reason: CreateWorkflowEdgeRejectionReason.InvalidConnection };
   }
 
   if (mode === WorkflowEdgeMode.Pipeline && wouldCreatePipelineCycle(connection.source, connection.target, existingEdges)) {
-    return { status: 'rejected', reason: 'pipeline_cycle' };
+    return { status: CreateWorkflowEdgeStatus.Rejected, reason: CreateWorkflowEdgeRejectionReason.PipelineCycle };
   }
 
   const visual = resolveEdgeVisual(mode);
@@ -220,8 +230,8 @@ export const createWorkflowEdge = (
   };
 
   if (visual.bidirectional) {
-    return { status: 'ok', edge: { ...edge, markerStart: marker } };
+    return { status: CreateWorkflowEdgeStatus.Ok, edge: { ...edge, markerStart: marker } };
   }
 
-  return { status: 'ok', edge };
+  return { status: CreateWorkflowEdgeStatus.Ok, edge };
 };

@@ -1,9 +1,10 @@
 import type { MouseEvent, ReactElement } from 'react';
 import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { FileText, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { FileText, Pencil, Play, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 
 import type { EditorMode } from '../model/types';
-import type { SchemaLoadStatus } from '../state/core/editorShared';
+import { SchemaLoadStatus } from '../state/core/editorShared';
+import { SchemaServiceStatus } from '../hooks/helper/teamEditor.types';
 
 type EditorHeroProps = {
   mode: EditorMode;
@@ -13,7 +14,7 @@ type EditorHeroProps = {
   saveSchema: () => void;
   deleteSchema: () => void;
   schemaLoadStatus: SchemaLoadStatus;
-  schemaServiceStatus: 'idle' | 'loading' | 'saving' | 'deleting' | 'validating' | 'error';
+  schemaServiceStatus: SchemaServiceStatus;
   onModeChange: (mode: EditorMode) => void;
   onOpenAgentMarkdown: () => void;
 };
@@ -30,9 +31,9 @@ export const EditorHero = ({
   onModeChange,
   onOpenAgentMarkdown,
 }: EditorHeroProps): ReactElement => {
-  const isSchemaReady = schemaLoadStatus === 'ready';
-  const isSchemaLoading = schemaLoadStatus === 'loading';
-  const isBusy = schemaServiceStatus !== 'idle';
+  const isSchemaReady = schemaLoadStatus === SchemaLoadStatus.Ready;
+  const isSchemaLoading = schemaLoadStatus === SchemaLoadStatus.Loading;
+  const isBusy = schemaServiceStatus !== SchemaServiceStatus.Idle;
   const handleModeChange = (_event: MouseEvent<HTMLElement>, nextMode: EditorMode | null): void => {
     if (nextMode !== null) {
       onModeChange(nextMode);
@@ -44,12 +45,12 @@ export const EditorHero = ({
       <ToggleButtonGroup value={mode} exclusive onChange={handleModeChange} size="small" color="secondary" aria-label="Editor mode">
         <Tooltip title="Edit mode">
           <ToggleButton value="edit" aria-label="Edit mode">
-            <ShieldCheck size={17} />
+            <Pencil size={17} />
           </ToggleButton>
         </Tooltip>
         <Tooltip title="Run mode">
           <ToggleButton value="run" aria-label="Run mode">
-            <RotateCw size={17} />
+            <Play size={17} />
           </ToggleButton>
         </Tooltip>
       </ToggleButtonGroup>

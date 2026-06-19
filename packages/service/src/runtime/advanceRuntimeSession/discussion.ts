@@ -1,4 +1,5 @@
 import type { ValidationResult } from '../../domain/base';
+import { DiscussionConflictKind } from '../../domain/discussion';
 import type {
 	Decision,
 	DiscussionConflict,
@@ -163,7 +164,7 @@ const resolveOwnerDepartment = (
 	}
 
 	const conflict: DiscussionConflict = {
-		kind: 'owner_conflict',
+		kind: DiscussionConflictKind.OwnerConflict,
 		summary: 'Multiple departments matched the task equally and conflict resolution requires escalation.',
 		ownerDepartmentIds: winners.map((department) => department.departmentId),
 		relatedDecisionIds: [],

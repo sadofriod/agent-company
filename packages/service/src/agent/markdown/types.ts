@@ -4,7 +4,10 @@ export type AgentMarkdownFrontMatterValue = string | readonly string[];
 
 export type AgentMarkdownFrontMatter = Readonly<Record<string, AgentMarkdownFrontMatterValue>>;
 
-export type AgentMarkdownWriteMode = 'create' | 'update';
+export enum AgentMarkdownWriteMode {
+  Create = 'create',
+  Update = 'update',
+}
 
 export type AgentMarkdownValidationDetails = {
   readonly hasFrontMatter: boolean;

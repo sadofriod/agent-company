@@ -7,6 +7,7 @@ import {
   useDeleteTeamSchemaMutation,
   useGetTeamSchemaQuery,
   useListTeamSchemaRecordsQuery,
+  SaveSchemaMethod,
   useSaveTeamSchemaMutation,
   useValidateTeamSchemaMutation,
 } from '../api/teamSchemaApi';
@@ -14,7 +15,7 @@ import type { TeamSchemaDocument, TeamSchemaRecord } from '../model/types';
 import { createPendingTeamSchema } from '../state/core/editorShared';
 import { schemaLoadFailed, schemaLoadSucceeded, startSchemaLoad } from '../state/core/editorSlice';
 import type { AppDispatch } from '../state/core/editorStore';
-import type { SchemaServiceStatus, TeamSchemaServiceModel } from './helper/teamEditor.types';
+import { SchemaServiceStatus, type TeamSchemaServiceModel } from './helper/teamEditor.types';
 
 type ServiceState = {
   selectedSchemaKey: string | null;
@@ -38,7 +39,7 @@ const useServiceState = (): {
     selectedSchemaKey: null,
     draftSchemaKey: 'current',
     resolvedInitialSchema: false,
-    schemaServiceStatus: 'idle',
+    schemaServiceStatus: SchemaServiceStatus.Idle,
     schemaServiceError: null,
     schemaServiceMessage: null,
   });
@@ -134,14 +135,14 @@ const setServiceError = (
   setState: Dispatch<SetStateAction<ServiceState>>,
   error: string,
 ): void => {
-  setState((current) => ({ ...current, schemaServiceStatus: 'error', schemaServiceError: error }));
+  setState((current) => ({ ...current, schemaServiceStatus: SchemaServiceStatus.Error, schemaServiceError: error }));
 };
 
 const setServiceMessage = (
   setState: Dispatch<SetStateAction<ServiceState>>,
   message: string,
 ): void => {
-  setState((current) => ({ ...current, schemaServiceStatus: 'idle', schemaServiceMessage: message }));
+  setState((current) => ({ ...current, schemaServiceStatus: SchemaServiceStatus.Idle, schemaServiceMessage: message }));
 };
 
 const formatValidationErrors = (issues: readonly { path: readonly string[]; message: string }[]): string =>
@@ -151,7 +152,7 @@ const refreshSchemaRecords = async (
   recordsQuery: RecordsQuery,
   setState: Dispatch<SetStateAction<ServiceState>>,
 ): Promise<void> => {
-  setServiceLoading(setState, 'loading');
+  setServiceLoading(setState, SchemaServiceStatus.Loading);
 
   try {
     const records = await recordsQuery.refetch().unwrap();
@@ -189,7 +190,7 @@ const validateSchema = async (
   validateTeamSchema: ReturnType<typeof useValidateTeamSchemaMutation>[0],
   setState: Dispatch<SetStateAction<ServiceState>>,
 ): Promise<void> => {
-  setServiceLoading(setState, 'validating');
+  setServiceLoading(setState, SchemaServiceStatus.Validating);
 
   try {
     const validation = await validateTeamSchema(schema).unwrap();
@@ -213,10 +214,10 @@ const saveSchema = async (
   saveTeamSchema: ReturnType<typeof useSaveTeamSchemaMutation>[0],
   setState: Dispatch<SetStateAction<ServiceState>>,
 ): Promise<void> => {
-  setServiceLoading(setState, 'saving');
+  setServiceLoading(setState, SchemaServiceStatus.Saving);
 
   try {
-    const method = schemaRecords.some((record) => record.key === activeSchemaKey) ? 'PUT' : 'POST';
+    const method = schemaRecords.some((record) => record.key === activeSchemaKey) ? SaveSchemaMethod.Put : SaveSchemaMethod.Post;
     await saveTeamSchema({ key: activeSchemaKey, schema, method }).unwrap();
     await recordsQuery.refetch().unwrap();
     setServiceMessage(setState, `Saved schema ${activeSchemaKey}.`);
@@ -246,10 +247,10 @@ const createSchema = async (
     return;
   }
 
-  setServiceLoading(setState, 'saving');
+  setServiceLoading(setState, SchemaServiceStatus.Saving);
 
   try {
-    const nextSchema = await saveTeamSchema({ key: nextSchemaKey, schema, method: 'POST' }).unwrap();
+    const nextSchema = await saveTeamSchema({ key: nextSchemaKey, schema, method: SaveSchemaMethod.Post }).unwrap();
     await recordsQuery.refetch().unwrap();
     dispatch(schemaLoadSucceeded(nextSchema));
     setState((current) => ({
@@ -277,7 +278,7 @@ const deleteSchema = async (
   }
 
   const keyToDelete = selectedSchemaKey;
-  setServiceLoading(setState, 'deleting');
+  setServiceLoading(setState, SchemaServiceStatus.Deleting);
 
   try {
     await deleteTeamSchema(keyToDelete).unwrap();

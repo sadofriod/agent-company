@@ -6,7 +6,10 @@ import type {
   AgentMarkdownWriteMode,
 } from '../agent/markdown';
 
-export type AgentMarkdownStorageProvider = 'local' | 'vercel_blob';
+export enum AgentMarkdownStorageProvider {
+  Local = 'local',
+  VercelBlob = 'vercel_blob',
+}
 
 export type AgentMarkdownWriteInput = {
   readonly path: string;

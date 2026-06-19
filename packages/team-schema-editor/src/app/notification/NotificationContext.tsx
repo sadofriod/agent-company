@@ -10,7 +10,12 @@ import {
 } from 'react';
 import { Alert, Snackbar } from '@mui/material';
 
-export type NotificationSeverity = 'success' | 'info' | 'warning' | 'error';
+export enum NotificationSeverity {
+  Success = 'success',
+  Info = 'info',
+  Warning = 'warning',
+  Error = 'error',
+}
 
 export type NotificationPayload = {
   id?: string;

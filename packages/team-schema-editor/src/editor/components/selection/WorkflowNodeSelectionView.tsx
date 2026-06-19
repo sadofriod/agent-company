@@ -4,25 +4,38 @@ import { Button, Divider, MenuItem, Stack, TextField, Typography } from '@mui/ma
 import { WorkflowNodeType } from '../../model/types';
 import type { AgentDocument, TeamSchemaDocument, WorkflowGraphNode } from '../../model/types';
 import { MemoryPolicyView } from './MemoryPolicyView';
+import {
+  AgentField,
+  AgentListField,
+  AgentMetadataField,
+  AgentMetadataListField,
+  MemoryPolicyField,
+  MemoryPolicyListField,
+  MemoryRetrievalProfileBooleanField,
+  MemoryRetrievalProfileField,
+  MemoryRetrievalProfileListField,
+  MemoryRetrievalProfileNumberField,
+} from '../../state/core/editorShared';
+import { WorkflowMetadataField } from '../../hooks/helper/teamEditor.types';
 
 type WorkflowNodeSelectionViewProps = {
   schema: TeamSchemaDocument;
   workflowNode: WorkflowGraphNode;
   updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
-  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: WorkflowMetadataField, value: string) => void;
   removeWorkflowDraftNode: (nodeId: string) => void;
-  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string) => void;
-  updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
-  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
-  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
-  updateMemoryPolicyField: (field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy', value: string) => void;
-  updateMemoryPolicyList: (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string) => void;
+  updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
+  updateMemoryPolicyField: (field: MemoryPolicyField, value: string) => void;
+  updateMemoryPolicyList: (field: MemoryPolicyListField, value: string) => void;
   addMemoryRetrievalProfile: () => void;
   removeMemoryRetrievalProfile: (profileId: string) => void;
-  updateMemoryRetrievalProfileField: (profileId: string, field: 'profile_id', value: string) => void;
-  updateMemoryRetrievalProfileList: (profileId: string, field: 'allowed_scopes', value: string) => void;
-  updateMemoryRetrievalProfileNumber: (profileId: string, field: 'max_results' | 'max_graph_hops', value: number) => void;
-  updateMemoryRetrievalProfileBoolean: (profileId: string, field: 'require_reviewed_memory', value: boolean) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: MemoryRetrievalProfileField, value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: MemoryRetrievalProfileListField, value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: MemoryRetrievalProfileNumberField, value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
 };
 
 const renderListValue = (items: readonly string[] | undefined): string => (items ?? []).join('\n');
@@ -122,7 +135,7 @@ export const WorkflowNodeSelectionView = ({
         fullWidth
         label="Node Name"
         value={workflowNode.data.workflowMetadata?.name ?? workflowNode.data.nodeName}
-        onChange={(event) => updateWorkflowNodeMetadata(workflowNode.id, 'name', event.target.value)}
+        onChange={(event) => updateWorkflowNodeMetadata(workflowNode.id, WorkflowMetadataField.Name, event.target.value)}
       />
       <TextField
         fullWidth
@@ -130,7 +143,7 @@ export const WorkflowNodeSelectionView = ({
         minRows={3}
         label="Node Description"
         value={workflowNode.data.workflowMetadata?.description ?? workflowNode.data.detail ?? ''}
-        onChange={(event) => updateWorkflowNodeMetadata(workflowNode.id, 'description', event.target.value)}
+        onChange={(event) => updateWorkflowNodeMetadata(workflowNode.id, WorkflowMetadataField.Description, event.target.value)}
       />
 
       {!isAgentWorkflowNode ? (
@@ -151,19 +164,19 @@ export const WorkflowNodeSelectionView = ({
           <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 850, letterSpacing: 0 }}>
             Agent Runtime
           </Typography>
-          <TextField fullWidth label="Role" value={agent.role} onChange={(event) => updateAgentField(agent.agent_id, 'role', event.target.value)} />
-          <TextField fullWidth label="Model" value={agent.model} onChange={(event) => updateAgentField(agent.agent_id, 'model', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Description" value={agent.description ?? ''} onChange={(event) => updateAgentField(agent.agent_id, 'description', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Responsibilities" value={renderListValue(agent.responsibilities)} onChange={(event) => updateAgentList(agent.agent_id, 'responsibilities', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Skills" value={renderListValue(agent.skills)} onChange={(event) => updateAgentList(agent.agent_id, 'skills', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Tools" value={renderListValue(agent.tools)} onChange={(event) => updateAgentList(agent.agent_id, 'tools', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="MCP Servers" value={renderListValue(agent.mcp_servers)} onChange={(event) => updateAgentList(agent.agent_id, 'mcp_servers', event.target.value)} />
+          <TextField fullWidth label="Role" value={agent.role} onChange={(event) => updateAgentField(agent.agent_id, AgentField.Role, event.target.value)} />
+          <TextField fullWidth label="Model" value={agent.model} onChange={(event) => updateAgentField(agent.agent_id, AgentField.Model, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Description" value={agent.description ?? ''} onChange={(event) => updateAgentField(agent.agent_id, AgentField.Description, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Responsibilities" value={renderListValue(agent.responsibilities)} onChange={(event) => updateAgentList(agent.agent_id, AgentListField.Responsibilities, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Skills" value={renderListValue(agent.skills)} onChange={(event) => updateAgentList(agent.agent_id, AgentListField.Skills, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Tools" value={renderListValue(agent.tools)} onChange={(event) => updateAgentList(agent.agent_id, AgentListField.Tools, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="MCP Servers" value={renderListValue(agent.mcp_servers)} onChange={(event) => updateAgentList(agent.agent_id, AgentListField.McpServers, event.target.value)} />
           <TextField
             select
             fullWidth
             label="Memory Profile"
             value={agent.memory_access_policy ?? ''}
-            onChange={(event) => updateAgentField(agent.agent_id, 'memory_access_policy', event.target.value)}
+            onChange={(event) => updateAgentField(agent.agent_id, AgentField.MemoryAccessPolicy, event.target.value)}
           >
             {memoryProfileOptions}
           </TextField>
@@ -172,14 +185,14 @@ export const WorkflowNodeSelectionView = ({
           <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 850, letterSpacing: 0 }}>
             Agent Metadata
           </Typography>
-          <TextField fullWidth label="Metadata Name" value={agent.metadata?.name ?? agent.agent_id} onChange={(event) => updateAgentMetadataField(agent.agent_id, 'name', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Metadata Description" value={agent.metadata?.description ?? ''} onChange={(event) => updateAgentMetadataField(agent.agent_id, 'description', event.target.value)} />
-          <TextField fullWidth label="Profile" value={agent.metadata?.profile ?? ''} onChange={(event) => updateAgentMetadataField(agent.agent_id, 'profile', event.target.value)} />
-          <TextField fullWidth label="Tool Policy" value={agent.metadata?.tool_policy ?? ''} onChange={(event) => updateAgentMetadataField(agent.agent_id, 'tool_policy', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Partials" value={renderListValue(agent.metadata?.partials)} onChange={(event) => updateAgentMetadataList(agent.agent_id, 'partials', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Metadata Tools" value={renderListValue(agent.metadata?.tools)} onChange={(event) => updateAgentMetadataList(agent.agent_id, 'tools', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Allowed Commands" value={renderListValue(agent.metadata?.allowed_commands)} onChange={(event) => updateAgentMetadataList(agent.agent_id, 'allowed_commands', event.target.value)} />
-          <TextField fullWidth multiline minRows={3} label="Required Commands" value={renderListValue(agent.metadata?.required_commands)} onChange={(event) => updateAgentMetadataList(agent.agent_id, 'required_commands', event.target.value)} />
+          <TextField fullWidth label="Metadata Name" value={agent.metadata?.name ?? agent.agent_id} onChange={(event) => updateAgentMetadataField(agent.agent_id, AgentMetadataField.Name, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Metadata Description" value={agent.metadata?.description ?? ''} onChange={(event) => updateAgentMetadataField(agent.agent_id, AgentMetadataField.Description, event.target.value)} />
+          <TextField fullWidth label="Profile" value={agent.metadata?.profile ?? ''} onChange={(event) => updateAgentMetadataField(agent.agent_id, AgentMetadataField.Profile, event.target.value)} />
+          <TextField fullWidth label="Tool Policy" value={agent.metadata?.tool_policy ?? ''} onChange={(event) => updateAgentMetadataField(agent.agent_id, AgentMetadataField.ToolPolicy, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Partials" value={renderListValue(agent.metadata?.partials)} onChange={(event) => updateAgentMetadataList(agent.agent_id, AgentMetadataListField.Partials, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Metadata Tools" value={renderListValue(agent.metadata?.tools)} onChange={(event) => updateAgentMetadataList(agent.agent_id, AgentMetadataListField.Tools, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Allowed Commands" value={renderListValue(agent.metadata?.allowed_commands)} onChange={(event) => updateAgentMetadataList(agent.agent_id, AgentMetadataListField.AllowedCommands, event.target.value)} />
+          <TextField fullWidth multiline minRows={3} label="Required Commands" value={renderListValue(agent.metadata?.required_commands)} onChange={(event) => updateAgentMetadataList(agent.agent_id, AgentMetadataListField.RequiredCommands, event.target.value)} />
         </>
       )}
 

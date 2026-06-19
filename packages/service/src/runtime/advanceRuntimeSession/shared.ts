@@ -1,4 +1,5 @@
 import type { EvidenceRef, SchemaIssue, SourceRef } from '../../domain/base';
+import { PipelineInterruptionKind } from '../../domain/delivery';
 import type {
 	Pipeline,
 	PipelineInterruption,
@@ -99,7 +100,7 @@ export const applyInterruption = (
 	interruption: PipelineInterruption,
 ): RuntimeSession => {
 	const shouldReturnToDiscussion =
-		interruption.kind === 'return_to_discussion' || interruption.kind === 'ticket_admission_failed';
+			interruption.kind === PipelineInterruptionKind.ReturnToDiscussion || interruption.kind === PipelineInterruptionKind.TicketAdmissionFailed;
 
 	return updateRuntimeSession(
 		session,

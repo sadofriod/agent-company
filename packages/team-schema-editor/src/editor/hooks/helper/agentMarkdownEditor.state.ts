@@ -5,7 +5,14 @@ import type {
   AgentMarkdownValidationResponse,
 } from '@agents-team/service/agent/markdown';
 
-export type OperationStatus = 'idle' | 'loading' | 'reading' | 'validating' | 'writing' | 'deleting';
+export enum OperationStatus {
+  Idle = 'idle',
+  Loading = 'loading',
+  Reading = 'reading',
+  Validating = 'validating',
+  Writing = 'writing',
+  Deleting = 'deleting',
+}
 
 export type ValidatedDraft = {
   path: string;
@@ -76,7 +83,7 @@ export const initialState: AgentMarkdownEditorState = {
   selectedPath: null,
   draftPath: '',
   content: '',
-  status: 'idle',
+  status: OperationStatus.Idle,
   message: null,
   error: null,
   validation: null,
@@ -135,7 +142,7 @@ export const reducer = (
   action: AgentMarkdownEditorAction,
 ): AgentMarkdownEditorState => {
   if (action.type === 'filesLoading') {
-    return { ...state, status: 'loading', error: null, message: null };
+    return { ...state, status: OperationStatus.Loading, error: null, message: null };
   }
 
   if (action.type === 'filesLoaded') {
@@ -143,18 +150,18 @@ export const reducer = (
       ...state,
       files: action.files,
       selectedPath: chooseSelectedPath(action.files, state.selectedPath),
-      status: 'idle',
+      status: OperationStatus.Idle,
       error: null,
       draftPaths: action.draftPaths,
     };
   }
 
   if (action.type === 'fileSelected') {
-    return { ...state, selectedPath: action.path, status: 'reading', message: null, error: null };
+    return { ...state, selectedPath: action.path, status: OperationStatus.Reading, message: null, error: null };
   }
 
   if (action.type === 'fileReading') {
-    return { ...state, status: 'reading', error: null, message: null };
+    return { ...state, status: OperationStatus.Reading, error: null, message: null };
   }
 
   if (action.type === 'fileLoaded') {
@@ -163,7 +170,7 @@ export const reducer = (
       selectedPath: action.file.path,
       draftPath: action.file.path,
       content: action.content,
-      status: 'idle',
+      status: OperationStatus.Idle,
       message: action.hasLocalDraft ? 'Loaded local draft.' : null,
       error: null,
       validation: null,
@@ -179,7 +186,7 @@ export const reducer = (
       selectedPath: null,
       draftPath: action.path,
       content: action.content,
-      status: 'idle',
+      status: OperationStatus.Idle,
       message: 'New draft saved locally.',
       error: null,
       validation: null,
@@ -216,13 +223,13 @@ export const reducer = (
   }
 
   if (action.type === 'validationStarted') {
-    return { ...state, status: 'validating', error: null, message: null };
+    return { ...state, status: OperationStatus.Validating, error: null, message: null };
   }
 
   if (action.type === 'validationFinished') {
     return {
       ...state,
-      status: 'idle',
+      status: OperationStatus.Idle,
       validation: action.validation,
       validatedDraft: action.validatedDraft,
       message: action.validation.ok ? 'Draft validated.' : null,
@@ -231,7 +238,7 @@ export const reducer = (
   }
 
   if (action.type === 'writeStarted') {
-    return { ...state, status: 'writing', error: null, message: null };
+    return { ...state, status: OperationStatus.Writing, error: null, message: null };
   }
 
   if (action.type === 'writeFinished') {
@@ -241,7 +248,7 @@ export const reducer = (
       selectedPath: action.file.path,
       draftPath: action.file.path,
       content: action.file.content,
-      status: 'idle',
+      status: OperationStatus.Idle,
       message: 'Markdown written.',
       error: null,
       validation: action.file.validation.ok ? action.file.validation : null,
@@ -252,7 +259,7 @@ export const reducer = (
   }
 
   if (action.type === 'deleteStarted') {
-    return { ...state, status: 'deleting', error: null, message: null };
+    return { ...state, status: OperationStatus.Deleting, error: null, message: null };
   }
 
   if (action.type === 'deleteFinished') {
@@ -262,7 +269,7 @@ export const reducer = (
       selectedPath: action.selectedPath,
       draftPath: '',
       content: '',
-      status: 'idle',
+      status: OperationStatus.Idle,
       message: 'Markdown deleted.',
       error: null,
       validation: null,
@@ -276,7 +283,7 @@ export const reducer = (
     return {
       ...state,
       content: action.content,
-      status: 'idle',
+      status: OperationStatus.Idle,
       message: 'Local draft discarded.',
       error: null,
       validation: null,
@@ -286,5 +293,5 @@ export const reducer = (
     };
   }
 
-  return { ...state, status: 'idle', error: action.error, message: null };
+  return { ...state, status: OperationStatus.Idle, error: action.error, message: null };
 };

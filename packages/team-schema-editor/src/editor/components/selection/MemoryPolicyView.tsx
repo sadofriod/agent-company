@@ -2,17 +2,25 @@ import type { ReactElement } from 'react';
 import { Button, Divider, FormControlLabel, Stack, Switch, TextField, Typography } from '@mui/material';
 
 import type { TeamSchemaDocument } from '../../model/types';
+import {
+  MemoryPolicyField,
+  MemoryPolicyListField,
+  MemoryRetrievalProfileBooleanField,
+  MemoryRetrievalProfileField,
+  MemoryRetrievalProfileListField,
+  MemoryRetrievalProfileNumberField,
+} from '../../state/core/editorShared';
 
 type MemoryPolicyViewProps = {
   schema: TeamSchemaDocument;
-  updateMemoryPolicyField: (field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy', value: string) => void;
-  updateMemoryPolicyList: (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string) => void;
+  updateMemoryPolicyField: (field: MemoryPolicyField, value: string) => void;
+  updateMemoryPolicyList: (field: MemoryPolicyListField, value: string) => void;
   addMemoryRetrievalProfile: () => void;
   removeMemoryRetrievalProfile: (profileId: string) => void;
-  updateMemoryRetrievalProfileField: (profileId: string, field: 'profile_id', value: string) => void;
-  updateMemoryRetrievalProfileList: (profileId: string, field: 'allowed_scopes', value: string) => void;
-  updateMemoryRetrievalProfileNumber: (profileId: string, field: 'max_results' | 'max_graph_hops', value: number) => void;
-  updateMemoryRetrievalProfileBoolean: (profileId: string, field: 'require_reviewed_memory', value: boolean) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: MemoryRetrievalProfileField, value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: MemoryRetrievalProfileListField, value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: MemoryRetrievalProfileNumberField, value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
 };
 
 const renderListValue = (items: readonly string[] | undefined): string => (items ?? []).join('\n');
@@ -43,19 +51,19 @@ export const MemoryPolicyView = ({
         fullWidth
         label="Retrieval Mode"
         value={memoryPolicy?.retrieval_mode ?? 'standard_rag'}
-        onChange={(event) => updateMemoryPolicyField('retrieval_mode', event.target.value)}
+        onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.RetrievalMode, event.target.value)}
       />
       <TextField
         fullWidth
         label="Vector Store"
         value={memoryPolicy?.vector_store ?? ''}
-        onChange={(event) => updateMemoryPolicyField('vector_store', event.target.value)}
+        onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.VectorStore, event.target.value)}
       />
       <TextField
         fullWidth
         label="Graph Store"
         value={memoryPolicy?.graph_store ?? ''}
-        onChange={(event) => updateMemoryPolicyField('graph_store', event.target.value)}
+        onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.GraphStore, event.target.value)}
       />
       <TextField
         fullWidth
@@ -63,7 +71,7 @@ export const MemoryPolicyView = ({
         minRows={3}
         label="Indexed Object Types"
         value={renderListValue(memoryPolicy?.indexed_object_types)}
-        onChange={(event) => updateMemoryPolicyList('indexed_object_types', event.target.value)}
+        onChange={(event) => updateMemoryPolicyList(MemoryPolicyListField.IndexedObjectTypes, event.target.value)}
       />
       <TextField
         fullWidth
@@ -71,13 +79,13 @@ export const MemoryPolicyView = ({
         minRows={3}
         label="Evidence Required Outputs"
         value={renderListValue(memoryPolicy?.evidence_required_for_outputs)}
-        onChange={(event) => updateMemoryPolicyList('evidence_required_for_outputs', event.target.value)}
+        onChange={(event) => updateMemoryPolicyList(MemoryPolicyListField.EvidenceRequiredForOutputs, event.target.value)}
       />
       <TextField
         fullWidth
         label="Conflict Strategy"
         value={memoryPolicy?.conflict_strategy ?? 'prefer_reviewed_latest'}
-        onChange={(event) => updateMemoryPolicyField('conflict_strategy', event.target.value)}
+        onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.ConflictStrategy, event.target.value)}
       />
 
       <Divider />
@@ -94,7 +102,7 @@ export const MemoryPolicyView = ({
             fullWidth
             label="Profile ID"
             value={profile.profile_id}
-            onChange={(event) => updateMemoryRetrievalProfileField(profile.profile_id, 'profile_id', event.target.value)}
+            onChange={(event) => updateMemoryRetrievalProfileField(profile.profile_id, MemoryRetrievalProfileField.ProfileId, event.target.value)}
           />
           <TextField
             fullWidth
@@ -102,27 +110,27 @@ export const MemoryPolicyView = ({
             minRows={2}
             label="Allowed Scopes"
             value={renderListValue(profile.allowed_scopes)}
-            onChange={(event) => updateMemoryRetrievalProfileList(profile.profile_id, 'allowed_scopes', event.target.value)}
+            onChange={(event) => updateMemoryRetrievalProfileList(profile.profile_id, MemoryRetrievalProfileListField.AllowedScopes, event.target.value)}
           />
           <TextField
             fullWidth
             type="number"
             label="Max Results"
             value={profile.max_results}
-            onChange={(event) => updateMemoryRetrievalProfileNumber(profile.profile_id, 'max_results', toPositiveNumber(event.target.value, profile.max_results))}
+            onChange={(event) => updateMemoryRetrievalProfileNumber(profile.profile_id, MemoryRetrievalProfileNumberField.MaxResults, toPositiveNumber(event.target.value, profile.max_results))}
           />
           <TextField
             fullWidth
             type="number"
             label="Max Graph Hops"
             value={profile.max_graph_hops}
-            onChange={(event) => updateMemoryRetrievalProfileNumber(profile.profile_id, 'max_graph_hops', toPositiveNumber(event.target.value, profile.max_graph_hops))}
+            onChange={(event) => updateMemoryRetrievalProfileNumber(profile.profile_id, MemoryRetrievalProfileNumberField.MaxGraphHops, toPositiveNumber(event.target.value, profile.max_graph_hops))}
           />
           <FormControlLabel
             control={(
               <Switch
                 checked={profile.require_reviewed_memory}
-                onChange={(event) => updateMemoryRetrievalProfileBoolean(profile.profile_id, 'require_reviewed_memory', event.target.checked)}
+                onChange={(event) => updateMemoryRetrievalProfileBoolean(profile.profile_id, MemoryRetrievalProfileBooleanField.RequireReviewedMemory, event.target.checked)}
               />
             )}
             label="Require reviewed memory"

@@ -7,6 +7,7 @@ import type {
   AgentMetadata,
   Department,
   DiscussionPolicy,
+  EvidenceRequiredOutputType,
   MemoryPolicy,
   MemoryRetrievalProfile,
   PipelinePolicy,
@@ -221,7 +222,7 @@ const memoryPolicySchema = z
       graphStore: value.graph_store,
       indexedObjectTypes: value.indexed_object_types,
       retrievalProfiles: value.retrieval_profiles,
-      evidenceRequiredForOutputs: value.evidence_required_for_outputs,
+      evidenceRequiredForOutputs: value.evidence_required_for_outputs as readonly EvidenceRequiredOutputType[],
       conflictStrategy: value.conflict_strategy,
     }),
   );

@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from '@xyflow/react';
 
-import type { SchemaEdgeData, SchemaEdgeTone } from '../model/types';
+import { SchemaEdgeTone, type SchemaEdgeData } from '../model/types';
 
 const toneStyles: Record<SchemaEdgeTone, { stroke: string; fill: string; text: string; border: string }> = {
-  structure: { stroke: '#667085', fill: '#ffffff', text: '#344054', border: '#cfd6df' },
-  governance: { stroke: '#a8558f', fill: '#fff7fb', text: '#8a3f73', border: '#e8bddb' },
-  memory: { stroke: '#3b8290', fill: '#f4fbfc', text: '#246b78', border: '#afd8df' },
+  [SchemaEdgeTone.Structure]: { stroke: '#667085', fill: '#ffffff', text: '#344054', border: '#cfd6df' },
+  [SchemaEdgeTone.Governance]: { stroke: '#a8558f', fill: '#fff7fb', text: '#8a3f73', border: '#e8bddb' },
+  [SchemaEdgeTone.Memory]: { stroke: '#3b8290', fill: '#f4fbfc', text: '#246b78', border: '#afd8df' },
 };
 
 export const SchemaRelationEdge = ({
@@ -31,7 +31,7 @@ export const SchemaRelationEdge = ({
     borderRadius: 10,
   });
   const edgeData = data as SchemaEdgeData | undefined;
-  const tone = edgeData?.tone ?? 'structure';
+  const tone = edgeData?.tone ?? SchemaEdgeTone.Structure;
   const toneStyle = toneStyles[tone];
   const label = edgeData?.label ?? tone;
 

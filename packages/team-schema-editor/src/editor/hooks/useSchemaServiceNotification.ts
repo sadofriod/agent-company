@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 
-import { useNotification, type NotificationPayload } from '../../app/notification/NotificationContext';
-import type { SchemaServiceStatus } from './helper/teamEditor.types';
+import { NotificationSeverity, useNotification, type NotificationPayload } from '../../app/notification/NotificationContext';
+import { SchemaServiceStatus } from './helper/teamEditor.types';
 
 type UseSchemaServiceNotificationParams = {
   status: SchemaServiceStatus;
@@ -11,14 +11,14 @@ type UseSchemaServiceNotificationParams = {
 
 const toProcessingPayload = (status: SchemaServiceStatus): NotificationPayload | null => {
   switch (status) {
-    case 'loading':
-      return { id: 'processing:loading', severity: 'info', text: 'Refreshing team schema records...', autoHideDuration: null };
-    case 'saving':
-      return { id: 'processing:saving', severity: 'info', text: 'Saving team schema...', autoHideDuration: null };
-    case 'deleting':
-      return { id: 'processing:deleting', severity: 'info', text: 'Deleting team schema...', autoHideDuration: null };
-    case 'validating':
-      return { id: 'processing:validating', severity: 'info', text: 'Validating team schema...', autoHideDuration: null };
+    case SchemaServiceStatus.Loading:
+      return { id: 'processing:loading', severity: NotificationSeverity.Info, text: 'Refreshing team schema records...', autoHideDuration: null };
+    case SchemaServiceStatus.Saving:
+      return { id: 'processing:saving', severity: NotificationSeverity.Info, text: 'Saving team schema...', autoHideDuration: null };
+    case SchemaServiceStatus.Deleting:
+      return { id: 'processing:deleting', severity: NotificationSeverity.Info, text: 'Deleting team schema...', autoHideDuration: null };
+    case SchemaServiceStatus.Validating:
+      return { id: 'processing:validating', severity: NotificationSeverity.Info, text: 'Validating team schema...', autoHideDuration: null };
     default:
       return null;
   }
@@ -38,7 +38,7 @@ const toPayload = (
   if (error !== null) {
     return {
       id: `error:${error}`,
-      severity: 'error',
+      severity: NotificationSeverity.Error,
       text: error,
       autoHideDuration: 7000,
     };
@@ -47,7 +47,7 @@ const toPayload = (
   if (message !== null) {
     return {
       id: `success:${message}`,
-      severity: 'success',
+      severity: NotificationSeverity.Success,
       text: message,
       autoHideDuration: 3500,
     };

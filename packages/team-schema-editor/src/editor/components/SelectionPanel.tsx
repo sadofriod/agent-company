@@ -11,6 +11,23 @@ import { TeamSelectionView } from './selection/TeamSelectionView';
 import { WorkflowNodeSelectionView } from './selection/WorkflowNodeSelectionView';
 import type { Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
+import type {
+  AgentField,
+  AgentListField,
+  AgentMetadataField,
+  AgentMetadataListField,
+  DepartmentField,
+  DepartmentListField,
+  DiscussionField,
+  MemoryPolicyField,
+  MemoryPolicyListField,
+  MemoryRetrievalProfileBooleanField,
+  MemoryRetrievalProfileField,
+  MemoryRetrievalProfileListField,
+  MemoryRetrievalProfileNumberField,
+  SchemaField,
+} from '../state/core/editorShared';
+import type { WorkflowMetadataField } from '../hooks/helper/teamEditor.types';
 
 const inspectorPanelSx = { p: 1.5, minHeight: { xs: 'auto', lg: '100%' } } as const;
 const inspectorKickerSx = { letterSpacing: 0 } as const;
@@ -24,25 +41,25 @@ type SelectionPanelProps = {
   addAgent: (departmentId: string) => void;
   removeAgent: (agentId: string) => void;
   updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
-  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: WorkflowMetadataField, value: string) => void;
   removeWorkflowDraftNode: (nodeId: string) => void;
-  updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
-  updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
-  updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
-  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string) => void;
-  updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
-  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
-  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
-  updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
+  updateTeamField: (field: SchemaField, value: string) => void;
+  updateDepartmentField: (departmentId: string, field: DepartmentField, value: string) => void;
+  updateDepartmentList: (departmentId: string, field: DepartmentListField, value: string) => void;
+  updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
+  updateDiscussionField: (field: DiscussionField, value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
-  updateMemoryPolicyField: (field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy', value: string) => void;
-  updateMemoryPolicyList: (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string) => void;
+  updateMemoryPolicyField: (field: MemoryPolicyField, value: string) => void;
+  updateMemoryPolicyList: (field: MemoryPolicyListField, value: string) => void;
   addMemoryRetrievalProfile: () => void;
   removeMemoryRetrievalProfile: (profileId: string) => void;
-  updateMemoryRetrievalProfileField: (profileId: string, field: 'profile_id', value: string) => void;
-  updateMemoryRetrievalProfileList: (profileId: string, field: 'allowed_scopes', value: string) => void;
-  updateMemoryRetrievalProfileNumber: (profileId: string, field: 'max_results' | 'max_graph_hops', value: number) => void;
-  updateMemoryRetrievalProfileBoolean: (profileId: string, field: 'require_reviewed_memory', value: boolean) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: MemoryRetrievalProfileField, value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: MemoryRetrievalProfileListField, value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: MemoryRetrievalProfileNumberField, value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
 };
 
 export const SelectionPanel = ({

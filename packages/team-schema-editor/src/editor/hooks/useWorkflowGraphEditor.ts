@@ -9,8 +9,10 @@ import type { AgentDocument, TeamSchemaDocument, WorkflowGraphNode } from '../mo
 import { applyWorkflowLayoutDocument } from '../model/workflowLayout';
 import { selectNode } from '../state/core/editorSlice';
 import type { AppDispatch } from '../state/core/editorStore';
-import type { WorkflowGraphEditorModel } from './helper/teamEditor.types';
+import { type WorkflowGraphEditorModel, WorkflowMetadataField } from './helper/teamEditor.types';
 import {
+  CreateWorkflowEdgeRejectionReason,
+  CreateWorkflowEdgeStatus,
   WORKFLOW_AGENT_NODE_PREFIX,
   WORKFLOW_PIPELINE_NODE_PREFIX,
   createWorkflowAgentNode,
@@ -26,7 +28,6 @@ type SetWorkflowEdges = Dispatch<SetStateAction<Edge[]>>;
 type SetEdgeConnectionError = Dispatch<SetStateAction<string | null>>;
 type SchemaDocumentRevisionRef = { current: number | null };
 type CreateWorkflowNode = (currentNodes: WorkflowGraphNode[]) => WorkflowGraphNode;
-type WorkflowMetadataField = 'name' | 'description';
 type NodePositionDelta = { readonly x: number; readonly y: number };
 type ParentNodeDelta = { readonly parentId: string; readonly delta: NodePositionDelta };
 type PositionedNodeChange = NodePositionChange & { readonly position: XYPosition };
@@ -363,9 +364,9 @@ const createWorkflowEdgeAdder = (
   setEdges((currentEdges) => {
     const result = createWorkflowEdge(connection, mode, currentEdges);
 
-    if (result.status === 'rejected') {
+    if (result.status === CreateWorkflowEdgeStatus.Rejected) {
       setEdgeConnectionError(
-        result.reason === 'pipeline_cycle'
+        result.reason === CreateWorkflowEdgeRejectionReason.PipelineCycle
           ? 'Pipeline edge rejected: it would create a cycle. Pipeline children must form a DAG.'
           : 'Connection rejected: missing source or target.',
       );

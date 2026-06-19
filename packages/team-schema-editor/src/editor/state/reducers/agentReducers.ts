@@ -2,12 +2,12 @@ import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 
 import type { AgentDocument, AgentMetadataDocument } from '../../model/types';
 import {
+  AgentField,
+  AgentMetadataField,
   createAgentId,
   ensureUniqueId,
   parseList,
-  type AgentField,
   type AgentListField,
-  type AgentMetadataField,
   type AgentMetadataListField,
   type EditorState,
   updateAgent,
@@ -25,7 +25,7 @@ export const updateAgentField: CaseReducer<
   PayloadAction<{ agentId: string; field: AgentField; value: string }>
 > = (state, action): void => {
   const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
-    if (action.payload.field === 'memory_access_policy') {
+    if (action.payload.field === AgentField.MemoryAccessPolicy) {
       const value = action.payload.value.trim();
 
       if (value.length === 0) {
@@ -63,7 +63,7 @@ export const updateAgentMetadataField: CaseReducer<
   const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
     const metadata = createAgentMetadataBase(agent);
 
-    if (action.payload.field === 'profile' || action.payload.field === 'tool_policy') {
+    if (action.payload.field === AgentMetadataField.Profile || action.payload.field === AgentMetadataField.ToolPolicy) {
       const value = action.payload.value.trim().length === 0 ? undefined : action.payload.value;
       return { ...agent, metadata: { ...metadata, [action.payload.field]: value } };
     }

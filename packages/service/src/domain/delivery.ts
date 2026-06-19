@@ -116,17 +116,20 @@ export type Handoff = {
   readonly evidenceRefs: readonly EvidenceRef[];
 };
 
+export enum PipelineInterruptionKind {
+  ReviseUpstream = 'revise_upstream',
+  ReloadCapability = 'reload_capability',
+  ReturnToDiscussion = 'return_to_discussion',
+  TicketAdmissionFailed = 'ticket_admission_failed',
+  PipelineCycleDetected = 'pipeline_cycle_detected',
+}
+
 /**
  * 描述 Pipeline 执行过程中出现的中断及建议动作。
  */
 export type PipelineInterruption = {
   /** 中断类型。 */
-  readonly kind:
-    | 'revise_upstream'
-    | 'reload_capability'
-    | 'return_to_discussion'
-    | 'ticket_admission_failed'
-    | 'pipeline_cycle_detected';
+  readonly kind: PipelineInterruptionKind;
   /** 涉及的 Pipeline。 */
   readonly pipelineId?: PipelineId;
   /** 涉及的步骤。 */

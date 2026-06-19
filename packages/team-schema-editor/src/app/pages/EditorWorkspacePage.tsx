@@ -1,5 +1,5 @@
 import { useEffect, type ReactElement } from 'react';
-import { Alert, Box, Button, Chip, Stack, Typography } from '@mui/material';
+import { Alert, Box, IconButton, Stack, Typography } from '@mui/material';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -10,6 +10,7 @@ import { SelectionPanel } from '../../editor/components/SelectionPanel';
 import type { RuntimeSessionModel } from '../../editor/hooks/useRuntimeSession';
 import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
 import { EditorMode } from '../../editor/model/types';
+import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
 
 type EditorWorkspacePageProps = {
   editor: TeamEditorModel;
@@ -21,9 +22,8 @@ type EditorWorkspacePageProps = {
 export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: EditorWorkspacePageProps): ReactElement => {
   const navigate = useNavigate();
   const { schemaKey } = useParams<{ schemaKey: string }>();
-  const isSchemaReady = editor.schemaLoadStatus === 'ready';
+  const isSchemaReady = editor.schemaLoadStatus === SchemaLoadStatus.Ready;
   const workspaceName = editor.schema.team_name ?? editor.schema.team_id;
-  const selectedAgentId = editor.selection.kind === 'agent' ? editor.selection.agentId : null;
 
   useEffect(() => {
     if (schemaKey === undefined) {
@@ -59,21 +59,13 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-          <Button variant="outlined" color="secondary" startIcon={<ArrowLeft size={16} />} onClick={() => navigate('/')} sx={{ flexShrink: 0 }}>
-            Workspaces
-          </Button>
+          <IconButton  color="secondary" onClick={() => navigate('/')}>
+            <ArrowLeft size={16} />
+          </IconButton>
           <Stack spacing={0.35} sx={{ minWidth: 0 }}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0, fontWeight: 850 }}>
-              Workspace Editor
-            </Typography>
             <Typography variant="h5" sx={{ wordBreak: 'break-word' }}>
               {workspaceName}
             </Typography>
-            <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
-              <Chip size="small" label={editor.selectedSchemaKey} variant="outlined" />
-              <Chip size="small" label={mode === EditorMode.Edit ? 'Edit' : 'Run'} color="secondary" variant="outlined" />
-              {selectedAgentId === null ? null : <Chip size="small" label={selectedAgentId} variant="outlined" />}
-            </Stack>
           </Stack>
         </Box>
 

@@ -4,25 +4,36 @@ import { Handle, Position } from '@xyflow/react';
 
 import type { WorkflowNodeType } from '../model/types';
 
+export enum NodeShellVariant {
+  Standard = 'standard',
+  Container = 'container',
+  Memory = 'memory',
+}
+
+enum HandleSide {
+  Left = 'left',
+  Right = 'right',
+}
+
 type NodeShellProps = {
   eyebrow: string;
   title: string;
   accent: string;
   selected: boolean;
   children: ReactNode;
-  variant?: 'standard' | 'container' | 'memory';
+  variant?: NodeShellVariant;
   workflowNodeType?: WorkflowNodeType;
 };
 
-const createHandleStyle = (accent: string, side: 'left' | 'right'): CSSProperties => ({
+const createHandleStyle = (accent: string, side: HandleSide): CSSProperties => ({
   width: 10,
   height: 26,
   border: `1px solid ${accent}`,
-  borderRadius: side === 'left' ? '0 3px 3px 0' : '3px 0 0 3px',
+  borderRadius: side === HandleSide.Left ? '0 3px 3px 0' : '3px 0 0 3px',
   background: '#f8fafc',
   boxShadow: '0 0 0 2px rgba(248, 250, 252, 0.9)',
-  left: side === 'left' ? -5 : undefined,
-  right: side === 'right' ? -5 : undefined,
+  left: side === HandleSide.Left ? -5 : undefined,
+  right: side === HandleSide.Right ? -5 : undefined,
 });
 
 export const NodeShell = ({
@@ -31,11 +42,11 @@ export const NodeShell = ({
   accent,
   selected,
   children,
-  variant = 'standard',
+  variant = NodeShellVariant.Standard,
   workflowNodeType,
 }: NodeShellProps): ReactElement => {
-  const isContainer = variant === 'container';
-  const isMemory = variant === 'memory';
+  const isContainer = variant === NodeShellVariant.Container;
+  const isMemory = variant === NodeShellVariant.Memory;
 
   return (
     <Box
@@ -53,8 +64,8 @@ export const NodeShell = ({
         overflow: 'visible',
       }}
     >
-      <Handle type="target" position={Position.Left} style={createHandleStyle(accent, 'left')} />
-      <Handle type="source" position={Position.Right} style={createHandleStyle(accent, 'right')} />
+      <Handle type="target" position={Position.Left} style={createHandleStyle(accent, HandleSide.Left)} />
+      <Handle type="source" position={Position.Right} style={createHandleStyle(accent, HandleSide.Right)} />
 
       <Box sx={{ position: 'absolute', inset: '0 auto 0 0', width: 5, bgcolor: accent, borderRadius: '8px 0 0 8px' }} />
       <Stack spacing={1} sx={{ p: 1.5, pl: 2 }}>

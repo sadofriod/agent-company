@@ -1,8 +1,8 @@
 import type { Edge } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 
-import { GraphNodeKind, WorkflowEdgeType } from './types';
-import type { AgentDocument, GraphNodeData, SchemaEdgeData, SchemaEdgeTone, TeamSchemaDocument, WorkflowGraphNode } from './types';
+import { GraphNodeKind, MemoryScope, SchemaEdgeTone, WorkflowEdgeType } from './types';
+import type { AgentDocument, GraphNodeData, SchemaEdgeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
 
 export const GOAL_NODE_ID = 'goal';
 const DISCUSSION_NODE_ID = 'discussion';
@@ -34,9 +34,9 @@ const createNode = (
 });
 
 const schemaEdgeColors: Record<SchemaEdgeTone, string> = {
-  structure: '#667085',
-  governance: '#a8558f',
-  memory: '#3b8290',
+  [SchemaEdgeTone.Structure]: '#667085',
+  [SchemaEdgeTone.Governance]: '#a8558f',
+  [SchemaEdgeTone.Memory]: '#3b8290',
 };
 
 const createEdge = (
@@ -44,7 +44,7 @@ const createEdge = (
   source: string,
   target: string,
   label?: string,
-  tone: SchemaEdgeTone = 'structure',
+  tone: SchemaEdgeTone = SchemaEdgeTone.Structure,
   animated = false,
 ): Edge => {
   const edgeData: SchemaEdgeData = { label, tone };
@@ -152,8 +152,8 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
     }),
   );
 
-  edges.push(createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', 'governance'));
-  edges.push(createEdge('goal-pipeline', GOAL_NODE_ID, PIPELINE_NODE_ID, 'execute', 'governance'));
+  edges.push(createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', SchemaEdgeTone.Governance));
+  edges.push(createEdge('goal-pipeline', GOAL_NODE_ID, PIPELINE_NODE_ID, 'execute', SchemaEdgeTone.Governance));
 
   if (schema.memory_policy !== undefined) {
     nodes.push(
@@ -162,7 +162,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
         nodeName: 'Discussion Memory',
         roleName: 'Retriever',
         detail: 'Discussion retrieval and conflict routing',
-        memoryScope: 'discussion',
+        memoryScope: MemoryScope.Discussion,
         memoryPolicy: schema.memory_policy,
         accent: 'var(--memory-accent)',
       }),
@@ -174,14 +174,14 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
         nodeName: 'Session Memory',
         roleName: 'Retriever',
         detail: 'Execution retrieval and evidence packaging',
-        memoryScope: 'session',
+        memoryScope: MemoryScope.Session,
         memoryPolicy: schema.memory_policy,
         accent: 'var(--memory-accent)',
       }),
     );
 
-    edges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', 'memory'));
-    edges.push(createEdge('pipeline-memory-session', PIPELINE_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', 'memory'));
+    edges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
+    edges.push(createEdge('pipeline-memory-session', PIPELINE_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
   }
 
   if (schema.discussion_policy.supervisor_agent_id !== undefined) {
@@ -189,7 +189,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
     const hasSupervisorNode = nodes.some((node) => node.id === supervisorNodeId);
 
     if (hasSupervisorNode) {
-      edges.push(createEdge('discussion-supervisor', DISCUSSION_NODE_ID, supervisorNodeId, 'supervisor', 'governance', true));
+      edges.push(createEdge('discussion-supervisor', DISCUSSION_NODE_ID, supervisorNodeId, 'supervisor', SchemaEdgeTone.Governance, true));
     }
   }
 

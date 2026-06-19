@@ -5,12 +5,17 @@ import type { UseFormReturn } from 'react-hook-form';
 
 import type { SelectionFormValues } from './selectionFormValues';
 
+export enum SelectionFieldType {
+  Text = 'text',
+  Number = 'number',
+}
+
 type SelectionFormFieldProps = {
   form: UseFormReturn<SelectionFormValues>;
   name: string;
   label: string;
   multiline?: boolean;
-  type?: 'text' | 'number';
+  type?: SelectionFieldType;
   onValueChange: (value: string) => void;
 };
 
@@ -19,7 +24,7 @@ export const SelectionFormField = ({
   name,
   label,
   multiline = false,
-  type = 'text',
+  type = SelectionFieldType.Text,
   onValueChange,
 }: SelectionFormFieldProps): ReactElement => {
   return (

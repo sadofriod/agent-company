@@ -1,11 +1,13 @@
 import type { EvidenceRef } from '../../domain/base';
 import type { TicketDraft } from '../../domain/discussion';
+import { PipelineInterruptionKind } from '../../domain/delivery';
 import type {
 	Pipeline,
 	PipelineInterruption,
 	StepResult,
 	Ticket,
 } from '../../domain/delivery';
+import { EvidenceRequiredOutputType } from '../../domain/organization';
 import {
 	REVIEW_STATUS,
 	REVIEW_TARGET_TYPE,
@@ -87,7 +89,7 @@ const createReviewIssues = (
 		if (
 			reviewer === REVIEWER_KIND.QualityReview &&
 			evidenceRefs.length === 0 &&
-			session.runtimePlan.memoryPolicy?.evidenceRequiredForOutputs.includes('handoff')
+			session.runtimePlan.memoryPolicy?.evidenceRequiredForOutputs.includes(EvidenceRequiredOutputType.Handoff)
 		) {
 			issues.push({
 				field: 'evidence_refs',
@@ -186,7 +188,7 @@ export const admitTicketDraft = (
 		return {
 			reviewResults,
 			interruption: {
-				kind: 'ticket_admission_failed',
+				kind: PipelineInterruptionKind.TicketAdmissionFailed,
 				message: 'Ticket admission review blocked the draft.',
 				suggestedAction: 'return_to_discussion',
 			},
@@ -197,7 +199,7 @@ export const admitTicketDraft = (
 		return {
 			reviewResults,
 			interruption: {
-				kind: 'ticket_admission_failed',
+				kind: PipelineInterruptionKind.TicketAdmissionFailed,
 				message: 'Ticket admission review requires draft revision.',
 				suggestedAction: 'revise_upstream',
 			},

@@ -1,13 +1,14 @@
 import type { RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../../model/types';
 
-export type RuntimeSessionOperationStatus =
-  | 'idle'
-  | 'runningGoal'
-  | 'refreshing'
-  | 'pausing'
-  | 'resuming'
-  | 'terminating'
-  | 'error';
+export enum RuntimeSessionOperationStatus {
+  Idle = 'idle',
+  RunningGoal = 'runningGoal',
+  Refreshing = 'refreshing',
+  Pausing = 'pausing',
+  Resuming = 'resuming',
+  Terminating = 'terminating',
+  Error = 'error',
+}
 
 export type RuntimeSessionModel = {
   session: RuntimeSessionSnapshot | null;

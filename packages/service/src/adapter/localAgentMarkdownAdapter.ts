@@ -8,7 +8,7 @@ import {
   writeAgentMarkdownFile,
 } from '../agent/markdown';
 import type { AgentMarkdownFileSummary } from '../agent/markdown';
-import type { AgentMarkdownAdapter } from './agentMarkdownAdapter';
+import { AgentMarkdownStorageProvider, type AgentMarkdownAdapter } from './agentMarkdownAdapter';
 import {
   createAgentMarkdownMetadataInput,
   type AgentMarkdownMetadataRepository,
@@ -37,7 +37,7 @@ export const createLocalAgentMarkdownAdapter = ({
     await metadataRepository.upsert(
       createAgentMarkdownMetadataInput({
         summary,
-        storageProvider: 'local',
+        storageProvider: AgentMarkdownStorageProvider.Local,
         storagePath: resolveLocalStoragePath(agentsDirectory, summary.path),
       }),
     );

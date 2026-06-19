@@ -11,6 +11,11 @@ import {
 } from './shared';
 import type { TeamSchemaDocument, TeamSchemaRecord, ValidationIssue } from '../model/types';
 
+export enum SaveSchemaMethod {
+  Post = 'POST',
+  Put = 'PUT',
+}
+
 export const teamSchemaApi = editorApi.injectEndpoints({
   endpoints: (builder) => ({
     listTeamSchemaRecords: builder.query<TeamSchemaRecord[], void>({
@@ -84,7 +89,7 @@ export const teamSchemaApi = editorApi.injectEndpoints({
         return { data: { ok: true } };
       },
     }),
-    saveTeamSchema: builder.mutation<TeamSchemaDocument, { key: string; schema: TeamSchemaDocument; method: 'POST' | 'PUT' }>({
+    saveTeamSchema: builder.mutation<TeamSchemaDocument, { key: string; schema: TeamSchemaDocument; method: SaveSchemaMethod }>({
       query: ({ key, schema, method }) => ({
         url: `${TEAM_SCHEMA_BASE}/${key}`,
         method,

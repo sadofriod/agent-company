@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { Stack, Typography } from '@mui/material';
 import type { NodeProps } from '@xyflow/react';
 
-import type { GraphNodeKind, WorkflowGraphNode } from '../model/types';
+import { MemoryScope, type GraphNodeKind, type WorkflowGraphNode } from '../model/types';
 import { AgentNode } from '../customNodes/AgentNode';
 import { DepartmentNode } from '../customNodes/DepartmentNode';
 import { DiscussionMemoryNode } from '../customNodes/DiscussionMemoryNode';
@@ -62,7 +62,7 @@ export const WorkflowNode = (props: NodeProps<WorkflowGraphNode>): ReactElement 
   }
 
   if (data.kind === 'memory') {
-    if (data.memoryScope === 'discussion') {
+    if (data.memoryScope === MemoryScope.Discussion) {
       return <DiscussionMemoryNode {...props} />;
     }
 

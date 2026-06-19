@@ -21,39 +21,55 @@ import {
   updateMemoryRetrievalProfileNumber as updateMemoryRetrievalProfileNumberAction,
   updateTeamField as updateTeamFieldAction,
 } from '../state/core/editorSlice';
+import type {
+  AgentField,
+  AgentListField,
+  AgentMetadataField,
+  AgentMetadataListField,
+  DepartmentField,
+  DepartmentListField,
+  DiscussionField,
+  MemoryPolicyField,
+  MemoryPolicyListField,
+  MemoryRetrievalProfileBooleanField,
+  MemoryRetrievalProfileField,
+  MemoryRetrievalProfileListField,
+  MemoryRetrievalProfileNumberField,
+  SchemaField,
+} from '../state/core/editorShared';
 import type { AppDispatch } from '../state/core/editorStore';
 
 type DepartmentActions = {
   addDepartment: () => void;
   removeDepartment: (departmentId: string) => void;
-  updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
-  updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
+  updateDepartmentField: (departmentId: string, field: DepartmentField, value: string) => void;
+  updateDepartmentList: (departmentId: string, field: DepartmentListField, value: string) => void;
 };
 
 type AgentActions = {
   addAgent: (departmentId: string) => void;
   removeAgent: (agentId: string) => void;
-  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string) => void;
-  updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
-  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
-  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
+  updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
 };
 
 type TeamAndDiscussionActions = {
-  updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
-  updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
+  updateTeamField: (field: SchemaField, value: string) => void;
+  updateDiscussionField: (field: DiscussionField, value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
 };
 
 export type MemoryPolicyActions = {
-  updateMemoryPolicyField: (field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy', value: string) => void;
-  updateMemoryPolicyList: (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string) => void;
+  updateMemoryPolicyField: (field: MemoryPolicyField, value: string) => void;
+  updateMemoryPolicyList: (field: MemoryPolicyListField, value: string) => void;
   addMemoryRetrievalProfile: () => void;
   removeMemoryRetrievalProfile: (profileId: string) => void;
-  updateMemoryRetrievalProfileField: (profileId: string, field: 'profile_id', value: string) => void;
-  updateMemoryRetrievalProfileList: (profileId: string, field: 'allowed_scopes', value: string) => void;
-  updateMemoryRetrievalProfileNumber: (profileId: string, field: 'max_results' | 'max_graph_hops', value: number) => void;
-  updateMemoryRetrievalProfileBoolean: (profileId: string, field: 'require_reviewed_memory', value: boolean) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: MemoryRetrievalProfileField, value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: MemoryRetrievalProfileListField, value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: MemoryRetrievalProfileNumberField, value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
 };
 
 export type TeamSchemaMutationModel = DepartmentActions & AgentActions & TeamAndDiscussionActions & MemoryPolicyActions;
@@ -65,12 +81,12 @@ const useDepartmentActions = (dispatch: AppDispatch): DepartmentActions => {
   const removeDepartment = (departmentId: string): void => {
     dispatch(removeDepartmentAction(departmentId));
   };
-  const updateDepartmentField = (departmentId: string, field: 'name' | 'mission', value: string): void => {
+  const updateDepartmentField = (departmentId: string, field: DepartmentField, value: string): void => {
     dispatch(updateDepartmentFieldAction({ departmentId, field, value }));
   };
   const updateDepartmentList = (
     departmentId: string,
-    field: 'decision_scope' | 'handoff_contracts',
+    field: DepartmentListField,
     value: string,
   ): void => {
     dispatch(updateDepartmentListAction({ departmentId, field, value }));
@@ -86,12 +102,12 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
   const removeAgent = (agentId: string): void => {
     dispatch(removeAgentAction(agentId));
   };
-  const updateAgentField = (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string): void => {
+  const updateAgentField = (agentId: string, field: AgentField, value: string): void => {
     dispatch(updateAgentFieldAction({ agentId, field, value }));
   };
   const updateAgentList = (
     agentId: string,
-    field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers',
+    field: AgentListField,
     value: string,
   ): void => {
     dispatch(updateAgentListAction({ agentId, field, value }));
@@ -99,7 +115,7 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
 
   const updateAgentMetadataField = (
     agentId: string,
-    field: 'name' | 'description' | 'profile' | 'tool_policy',
+    field: AgentMetadataField,
     value: string,
   ): void => {
     dispatch(updateAgentMetadataFieldAction({ agentId, field, value }));
@@ -107,7 +123,7 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
 
   const updateAgentMetadataList = (
     agentId: string,
-    field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands',
+    field: AgentMetadataListField,
     value: string,
   ): void => {
     dispatch(updateAgentMetadataListAction({ agentId, field, value }));
@@ -118,12 +134,12 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
 
 const useMemoryPolicyActions = (dispatch: AppDispatch): MemoryPolicyActions => {
   const updateMemoryPolicyField = (
-    field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy',
+    field: MemoryPolicyField,
     value: string,
   ): void => {
     dispatch(updateMemoryPolicyFieldAction({ field, value }));
   };
-  const updateMemoryPolicyList = (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string): void => {
+  const updateMemoryPolicyList = (field: MemoryPolicyListField, value: string): void => {
     dispatch(updateMemoryPolicyListAction({ field, value }));
   };
   const addMemoryRetrievalProfile = (): void => {
@@ -132,20 +148,20 @@ const useMemoryPolicyActions = (dispatch: AppDispatch): MemoryPolicyActions => {
   const removeMemoryRetrievalProfile = (profileId: string): void => {
     dispatch(removeMemoryRetrievalProfileAction(profileId));
   };
-  const updateMemoryRetrievalProfileField = (profileId: string, field: 'profile_id', value: string): void => {
+  const updateMemoryRetrievalProfileField = (profileId: string, field: MemoryRetrievalProfileField, value: string): void => {
     dispatch(updateMemoryRetrievalProfileFieldAction({ profileId, field, value }));
   };
-  const updateMemoryRetrievalProfileList = (profileId: string, field: 'allowed_scopes', value: string): void => {
+  const updateMemoryRetrievalProfileList = (profileId: string, field: MemoryRetrievalProfileListField, value: string): void => {
     dispatch(updateMemoryRetrievalProfileListAction({ profileId, field, value }));
   };
   const updateMemoryRetrievalProfileNumber = (
     profileId: string,
-    field: 'max_results' | 'max_graph_hops',
+    field: MemoryRetrievalProfileNumberField,
     value: number,
   ): void => {
     dispatch(updateMemoryRetrievalProfileNumberAction({ profileId, field, value }));
   };
-  const updateMemoryRetrievalProfileBoolean = (profileId: string, field: 'require_reviewed_memory', value: boolean): void => {
+  const updateMemoryRetrievalProfileBoolean = (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean): void => {
     dispatch(updateMemoryRetrievalProfileBooleanAction({ profileId, field, value }));
   };
 
@@ -162,10 +178,10 @@ const useMemoryPolicyActions = (dispatch: AppDispatch): MemoryPolicyActions => {
 };
 
 const useTeamAndDiscussionActions = (dispatch: AppDispatch): TeamAndDiscussionActions => {
-  const updateTeamField = (field: 'team_name' | 'team_id' | 'schema_version', value: string): void => {
+  const updateTeamField = (field: SchemaField, value: string): void => {
     dispatch(updateTeamFieldAction({ field, value }));
   };
-  const updateDiscussionField = (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string): void => {
+  const updateDiscussionField = (field: DiscussionField, value: string): void => {
     dispatch(updateDiscussionFieldAction({ field, value }));
   };
   const updateDiscussionNumber = (field: 'max_rounds', value: number): void => {

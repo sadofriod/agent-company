@@ -8,9 +8,32 @@ import type {
   WorkflowGraphNode,
   WorkflowEdgeMode,
 } from '../../model/types';
-import type { SchemaLoadStatus } from '../../state/core/editorShared';
+import type {
+  AgentField,
+  AgentListField,
+  AgentMetadataField,
+  AgentMetadataListField,
+  DepartmentField,
+  DepartmentListField,
+  DiscussionField,
+  MemoryPolicyField,
+  MemoryPolicyListField,
+  MemoryRetrievalProfileBooleanField,
+  MemoryRetrievalProfileField,
+  MemoryRetrievalProfileListField,
+  MemoryRetrievalProfileNumberField,
+  SchemaField,
+  SchemaLoadStatus,
+} from '../../state/core/editorShared';
 
-export type SchemaServiceStatus = 'idle' | 'loading' | 'saving' | 'deleting' | 'validating' | 'error';
+export enum SchemaServiceStatus {
+  Idle = 'idle',
+  Loading = 'loading',
+  Saving = 'saving',
+  Deleting = 'deleting',
+  Validating = 'validating',
+  Error = 'error',
+}
 
 export type TeamSchemaServiceModel = {
   schemaServiceStatus: SchemaServiceStatus;
@@ -39,7 +62,7 @@ export type WorkflowGraphEditorModel = {
   addWorkflowPartNode: () => void;
   addWorkflowPipelineNode: () => void;
   updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
-  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: WorkflowMetadataField, value: string) => void;
   removeWorkflowDraftNode: (nodeId: string) => void;
   addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
   edgeConnectionError: string | null;
@@ -67,28 +90,28 @@ export type TeamEditorModel = {
   addWorkflowPartNode: () => void;
   addWorkflowPipelineNode: () => void;
   updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
-  updateWorkflowNodeMetadata: (nodeId: string, field: 'name' | 'description', value: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: WorkflowMetadataField, value: string) => void;
   removeWorkflowDraftNode: (nodeId: string) => void;
   addWorkflowEdge: (connection: Connection, mode: WorkflowEdgeMode) => void;
   edgeConnectionError: string | null;
   clearEdgeConnectionError: () => void;
-  updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
-  updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
-  updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
-  updateAgentField: (agentId: string, field: 'role' | 'model' | 'description' | 'memory_access_policy', value: string) => void;
-  updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
-  updateAgentMetadataField: (agentId: string, field: 'name' | 'description' | 'profile' | 'tool_policy', value: string) => void;
-  updateAgentMetadataList: (agentId: string, field: 'partials' | 'tools' | 'allowed_commands' | 'required_commands', value: string) => void;
-  updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
+  updateTeamField: (field: SchemaField, value: string) => void;
+  updateDepartmentField: (departmentId: string, field: DepartmentField, value: string) => void;
+  updateDepartmentList: (departmentId: string, field: DepartmentListField, value: string) => void;
+  updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
+  updateDiscussionField: (field: DiscussionField, value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
-  updateMemoryPolicyField: (field: 'retrieval_mode' | 'vector_store' | 'graph_store' | 'conflict_strategy', value: string) => void;
-  updateMemoryPolicyList: (field: 'indexed_object_types' | 'evidence_required_for_outputs', value: string) => void;
+  updateMemoryPolicyField: (field: MemoryPolicyField, value: string) => void;
+  updateMemoryPolicyList: (field: MemoryPolicyListField, value: string) => void;
   addMemoryRetrievalProfile: () => void;
   removeMemoryRetrievalProfile: (profileId: string) => void;
-  updateMemoryRetrievalProfileField: (profileId: string, field: 'profile_id', value: string) => void;
-  updateMemoryRetrievalProfileList: (profileId: string, field: 'allowed_scopes', value: string) => void;
-  updateMemoryRetrievalProfileNumber: (profileId: string, field: 'max_results' | 'max_graph_hops', value: number) => void;
-  updateMemoryRetrievalProfileBoolean: (profileId: string, field: 'require_reviewed_memory', value: boolean) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: MemoryRetrievalProfileField, value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: MemoryRetrievalProfileListField, value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: MemoryRetrievalProfileNumberField, value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
   addDepartment: () => void;
   removeDepartment: (departmentId: string) => void;
   addAgent: (departmentId: string) => void;
@@ -102,3 +125,8 @@ export type TeamEditorModel = {
   saveSchema: () => Promise<void>;
   deleteSchema: () => Promise<void>;
 };
+
+export enum WorkflowMetadataField {
+  Name = 'name',
+  Description = 'description',
+}

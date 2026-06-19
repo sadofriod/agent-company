@@ -3,7 +3,7 @@ import { Chip, Stack, Typography } from '@mui/material';
 import type { NodeProps } from '@xyflow/react';
 
 import { WorkflowNodeType, type WorkflowGraphNode } from '../model/types';
-import { NodeShell } from './NodeShell';
+import { NodeShell, NodeShellVariant } from './NodeShell';
 import { nodeMetricChipSx, nodeTextSx } from './nodeStyles';
 
 export const PipelineNode = ({ data, selected }: NodeProps<WorkflowGraphNode>): ReactElement => {
@@ -15,7 +15,7 @@ export const PipelineNode = ({ data, selected }: NodeProps<WorkflowGraphNode>): 
 			title={data.nodeName}
 			accent={data.accent}
 			selected={selected}
-			variant={isContainer ? 'container' : 'standard'}
+			variant={isContainer ? NodeShellVariant.Container : NodeShellVariant.Standard}
 			workflowNodeType={data.workflowNodeType}
 		>
 			<Stack spacing={0.75}>
