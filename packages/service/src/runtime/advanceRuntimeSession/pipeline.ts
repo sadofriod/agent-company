@@ -10,8 +10,10 @@ import type {
 import {
 	REVIEW_STATUS,
 	REVIEW_TARGET_TYPE,
+	type ReviewResult,
 } from '../../domain/review';
 import type { RuntimeSession } from '../../domain/runtime';
+import { RUNTIME_EVENT_TYPE } from '../../domain/runtimeEvent';
 import type {
 	MemoryConflict,
 	MemoryContextPackage,
@@ -56,6 +58,38 @@ import {
 type ExecutePipelineStageOptions = {
 	readonly stepRunner?: AgentStepRunner;
 };
+
+const appendReviewEvents = (
+	session: RuntimeSession,
+	pipeline: Pipeline,
+	step: PipelineStep,
+	reviewResults: readonly ReviewResult[],
+): RuntimeSession =>
+	reviewResults.reduce<RuntimeSession>((currentSession, reviewResult) => {
+		const eventType =
+			reviewResult.status === REVIEW_STATUS.Block
+				? RUNTIME_EVENT_TYPE.ReviewBlocked
+				: reviewResult.status === REVIEW_STATUS.Revise
+					? RUNTIME_EVENT_TYPE.ReviewReviseRequired
+					: RUNTIME_EVENT_TYPE.ReviewStepCompleted;
+
+		return updateRuntimeSession(
+			currentSession,
+			{},
+			{
+				eventType,
+				reason: `Review ${reviewResult.reviewId} returned ${reviewResult.status} for step ${step.stepId}.`,
+				metadata: {
+					reviewId: reviewResult.reviewId,
+					pipelineId: pipeline.pipelineId,
+					stepId: step.stepId,
+					reviewer: reviewResult.reviewer,
+					status: reviewResult.status,
+					issueCount: reviewResult.issues.length,
+				},
+			},
+		);
+	}, session);
 
 const validatePipelineDag = (
 	session: RuntimeSession,
@@ -411,7 +445,7 @@ export const promoteNextTicket = (session: RuntimeSession): ValidationResult<Run
 			},
 		},
 		{
-			eventType: 'pipeline.created',
+			eventType: RUNTIME_EVENT_TYPE.PipelineCreated,
 			reason: `Created pipeline ${pipelineValidation.value.pipelineId} for ticket ${nextTicket.ticketId}.`,
 			metadata: {
 				pipelineId: pipelineValidation.value.pipelineId,
@@ -610,7 +644,7 @@ const executeSingleStep = (
 			},
 		},
 		{
-			eventType: 'memory.retrieved',
+			eventType: RUNTIME_EVENT_TYPE.MemoryRetrieved,
 			reason: `Retrieved scoped memory for step ${step.stepId}.`,
 			metadata: {
 				stepId: step.stepId,
@@ -622,7 +656,7 @@ const executeSingleStep = (
 		workingSession,
 		{},
 		{
-			eventType: 'capability.loaded',
+			eventType: RUNTIME_EVENT_TYPE.CapabilityLoaded,
 			reason: `Loaded capabilities for step ${step.stepId}.`,
 			metadata: {
 				stepId: step.stepId,
@@ -634,7 +668,7 @@ const executeSingleStep = (
 		workingSession,
 		{},
 		{
-			eventType: 'agent.execution_started',
+			eventType: RUNTIME_EVENT_TYPE.PipelineStepStarted,
 			reason: `Started agent ${step.ownerAgentId} for step ${step.stepId}.`,
 			metadata: {
 				pipelineId: pipeline.pipelineId,
@@ -661,7 +695,7 @@ const executeSingleStep = (
 		workingSession,
 		{},
 		{
-			eventType: 'agent.execution_completed',
+			eventType: RUNTIME_EVENT_TYPE.PipelineStepRunnerCompleted,
 			reason: agentExecution.responseSummary,
 			metadata: {
 				pipelineId: pipeline.pipelineId,
@@ -691,6 +725,7 @@ const executeSingleStep = (
 			evidenceRefs,
 		})
 		: [];
+	workingSession = appendReviewEvents(workingSession, pipeline, step, reviewResults);
 	const reviewStatuses = reviewResults.map((reviewResult) => reviewResult.status);
 
 	if (reviewStatuses.includes(REVIEW_STATUS.Block)) {
@@ -738,7 +773,7 @@ const executeSingleStep = (
 			nextAction: `Continue pipeline ${pipeline.pipelineId}.`,
 		},
 		{
-			eventType: 'pipeline.step_completed',
+			eventType: RUNTIME_EVENT_TYPE.PipelineStepCompleted,
 			reason: `Completed pipeline step ${step.stepId}.`,
 			metadata: {
 				pipelineId: pipeline.pipelineId,
@@ -753,7 +788,7 @@ const executeSingleStep = (
 			nextSession,
 			{},
 			{
-				eventType: 'pipeline.handoff_generated',
+				eventType: RUNTIME_EVENT_TYPE.PipelineHandoffGenerated,
 				reason: `Generated handoff ${handoff.handoffId} from step ${handoff.fromStepId}.`,
 				metadata: {
 					handoffId: handoff.handoffId,
@@ -787,7 +822,7 @@ const completeActivePipeline = (session: RuntimeSession): ValidationResult<Runti
 			},
 		},
 		{
-			eventType: 'pipeline.completed',
+			eventType: RUNTIME_EVENT_TYPE.PipelineCompleted,
 			reason: `Completed pipeline ${completedPipeline.pipelineId}.`,
 			metadata: {
 				pipelineId: completedPipeline.pipelineId,

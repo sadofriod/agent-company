@@ -18,6 +18,7 @@ import {
 } from '../../domain/organization';
 import type { ReviewResult } from '../../domain/review';
 import { WORK_MODE, type RuntimeSession } from '../../domain/runtime';
+import { RUNTIME_EVENT_TYPE } from '../../domain/runtimeEvent';
 
 import {
 	createDocumentSourceRef,
@@ -336,9 +337,20 @@ const createDiscussionArtifacts = (session: RuntimeSession): DiscussionResult =>
 };
 
 export const executeDiscussionStage = (session: RuntimeSession): ValidationResult<RuntimeSession> => {
-	const discussionResult = createDiscussionArtifacts(session);
-	let nextSession = updateRuntimeSession(
+	const startedSession = updateRuntimeSession(
 		session,
+		{},
+		{
+			eventType: RUNTIME_EVENT_TYPE.DiscussionStarted,
+			reason: `Started discussion in ${session.runtimePlan.discussionPolicy.mode} mode.`,
+			metadata: {
+				mode: session.runtimePlan.discussionPolicy.mode,
+			},
+		},
+	);
+	const discussionResult = createDiscussionArtifacts(startedSession);
+	let nextSession = updateRuntimeSession(
+		startedSession,
 		{
 			discussionResult,
 			interruption: undefined,
@@ -355,7 +367,7 @@ export const executeDiscussionStage = (session: RuntimeSession): ValidationResul
 			},
 		},
 		{
-			eventType: 'discussion.completed',
+			eventType: RUNTIME_EVENT_TYPE.DiscussionCompleted,
 			reason: `Completed discussion in ${session.runtimePlan.discussionPolicy.mode} mode.`,
 			metadata: {
 				mode: session.runtimePlan.discussionPolicy.mode,
@@ -371,7 +383,7 @@ export const executeDiscussionStage = (session: RuntimeSession): ValidationResul
 			nextSession,
 			{},
 			{
-				eventType: 'discussion.turn_recorded',
+				eventType: RUNTIME_EVENT_TYPE.DiscussionTurnRecorded,
 				reason: `Recorded discussion turn for agent ${turn.agentId}.`,
 				metadata: {
 					round: turn.round,
@@ -424,7 +436,7 @@ export const executeDiscussionStage = (session: RuntimeSession): ValidationResul
 					: `Promote ${admittedTickets.length} admitted ticket(s) into pipeline execution.`,
 		},
 		{
-			eventType: 'review.ticket_admission_completed',
+			eventType: RUNTIME_EVENT_TYPE.ReviewTicketAdmissionCompleted,
 			reason: `Completed ticket admission review for ${discussionResult.ticketDrafts.length} draft(s).`,
 			metadata: {
 				admittedTicketCount: admittedTickets.length,

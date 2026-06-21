@@ -1,5 +1,6 @@
 import type { ValidationResult } from '../domain/base';
 import { WORK_MODE, type RuntimeSession } from '../domain/runtime';
+import { RUNTIME_EVENT_TYPE } from '../domain/runtimeEvent';
 
 import { executeDiscussionStage } from './advanceRuntimeSession/discussion';
 import { executePipelineStage } from './advanceRuntimeSession/pipeline';
@@ -33,7 +34,7 @@ export const advanceRuntimeSession = (
 			},
 		},
 		{
-			eventType: 'runtime.work_mode_routed',
+			eventType: RUNTIME_EVENT_TYPE.RuntimeWorkModeRouted,
 			reason: workModeDecision.reason,
 			metadata: {
 				mode: workModeDecision.mode,
@@ -49,9 +50,16 @@ export const advanceRuntimeSession = (
 		nextSession.state.interruption === undefined &&
 		nextSession.state.completedTickets.length > 0
 	) {
-		nextSession = updateRuntimeSession(nextSession, {
-			nextAction: SESSION_COMPLETE_MESSAGE,
-		});
+		nextSession = updateRuntimeSession(
+			nextSession,
+			{
+				nextAction: SESSION_COMPLETE_MESSAGE,
+			},
+			{
+				eventType: RUNTIME_EVENT_TYPE.RuntimeSessionCompleted,
+				reason: SESSION_COMPLETE_MESSAGE,
+			},
+		);
 		return { ok: true, value: nextSession };
 	}
 

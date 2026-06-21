@@ -7,11 +7,16 @@ import {
 	type RuntimeSession,
 	type RuntimeTask,
 } from '../domain/runtime';
+import { RUNTIME_EVENT_TYPE } from '../domain/runtimeEvent';
 
 import { advanceRuntimeSession } from './advanceRuntimeSession';
 import type { AgentStepRunner } from './agentStepRunner';
 import { createExecutionContext } from './createExecutionContext';
 import { createRuntimePlan } from './createRuntimePlan';
+import {
+	createRuntimeSessionObservability,
+	type RuntimeSessionObservability,
+} from './runtimeObservability';
 import {
 	createAuditEvent,
 	createIssue,
@@ -45,6 +50,7 @@ export type RuntimeSessionScheduler = {
 	readonly resumeSession: (sessionId: string) => ValidationResult<RuntimeSession>;
 	readonly advanceSession: (sessionId: string) => ValidationResult<RuntimeSession>;
 	readonly terminateSession: (sessionId: string) => ValidationResult<RuntimeSession>;
+	readonly observability: RuntimeSessionObservability;
 };
 
 const SESSION_TRANSITIONS: Readonly<
@@ -62,11 +68,11 @@ const SESSION_TRANSITIONS: Readonly<
 };
 
 const ACTION_EVENT_TYPE: Readonly<Record<RuntimeSessionAction | 'start', string>> = {
-	start: 'runtime_session.started',
-	pause: 'runtime_session.paused',
-	resume: 'runtime_session.resumed',
-	advance: 'runtime_session.advanced',
-	terminate: 'runtime_session.terminated',
+	start: RUNTIME_EVENT_TYPE.RuntimeSessionStarted,
+	pause: RUNTIME_EVENT_TYPE.RuntimeSessionPaused,
+	resume: RUNTIME_EVENT_TYPE.RuntimeSessionResumed,
+	advance: RUNTIME_EVENT_TYPE.RuntimeSessionAdvanced,
+	terminate: RUNTIME_EVENT_TYPE.RuntimeSessionTerminated,
 };
 
 const ACTION_REASON: Readonly<Record<RuntimeSessionAction | 'start', string>> = {
@@ -158,6 +164,7 @@ const getTransitionTarget = (
 
 const applyAction = (
 	sessions: Map<ReturnType<typeof toRuntimeId>, RuntimeSession>,
+	recordSession: (session: RuntimeSession, previousSession?: RuntimeSession) => void,
 	sessionId: string,
 	action: RuntimeSessionAction,
 ): ValidationResult<RuntimeSession> => {
@@ -184,12 +191,14 @@ const applyAction = (
 	);
 
 	sessions.set(nextSession.sessionId, nextSession);
+	recordSession(nextSession, session);
 
 	return { ok: true, value: nextSession };
 };
 
 const advanceSession = (
 	sessions: Map<ReturnType<typeof toRuntimeId>, RuntimeSession>,
+	recordSession: (session: RuntimeSession, previousSession?: RuntimeSession) => void,
 	sessionId: string,
 	options: RuntimeSessionSchedulerOptions,
 ): ValidationResult<RuntimeSession> => {
@@ -230,6 +239,7 @@ const advanceSession = (
 	};
 
 	sessions.set(nextSession.sessionId, nextSession);
+	recordSession(nextSession, session);
 
 	return { ok: true, value: nextSession };
 };
@@ -238,6 +248,7 @@ export const createRuntimeSessionScheduler = (
 	options: RuntimeSessionSchedulerOptions = {},
 ): RuntimeSessionScheduler => {
 	const sessions = new Map<ReturnType<typeof toRuntimeId>, RuntimeSession>();
+	const observability = createRuntimeSessionObservability();
 
 	return {
 		startSession: (input: StartRuntimeSessionInput): RuntimeSession => {
@@ -268,6 +279,7 @@ export const createRuntimeSessionScheduler = (
 			};
 
 			sessions.set(sessionId, session);
+			observability.recordSession(session);
 
 			return session;
 		},
@@ -282,12 +294,13 @@ export const createRuntimeSessionScheduler = (
 			return { ok: true, value: session };
 		},
 		pauseSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Pause),
+			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Pause),
 		resumeSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Resume),
+			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Resume),
 		advanceSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			advanceSession(sessions, sessionId, options),
+			advanceSession(sessions, observability.recordSession, sessionId, options),
 		terminateSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Terminate),
+			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Terminate),
+		observability: observability.controller,
 	};
 };

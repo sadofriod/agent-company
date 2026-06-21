@@ -17,6 +17,7 @@ import {
 	createIssue,
 	createTimestamp,
 } from '../runtimeEngineShared';
+import { RUNTIME_EVENT_TYPE } from '../../domain/runtimeEvent';
 
 export type RuntimeStatePatch = Partial<Omit<RuntimeState, 'context'>> & {
 	readonly context?: Partial<ExecutionContext>;
@@ -114,7 +115,7 @@ export const applyInterruption = (
 			},
 		},
 		{
-			eventType: 'runtime.interrupted',
+			eventType: RUNTIME_EVENT_TYPE.RuntimeInterrupted,
 			reason: interruption.message,
 			metadata: {
 				kind: interruption.kind,
