@@ -75,14 +75,14 @@ export const matchesStepTraceEvent = (event: RuntimeEvent, stepId: string): bool
 	return stepTraceFields.some((field) => event.payload[field] === stepId);
 };
 
-export const streamRuntimeSessionEvents = (
+export const streamRuntimeSessionEvents = async (
 	request: Request,
 	response: Response,
 	options: {
 		readonly includeSnapshot?: boolean;
 		readonly filter?: (event: RuntimeEvent) => boolean;
 	},
-): void => {
+): Promise<void> => {
 	const sessionId = resolveSessionId(request, response);
 
 	if (sessionId === undefined) {
@@ -92,7 +92,7 @@ export const streamRuntimeSessionEvents = (
 	const scheduler = resolveRuntimeSessionScheduler(request);
 	const filter = options.filter;
 	const lastEventId = getLastEventId(request);
-	const replayResult = scheduler.observability.getSessionEvents(sessionId, { lastEventId, filter });
+	const replayResult = await scheduler.observability.getSessionEvents(sessionId, { lastEventId, filter });
 
 	if (!replayResult.ok) {
 		sendRuntimeSessionError(response, replayResult);
@@ -100,7 +100,7 @@ export const streamRuntimeSessionEvents = (
 	}
 
 	const snapshotResult = options.includeSnapshot
-		? scheduler.observability.getSnapshotEvent(sessionId)
+		? await scheduler.observability.getSnapshotEvent(sessionId)
 		: undefined;
 
 	if (snapshotResult !== undefined && !snapshotResult.ok) {
@@ -108,7 +108,7 @@ export const streamRuntimeSessionEvents = (
 		return;
 	}
 
-	const subscriptionResult = scheduler.observability.subscribeToSession(
+	const subscriptionResult = await scheduler.observability.subscribeToSession(
 		sessionId,
 		(event) => {
 			writeSseEvent(response, event);
@@ -142,10 +142,10 @@ export const streamRuntimeSessionEvents = (
 	cleanupStream(request, response, subscriptionResult.value, heartbeat);
 };
 
-export const streamRuntimeMetrics: RequestHandler = (request, response): void => {
+export const streamRuntimeMetrics: RequestHandler = async (request, response): Promise<void> => {
 	const scheduler = resolveRuntimeSessionScheduler(request);
-	const replay = scheduler.observability.getMetricsEvents(getLastEventId(request));
-	const unsubscribe = scheduler.observability.subscribeToMetrics((event) => {
+	const replay = await scheduler.observability.getMetricsEvents(getLastEventId(request));
+	const unsubscribe = await scheduler.observability.subscribeToMetrics((event) => {
 		writeSseEvent(response, event);
 	});
 
@@ -163,19 +163,19 @@ export const streamRuntimeMetrics: RequestHandler = (request, response): void =>
 	cleanupStream(request, response, unsubscribe, heartbeat);
 };
 
-export const streamInterruptionEvents: RequestHandler = (request, response): void => {
-	streamRuntimeSessionEvents(request, response, {
+export const streamInterruptionEvents: RequestHandler = async (request, response): Promise<void> => {
+	await streamRuntimeSessionEvents(request, response, {
 		filter: isInterruptionRuntimeEvent,
 	});
 };
 
-export const streamReviewEvents: RequestHandler = (request, response): void => {
-	streamRuntimeSessionEvents(request, response, {
+export const streamReviewEvents: RequestHandler = async (request, response): Promise<void> => {
+	await streamRuntimeSessionEvents(request, response, {
 		filter: isReviewRuntimeEvent,
 	});
 };
 
-export const streamStepTraceEvents: RequestHandler = (request, response): void => {
+export const streamStepTraceEvents: RequestHandler = async (request, response): Promise<void> => {
 	const stepId = request.params.stepId;
 
 	if (!isString(stepId)) {
@@ -186,7 +186,7 @@ export const streamStepTraceEvents: RequestHandler = (request, response): void =
 		return;
 	}
 
-	streamRuntimeSessionEvents(request, response, {
+	await streamRuntimeSessionEvents(request, response, {
 		filter: (event) => matchesStepTraceEvent(event, stepId),
 	});
 };

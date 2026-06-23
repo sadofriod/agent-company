@@ -8,7 +8,7 @@ import {
 import { buildRuntimeSessionPayload } from '../../../../../runtime/buildRuntimeSessionPayload';
 import { sendData, sendErrorResponse } from '../../../../_shared/response';
 
-const handler: RequestHandler = (request, response): void => {
+const handler: RequestHandler = async (request, response): Promise<void> => {
 	const sessionId = request.params.id;
 
 	if (typeof sessionId !== 'string') {
@@ -19,7 +19,7 @@ const handler: RequestHandler = (request, response): void => {
 		return;
 	}
 
-	const result = resolveRuntimeSessionScheduler(request).terminateSession(sessionId);
+	const result = await resolveRuntimeSessionScheduler(request).terminateSession(sessionId);
 
 	if (!result.ok) {
 		const status = isRuntimeSessionMissing(result.issues)

@@ -394,6 +394,23 @@ export const executeDiscussionStage = (session: RuntimeSession): ValidationResul
 		);
 	}
 
+	for (const conflict of discussionResult.conflicts) {
+		nextSession = updateRuntimeSession(
+			nextSession,
+			{},
+			{
+				eventType: RUNTIME_EVENT_TYPE.DiscussionConflictDetected,
+				reason: `Detected discussion conflict: ${conflict.summary}.`,
+				metadata: {
+					kind: conflict.kind,
+					summary: conflict.summary,
+					ownerDepartmentIds: conflict.ownerDepartmentIds,
+					relatedDecisionIds: conflict.relatedDecisionIds,
+				},
+			},
+		);
+	}
+
 	if (discussionResult.pendingItems.length > 0 || discussionResult.conflicts.length > 0) {
 		return { ok: true, value: nextSession };
 	}

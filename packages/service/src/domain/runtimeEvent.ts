@@ -81,6 +81,21 @@ export type RuntimeMetricsPayload = {
 	readonly runtimeSessionActive: Readonly<Record<string, number>>;
 	readonly runtimeAdvanceTotal: Readonly<Record<string, number>>;
 	readonly runtimeEventTotal: Readonly<Record<string, number>>;
+	readonly pipelineStepDurationMs: Readonly<
+		Record<
+			string,
+			{
+				readonly count: number;
+				readonly totalMs: number;
+				readonly maxMs: number;
+				readonly minMs: number;
+			}
+		>
+	>;
+	readonly pipelineInterruptTotal: Readonly<Record<string, number>>;
+	readonly reviewResultTotal: Readonly<Record<string, number>>;
+	readonly memoryRetrievalTotal: Readonly<Record<string, number>>;
+	readonly agentToolCallTotal: Readonly<Record<string, number>>;
 	readonly updatedAt: string;
 };
 

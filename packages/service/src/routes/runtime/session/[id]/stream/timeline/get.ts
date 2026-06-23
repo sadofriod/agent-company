@@ -2,8 +2,8 @@ import type { RequestHandler } from 'express';
 
 import { streamRuntimeSessionEvents } from '../../../../../_shared/runtimeObservability';
 
-const handler: RequestHandler = (request, response): void => {
-	streamRuntimeSessionEvents(request, response, {});
+const handler: RequestHandler = async (request, response): Promise<void> => {
+	await streamRuntimeSessionEvents(request, response, {});
 };
 
 export default handler;

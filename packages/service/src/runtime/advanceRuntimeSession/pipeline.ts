@@ -584,10 +584,25 @@ const executeSingleStep = (
 	const memoryPackage = createMemoryContextPackage(session, step);
 
 	if ((memoryPackage?.conflictFlags.length ?? 0) > 0) {
+		const conflictSession = updateRuntimeSession(
+			session,
+			{},
+			{
+				eventType: RUNTIME_EVENT_TYPE.MemoryConflictDetected,
+				reason: `Memory retrieval detected conflicts for step ${step.stepId}.`,
+				metadata: {
+					pipelineId: pipeline.pipelineId,
+					stepId: step.stepId,
+					profileId: memoryPackage?.profile.profileId,
+					result: 'conflict',
+					conflictCount: memoryPackage?.conflictFlags.length ?? 0,
+				},
+			},
+		);
 		return {
 			ok: true,
 			value: applyInterruption(
-				session,
+				conflictSession,
 				createPipelineInterruption(
 					PipelineInterruptionKind.ReturnToDiscussion,
 					'Memory retrieval returned conflicts that require review or supervisor arbitration.',
@@ -602,10 +617,24 @@ const executeSingleStep = (
 	const capabilityLoadPlan = loadStepCapabilities(session, step);
 
 	if (capabilityLoadPlan.deniedCapabilityIds.length > 0) {
+		const deniedSession = updateRuntimeSession(
+			session,
+			{},
+			{
+				eventType: RUNTIME_EVENT_TYPE.CapabilityDenied,
+				reason: `Step ${step.stepId} requested unauthorized capabilities.`,
+				metadata: {
+					pipelineId: pipeline.pipelineId,
+					stepId: step.stepId,
+					agentId: step.ownerAgentId,
+					deniedCapabilityIds: capabilityLoadPlan.deniedCapabilityIds,
+				},
+			},
+		);
 		return {
 			ok: true,
 			value: applyInterruption(
-				session,
+				deniedSession,
 				createPipelineInterruption(
 					PipelineInterruptionKind.ReloadCapability,
 					'Step requested capabilities that are not authorized for the owner agent.',
@@ -649,6 +678,8 @@ const executeSingleStep = (
 			metadata: {
 				stepId: step.stepId,
 				retrievedMemoryCount: memoryPackage?.retrievedMemories.length ?? 0,
+				profileId: memoryPackage?.profile.profileId,
+				result: 'success',
 			},
 		},
 	);
@@ -682,6 +713,7 @@ const executeSingleStep = (
 	);
 
 	const evidenceRefs = createStepEvidenceRefs(workingSession, step, memoryPackage, upstreamHandoffs);
+	const stepRunnerStartedAt = Date.now();
 	const agentExecution = (options.stepRunner ?? runLocalAgentStep)({
 		session: workingSession,
 		step,
@@ -704,6 +736,11 @@ const executeSingleStep = (
 				runner: agentExecution.runner,
 				toolCallCount: agentExecution.toolCalls.length,
 				retrievedMemoryCount: agentExecution.memoryIds.length,
+				latencyMs: Date.now() - stepRunnerStartedAt,
+				tokensIn: Math.max(1, Math.ceil(agentExecution.promptSummary.length / 4)),
+				tokensOut: Math.max(1, Math.ceil(agentExecution.responseSummary.length / 4)),
+				costUsd: Number(((agentExecution.promptSummary.length + agentExecution.responseSummary.length) / 10000).toFixed(6)),
+				toolCalls: agentExecution.toolCalls,
 			},
 		},
 	);

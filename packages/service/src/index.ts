@@ -4,6 +4,8 @@ import express from 'express';
 
 import type { AgentMarkdownAdapter } from './adapter/agentMarkdownAdapter';
 import { createAgentMarkdownAdapter } from './adapter/createAgentMarkdownAdapter';
+import { getPrismaClient } from './adapter/prismaClient';
+import { createPrismaRuntimeObservabilityRepository } from './adapter/runtimeObservabilityRepository';
 import type { RuntimeSessionScheduler } from './runtime/runtimeSessionScheduler';
 import { createRuntimeSessionScheduler } from './runtime/runtimeSessionScheduler';
 import { registerFileRoutes } from './routes';
@@ -35,7 +37,10 @@ const createApp = async (options: CreateAppOptions = {}): Promise<express.Expres
 	app.locals.agentMarkdownAdapter =
 		options.agentMarkdownAdapter ?? createAgentMarkdownAdapter({ agentsDirectory: options.agentsDirectory });
 	app.locals.runtimeSessionScheduler =
-		options.runtimeSessionScheduler ?? createRuntimeSessionScheduler();
+		options.runtimeSessionScheduler
+		?? createRuntimeSessionScheduler({
+			observabilityRepository: createPrismaRuntimeObservabilityRepository(getPrismaClient()),
+		});
 
 	app.use(express.json({ limit: '1mb' }));
 	await registerFileRoutes(app, {

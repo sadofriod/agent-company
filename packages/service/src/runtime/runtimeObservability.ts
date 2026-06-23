@@ -9,9 +9,11 @@ import {
 	type RuntimeEventTarget,
 	type RuntimeMetricsPayload,
 } from '../domain/runtimeEvent';
+import type { RuntimeObservabilityRepository } from '../adapter/runtimeObservabilityRepository';
 
 import { buildRuntimeSessionPayload } from './buildRuntimeSessionPayload';
 import { createIssue, createTimestamp } from './runtimeEngineShared';
+import { logRuntimeEvent } from './runtimeStructuredLogger';
 
 type RuntimeEventFilter = (event: RuntimeEvent) => boolean;
 type RuntimeEventListener = (event: RuntimeEvent) => void;
@@ -31,29 +33,41 @@ type MetricsSubscriber = {
 	readonly listener: RuntimeEventListener;
 };
 
+type DurationMetric = {
+	count: number;
+	totalMs: number;
+	maxMs: number;
+	minMs: number;
+};
+
 type MetricsCounters = {
-	readonly runtimeAdvanceTotal: Record<string, number>;
-	readonly runtimeEventTotal: Record<string, number>;
+	runtimeAdvanceTotal: Record<string, number>;
+	runtimeEventTotal: Record<string, number>;
+	pipelineStepDurationMs: Record<string, DurationMetric>;
+	pipelineInterruptTotal: Record<string, number>;
+	reviewResultTotal: Record<string, number>;
+	memoryRetrievalTotal: Record<string, number>;
+	agentToolCallTotal: Record<string, number>;
 };
 
 export type RuntimeSessionObservability = {
-	readonly getSnapshotEvent: (sessionId: string) => ValidationResult<RuntimeEvent>;
+	readonly getSnapshotEvent: (sessionId: string) => Promise<ValidationResult<RuntimeEvent>>;
 	readonly getSessionEvents: (
 		sessionId: string,
 		options?: {
 			readonly lastEventId?: string;
 			readonly filter?: RuntimeEventFilter;
 		},
-	) => ValidationResult<RuntimeEventReplay>;
+	) => Promise<ValidationResult<RuntimeEventReplay>>;
 	readonly subscribeToSession: (
 		sessionId: string,
 		listener: RuntimeEventListener,
 		options?: {
 			readonly filter?: RuntimeEventFilter;
 		},
-	) => ValidationResult<Unsubscribe>;
-	readonly getMetricsEvents: (lastEventId?: string) => RuntimeEventReplay;
-	readonly subscribeToMetrics: (listener: RuntimeEventListener) => Unsubscribe;
+	) => Promise<ValidationResult<Unsubscribe>>;
+	readonly getMetricsEvents: (lastEventId?: string) => Promise<RuntimeEventReplay>;
+	readonly subscribeToMetrics: (listener: RuntimeEventListener) => Promise<Unsubscribe>;
 };
 
 const SNAPSHOT_EVENT_ID_PREFIX = 'snapshot:';
@@ -65,8 +79,7 @@ const allowAllEvents: RuntimeEventFilter = () => true;
 
 const isString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
 
-const isNumber = (value: unknown): value is number =>
-	typeof value === 'number' && Number.isFinite(value);
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
 const toRecord = (value: unknown): Record<string, unknown> =>
 	typeof value === 'object' && value !== null ? { ...(value as Record<string, unknown>) } : {};
@@ -84,6 +97,90 @@ const createMissingSession = <TValue>(sessionId: string): ValidationResult<TValu
 });
 
 const getSessionKey = (sessionId: string): string => sessionId;
+
+const createMetricsCounters = (): MetricsCounters => ({
+	runtimeAdvanceTotal: {},
+	runtimeEventTotal: {},
+	pipelineStepDurationMs: {},
+	pipelineInterruptTotal: {},
+	reviewResultTotal: {},
+	memoryRetrievalTotal: {},
+	agentToolCallTotal: {},
+});
+
+const incrementCount = (target: Record<string, number>, key: string): void => {
+	target[key] = (target[key] ?? 0) + 1;
+};
+
+const updateDurationMetric = (
+	target: Record<string, DurationMetric>,
+	key: string,
+	latencyMs: number,
+): void => {
+	const current = target[key];
+
+	if (current === undefined) {
+		target[key] = {
+			count: 1,
+			totalMs: latencyMs,
+			maxMs: latencyMs,
+			minMs: latencyMs,
+		};
+		return;
+	}
+
+	current.count += 1;
+	current.totalMs += latencyMs;
+	current.maxMs = Math.max(current.maxMs, latencyMs);
+	current.minMs = Math.min(current.minMs, latencyMs);
+};
+
+const updateMetricsCounters = (counters: MetricsCounters, event: RuntimeEvent): void => {
+	incrementCount(counters.runtimeEventTotal, event.eventType);
+
+	if (event.eventType === RUNTIME_EVENT_TYPE.RuntimeSessionAdvanced) {
+		incrementCount(counters.runtimeAdvanceTotal, 'success');
+	}
+
+	const payload = toRecord(event.payload);
+
+	if (event.eventType === RUNTIME_EVENT_TYPE.RuntimeInterrupted && isString(payload.kind)) {
+		incrementCount(counters.pipelineInterruptTotal, payload.kind);
+	}
+
+	if (event.eventType.startsWith('review.') && isString(payload.status) && isString(payload.reviewer)) {
+		incrementCount(counters.reviewResultTotal, `${payload.status}:${payload.reviewer}`);
+	}
+
+	if (event.eventType === RUNTIME_EVENT_TYPE.MemoryRetrieved && isString(payload.profileId)) {
+		incrementCount(counters.memoryRetrievalTotal, `${payload.profileId}:success`);
+	}
+
+	if (event.eventType === RUNTIME_EVENT_TYPE.MemoryConflictDetected && isString(payload.profileId)) {
+		incrementCount(counters.memoryRetrievalTotal, `${payload.profileId}:conflict`);
+	}
+
+	if (event.eventType === RUNTIME_EVENT_TYPE.PipelineStepRunnerCompleted && isNumber(event.metrics?.latencyMs)) {
+		const agentId = isString(payload.agentId) ? payload.agentId : 'unknown';
+		updateDurationMetric(counters.pipelineStepDurationMs, agentId, event.metrics.latencyMs);
+	}
+
+	const toolCalls = payload.toolCalls;
+
+	if (!Array.isArray(toolCalls)) {
+		return;
+	}
+
+	for (const toolCall of toolCalls) {
+		const entry = toRecord(toolCall);
+
+		if (!isString(entry.capabilityId) || !isString(entry.status)) {
+			continue;
+		}
+
+		incrementCount(counters.agentToolCallTotal, `${entry.capabilityId}:${entry.status}`);
+	}
+};
 
 const resolveActor = (metadata: Readonly<Record<string, unknown>>): RuntimeEventActor | undefined => {
 	const actor: RuntimeEventActor = {
@@ -127,9 +224,7 @@ const resolveTarget = (
 	return undefined;
 };
 
-const resolveMetrics = (
-	metadata: Readonly<Record<string, unknown>>,
-): RuntimeEventMetrics | undefined => {
+const resolveMetrics = (metadata: Readonly<Record<string, unknown>>): RuntimeEventMetrics | undefined => {
 	const metrics: RuntimeEventMetrics = {
 		...(isNumber(metadata.latencyMs) ? { latencyMs: metadata.latencyMs } : {}),
 		...(isNumber(metadata.tokensIn) ? { tokensIn: metadata.tokensIn } : {}),
@@ -205,8 +300,8 @@ const toSessionEvents = (
 	session: RuntimeSession,
 	auditEvents: readonly AuditEvent[],
 	startSequence: number,
-): readonly RuntimeEvent[] =>
-	auditEvents.map((auditEvent, index) => {
+): readonly RuntimeEvent[] => {
+	return auditEvents.map((auditEvent, index) => {
 		const metadata = toRecord(auditEvent.metadata);
 		const eventType = auditEvent.eventType;
 		const actor = resolveActor(metadata);
@@ -232,6 +327,7 @@ const toSessionEvents = (
 			payload,
 		};
 	});
+};
 
 const createMetricsPayload = (
 	snapshotsById: ReadonlyMap<string, RuntimeSession>,
@@ -262,42 +358,95 @@ const createMetricsPayload = (
 		runtimeSessionActive,
 		runtimeAdvanceTotal: { ...counters.runtimeAdvanceTotal },
 		runtimeEventTotal: { ...counters.runtimeEventTotal },
+		pipelineStepDurationMs: Object.fromEntries(
+			Object.entries(counters.pipelineStepDurationMs).map(([agentId, metric]) => [agentId, { ...metric }]),
+		),
+		pipelineInterruptTotal: { ...counters.pipelineInterruptTotal },
+		reviewResultTotal: { ...counters.reviewResultTotal },
+		memoryRetrievalTotal: { ...counters.memoryRetrievalTotal },
+		agentToolCallTotal: { ...counters.agentToolCallTotal },
 		updatedAt,
 	};
 };
 
-export const createRuntimeSessionObservability = (): {
+export const createRuntimeSessionObservability = (
+	repository: RuntimeObservabilityRepository,
+): {
 	readonly recordSession: (
 		session: RuntimeSession,
 		previousSession?: RuntimeSession,
-	) => void;
+	) => Promise<void>;
 	readonly controller: RuntimeSessionObservability;
 } => {
 	const sessionEventsById = new Map<string, RuntimeEvent[]>();
 	const snapshotsById = new Map<string, RuntimeSession>();
 	const sessionSubscribersById = new Map<string, Set<SessionSubscriber>>();
 	const metricsSubscribers = new Set<MetricsSubscriber>();
-	const metricsCounters: MetricsCounters = {
-		runtimeAdvanceTotal: {},
-		runtimeEventTotal: {},
-	};
+	const hydratedSessionIds = new Set<string>();
+	const metricsCounters = createMetricsCounters();
 	const metricsEvents: RuntimeEvent[] = [];
+	let metricsHydrated = false;
 
-	const publishMetrics = (triggerEvent: RuntimeEvent): void => {
-		metricsCounters.runtimeEventTotal[triggerEvent.eventType] =
-			(metricsCounters.runtimeEventTotal[triggerEvent.eventType] ?? 0) + 1;
-
-		if (triggerEvent.eventType === RUNTIME_EVENT_TYPE.RuntimeSessionAdvanced) {
-			metricsCounters.runtimeAdvanceTotal.success =
-				(metricsCounters.runtimeAdvanceTotal.success ?? 0) + 1;
+	const hydrateMetrics = async (): Promise<void> => {
+		if (metricsHydrated) {
+			return;
 		}
 
-		const sequence = metricsEvents.length + 1;
+		const [events, snapshots] = await Promise.all([
+			repository.listEvents(),
+			repository.listLatestSnapshots(),
+		]);
+
+		for (const snapshot of snapshots) {
+			snapshotsById.set(snapshot.session.sessionId, snapshot.session);
+			hydratedSessionIds.add(snapshot.session.sessionId);
+		}
+
+		for (const event of events) {
+			updateMetricsCounters(metricsCounters, event);
+		}
+
+		const timestamp = events.at(-1)?.ts ?? snapshots.at(-1)?.session.updatedAt ?? createTimestamp();
+		metricsEvents.push({
+			eventId: createMetricsEventId(1),
+			traceId: events.at(-1)?.traceId ?? 'runtime-metrics',
+			sessionId: 'runtime-metrics',
+			sequence: 1,
+			eventType: RUNTIME_EVENT_TYPE.MetricsUpdated,
+			ts: timestamp,
+			level: RUNTIME_EVENT_LEVEL.Info,
+			payload: createMetricsPayload(snapshotsById, metricsCounters, timestamp),
+		});
+		metricsHydrated = true;
+	};
+
+	const hydrateSession = async (sessionId: string): Promise<void> => {
+		if (hydratedSessionIds.has(sessionId)) {
+			return;
+		}
+
+		const snapshot = await repository.loadSessionSnapshot(sessionId);
+
+		if (snapshot === undefined) {
+			hydratedSessionIds.add(sessionId);
+			return;
+		}
+
+		const events = await repository.loadEventsAfterSequence(sessionId, 0);
+		snapshotsById.set(sessionId, snapshot.session);
+		sessionEventsById.set(sessionId, [...events]);
+		hydratedSessionIds.add(sessionId);
+	};
+
+	const publishMetrics = async (triggerEvent: RuntimeEvent): Promise<void> => {
+		await hydrateMetrics();
+		updateMetricsCounters(metricsCounters, triggerEvent);
+
 		const metricsEvent: RuntimeEvent<RuntimeMetricsPayload> = {
-			eventId: createMetricsEventId(sequence),
+			eventId: createMetricsEventId(metricsEvents.length + 1),
 			traceId: triggerEvent.traceId,
 			sessionId: 'runtime-metrics',
-			sequence,
+			sequence: metricsEvents.length + 1,
 			eventType: RUNTIME_EVENT_TYPE.MetricsUpdated,
 			ts: triggerEvent.ts,
 			level: RUNTIME_EVENT_LEVEL.Info,
@@ -362,27 +511,8 @@ export const createRuntimeSessionObservability = (): {
 		},
 	});
 
-	const ensureMetricsSeedEvent = (): void => {
-		if (metricsEvents.length > 0) {
-			return;
-		}
-
-		const timestamp = createTimestamp();
-
-		metricsEvents.push({
-			eventId: createMetricsEventId(1),
-			traceId: 'runtime-metrics',
-			sessionId: 'runtime-metrics',
-			sequence: 1,
-			eventType: RUNTIME_EVENT_TYPE.MetricsUpdated,
-			ts: timestamp,
-			level: RUNTIME_EVENT_LEVEL.Info,
-			payload: createMetricsPayload(snapshotsById, metricsCounters, timestamp),
-		});
-	};
-
 	return {
-		recordSession: (session, previousSession): void => {
+		recordSession: async (session, previousSession): Promise<void> => {
 			const sessionKey = getSessionKey(session.sessionId);
 			const previousAuditLength = previousSession?.state.context.auditTrail.length ?? 0;
 			const nextAuditEvents = session.state.context.auditTrail.slice(previousAuditLength);
@@ -391,15 +521,20 @@ export const createRuntimeSessionObservability = (): {
 			const subscribers = sessionSubscribersById.get(sessionKey);
 
 			snapshotsById.set(sessionKey, session);
+			hydratedSessionIds.add(sessionKey);
 
 			if (nextEvents.length === 0) {
+				await repository.saveSessionState(session, []);
 				return;
 			}
 
 			const storedEvents = [...currentEvents, ...nextEvents];
 			sessionEventsById.set(sessionKey, storedEvents);
+			await repository.saveSessionState(session, nextEvents);
 
 			for (const event of nextEvents) {
+				logRuntimeEvent(event);
+
 				if (subscribers !== undefined) {
 					for (const subscriber of subscribers) {
 						if (subscriber.filter(event)) {
@@ -408,11 +543,12 @@ export const createRuntimeSessionObservability = (): {
 					}
 				}
 
-				publishMetrics(event);
+				await publishMetrics(event);
 			}
 		},
 		controller: {
-			getSnapshotEvent: (sessionId) => {
+			getSnapshotEvent: async (sessionId) => {
+				await hydrateSession(sessionId);
 				const session = snapshotsById.get(getSessionKey(sessionId));
 
 				if (session === undefined) {
@@ -421,7 +557,8 @@ export const createRuntimeSessionObservability = (): {
 
 				return { ok: true, value: createSnapshotEvent(session) };
 			},
-			getSessionEvents: (sessionId, options = {}) => {
+			getSessionEvents: async (sessionId, options = {}) => {
+				await hydrateSession(sessionId);
 				const session = snapshotsById.get(getSessionKey(sessionId));
 
 				if (session === undefined) {
@@ -459,7 +596,9 @@ export const createRuntimeSessionObservability = (): {
 					},
 				};
 			},
-			subscribeToSession: (sessionId, listener, options = {}) => {
+			subscribeToSession: async (sessionId, listener, options = {}) => {
+				await hydrateSession(sessionId);
+
 				if (!snapshotsById.has(getSessionKey(sessionId))) {
 					return createMissingSession(sessionId);
 				}
@@ -491,8 +630,8 @@ export const createRuntimeSessionObservability = (): {
 					},
 				};
 			},
-			getMetricsEvents: (lastEventId) => {
-				ensureMetricsSeedEvent();
+			getMetricsEvents: async (lastEventId) => {
+				await hydrateMetrics();
 				const latestEvent = metricsEvents.at(-1);
 
 				if (latestEvent === undefined) {
@@ -519,7 +658,8 @@ export const createRuntimeSessionObservability = (): {
 					events: metricsEvents.filter((event) => event.sequence > afterSequence),
 				};
 			},
-			subscribeToMetrics: (listener) => {
+			subscribeToMetrics: async (listener) => {
+				await hydrateMetrics();
 				const subscriber: MetricsSubscriber = { listener };
 				metricsSubscribers.add(subscriber);
 

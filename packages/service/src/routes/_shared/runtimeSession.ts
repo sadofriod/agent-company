@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import type { SchemaIssue, ValidationResult } from '../../domain/base';
 import type { RuntimeSessionScheduler } from '../../runtime/runtimeSessionScheduler';
-import { createRuntimeSessionScheduler } from '../../runtime/runtimeSessionScheduler';
 
 const runtimeTaskSchema = z.object({
 	title: z.string().min(1),
@@ -64,5 +63,5 @@ export const resolveRuntimeSessionScheduler = (request: Request): RuntimeSession
 		return scheduler;
 	}
 
-	return createRuntimeSessionScheduler();
+	throw new Error('Runtime session scheduler is not initialized.');
 };

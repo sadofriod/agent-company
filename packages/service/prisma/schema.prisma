@@ -38,3 +38,38 @@ model TeamSchema {
 
   @@map("team_schemas")
 }
+
+model RuntimeEvent {
+  id         String   @id @default(cuid())
+  sessionId  String   @map("session_id")
+  sequence   Int
+  eventId    String   @unique @map("event_id")
+  eventType  String   @map("event_type")
+  ts         DateTime
+  traceId    String   @map("trace_id")
+  level      String
+  actor      Json?
+  target     Json?
+  statePatch Json?    @map("state_patch_json")
+  metrics    Json?    @map("metrics_json")
+  payload    Json     @map("payload_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([sessionId, sequence])
+  @@index([sessionId, sequence])
+  @@map("runtime_events")
+}
+
+model RuntimeSnapshot {
+  id         String   @id @default(cuid())
+  sessionId  String   @map("session_id")
+  sequence   Int
+  traceId    String   @map("trace_id")
+  snapshot   Json     @map("snapshot_json")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([sessionId, sequence])
+  @@index([sessionId, updatedAt])
+  @@map("runtime_snapshots")
+}

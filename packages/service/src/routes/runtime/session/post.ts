@@ -43,7 +43,7 @@ const handler: RequestHandler = async (request, response): Promise<void> => {
 		return;
 	}
 
-	const runtimeSession = resolveRuntimeSessionScheduler(request).startSession({
+	const runtimeSession = await resolveRuntimeSessionScheduler(request).startSession({
 		team: teamValidation.value,
 		task: parsedBody.value.task,
 		...(parsedBody.value.traceId === undefined ? {} : { traceId: parsedBody.value.traceId }),
