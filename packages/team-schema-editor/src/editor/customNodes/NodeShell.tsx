@@ -20,6 +20,7 @@ type NodeShellProps = {
   title: string;
   accent: string;
   selected: boolean;
+  runtimeHighlighted?: boolean;
   children: ReactNode;
   variant?: NodeShellVariant;
   workflowNodeType?: WorkflowNodeType;
@@ -41,6 +42,7 @@ export const NodeShell = ({
   title,
   accent,
   selected,
+  runtimeHighlighted = false,
   children,
   variant = NodeShellVariant.Standard,
   workflowNodeType,
@@ -55,10 +57,12 @@ export const NodeShell = ({
         width: isContainer ? 292 : 268,
         minHeight: isContainer ? 150 : 132,
         borderRadius: 1,
-        border: selected ? `1px solid ${accent}` : '1px solid #d5dbe3',
+        border: selected || runtimeHighlighted ? `1px solid ${accent}` : '1px solid #d5dbe3',
         bgcolor: '#ffffff',
         color: '#1f2937',
-        boxShadow: selected ? `0 0 0 2px color-mix(in srgb, ${accent} 28%, transparent), 0 12px 30px rgba(15, 23, 42, 0.16)` : '0 8px 22px rgba(15, 23, 42, 0.08)',
+        boxShadow: selected || runtimeHighlighted
+          ? `0 0 0 2px color-mix(in srgb, ${accent} 28%, transparent), 0 12px 30px rgba(15, 23, 42, 0.16)`
+          : '0 8px 22px rgba(15, 23, 42, 0.08)',
         outline: workflowNodeType === undefined ? 'none' : `1px dashed ${accent}`,
         outlineOffset: 5,
         overflow: 'visible',

@@ -4,6 +4,7 @@ import '@xyflow/react/dist/style.css';
 
 import { AgentMarkdownPage } from './pages/AgentMarkdownPage';
 import { EditorWorkspacePage } from './pages/EditorWorkspacePage';
+import { LlmGatewayPage } from './pages/LlmGatewayPage';
 import { WorkspaceListPage } from './pages/WorkspaceListPage';
 import { useRuntimeSession } from '../editor/hooks/useRuntimeSession';
 import { useSchemaServiceNotification } from '../editor/hooks/useSchemaServiceNotification';
@@ -29,6 +30,7 @@ export const App = (): ReactElement => {
         element={<EditorWorkspacePage editor={editor} mode={mode} runtime={runtime} onModeChange={setMode} />}
       />
       <Route path="/agents/markdown" element={<AgentMarkdownPage />} />
+      <Route path="/llm-gateways" element={<LlmGatewayPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

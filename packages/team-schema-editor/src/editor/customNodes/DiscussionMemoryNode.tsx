@@ -14,7 +14,7 @@ export const DiscussionMemoryNode = ({ data, selected }: NodeProps<WorkflowGraph
 	const scopes = retrievalProfile?.allowed_scopes ?? defaultDiscussionScopes;
 
 	return (
-		<NodeShell eyebrow="Discussion Memory" title={data.nodeName} accent={data.accent} selected={selected} variant={NodeShellVariant.Memory} workflowNodeType={data.workflowNodeType}>
+		<NodeShell eyebrow="Discussion Memory" title={data.nodeName} accent={data.accent} selected={selected} runtimeHighlighted={data.runtimeHighlighted} variant={NodeShellVariant.Memory} workflowNodeType={data.workflowNodeType}>
 			<Stack spacing={0.75}>
 				<Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: 'wrap' }}>
 					<Chip size="small" variant="outlined" label={`Mode ${policy?.retrieval_mode ?? 'none'}`} sx={nodeMetricChipSx} />

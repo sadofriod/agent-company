@@ -34,20 +34,22 @@ export const SchemaRelationEdge = ({
   const tone = edgeData?.tone ?? SchemaEdgeTone.Structure;
   const toneStyle = toneStyles[tone];
   const label = edgeData?.label ?? tone;
+  const runtimeHighlighted = edgeData?.runtimeHighlighted === true;
+  const isEmphasized = selected === true || runtimeHighlighted;
 
   return (
     <>
       <BaseEdge
         id={`${id}:shadow`}
         path={path}
-        style={{ stroke: 'rgba(15, 23, 42, 0.12)', strokeWidth: selected === true ? 7 : 5, fill: 'none' }}
+        style={{ stroke: runtimeHighlighted ? 'rgba(245, 158, 11, 0.22)' : 'rgba(15, 23, 42, 0.12)', strokeWidth: isEmphasized ? 7 : 5, fill: 'none' }}
         interactionWidth={0}
       />
       <BaseEdge
         id={id}
         path={path}
         markerEnd={markerEnd}
-        style={{ stroke: toneStyle.stroke, strokeWidth: selected === true ? 2.6 : 1.8, fill: 'none' }}
+        style={{ stroke: runtimeHighlighted ? '#f59e0b' : toneStyle.stroke, strokeWidth: isEmphasized ? 3.2 : 1.8, fill: 'none' }}
         interactionWidth={22}
       />
       <EdgeLabelRenderer>

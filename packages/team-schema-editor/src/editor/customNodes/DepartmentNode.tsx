@@ -10,7 +10,7 @@ export const DepartmentNode = ({ data, selected }: NodeProps<WorkflowGraphNode>)
 	const department = data.department;
 
 	return (
-		<NodeShell eyebrow="Department" title={data.nodeName} accent={data.accent} selected={selected} workflowNodeType={data.workflowNodeType}>
+		<NodeShell eyebrow="Department" title={data.nodeName} accent={data.accent} selected={selected} runtimeHighlighted={data.runtimeHighlighted} workflowNodeType={data.workflowNodeType}>
 			<Stack spacing={0.75}>
 				{department?.mission === undefined ? null : (
 					<Typography sx={nodeTextSx}>

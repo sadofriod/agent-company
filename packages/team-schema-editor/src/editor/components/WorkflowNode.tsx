@@ -28,7 +28,7 @@ export const WorkflowNode = (props: NodeProps<WorkflowGraphNode>): ReactElement 
 
   if (data.kind === 'goal') {
     return (
-      <NodeShell eyebrow="Goal" title={data.nodeName} accent={data.accent} selected={selected}>
+      <NodeShell eyebrow="Goal" title={data.nodeName} accent={data.accent} selected={selected} runtimeHighlighted={data.runtimeHighlighted}>
         <Stack spacing={0.65}>
           {data.roleName === undefined ? null : (
             <Typography sx={nodeTextSx}>
@@ -75,6 +75,7 @@ export const WorkflowNode = (props: NodeProps<WorkflowGraphNode>): ReactElement 
       title={data.nodeName}
       accent={data.accent}
       selected={selected}
+      runtimeHighlighted={data.runtimeHighlighted}
       workflowNodeType={data.workflowNodeType}
     >
       <Stack spacing={0.65}>

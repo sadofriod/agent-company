@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
+import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 
 import { formatApiErrorMessage } from '../api/shared';
 import {
@@ -10,8 +10,24 @@ import {
   useStartRuntimeSessionMutation,
   useTerminateRuntimeSessionMutation,
 } from '../api/runtimeSessionApi';
-import type { RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../model/types';
-import { RuntimeSessionOperationStatus, type RuntimeSessionModel } from './helper/runtimeSession.types';
+import {
+  WorkflowNodeType,
+  type AgentDocument,
+  type RuntimeSessionSnapshot,
+  type RuntimeTaskDraft,
+  type TeamSchemaDocument,
+  type WorkflowLayoutNodeDocument,
+} from '../model/types';
+import {
+  RuntimeSessionOperationStatus,
+  type RuntimeSessionModel,
+  type RuntimeNodeInsight,
+} from './helper/runtimeSession.types';
+import {
+  appendRuntimeEventFeed,
+  deriveRuntimeObservabilityState,
+  parseRuntimeEvent,
+} from './helper/runtimeSessionObservability';
 
 export type { RuntimeSessionModel } from './helper/runtimeSession.types';
 
@@ -56,6 +72,56 @@ const useSessionMutationRunner = (
 
 const MAX_GOAL_ADVANCE_STEPS = 20;
 
+type WorkflowNodeLlmValidationFailure = {
+  readonly nodeId: string;
+  readonly nodeName: string;
+  readonly reason: string;
+};
+
+const hasConfiguredLlmBinding = (agent: AgentDocument): boolean =>
+  typeof agent.metadata?.llm?.provider === 'string' && agent.metadata.llm.provider.trim().length > 0;
+
+const getWorkflowNodeDisplayName = (node: WorkflowLayoutNodeDocument): string =>
+  node.data?.workflowMetadata?.name ?? node.data?.nodeName ?? node.id;
+
+const collectWorkflowNodeLlmValidationFailures = (
+  team: TeamSchemaDocument,
+): readonly WorkflowNodeLlmValidationFailure[] => {
+  const workflowNodes = team.layout?.nodes ?? [];
+
+  return workflowNodes.flatMap((node) => {
+    if (node.data?.workflowNodeType !== WorkflowNodeType.Agent) {
+      return [];
+    }
+
+    const nodeName = getWorkflowNodeDisplayName(node);
+    const agentId = node.data.workflowAgentId?.trim();
+
+    if (agentId === undefined || agentId.length === 0) {
+      return [{ nodeId: node.id, nodeName, reason: 'no agent is assigned to this workflow node' }];
+    }
+
+    const agent = team.agents.find((candidate) => candidate.agent_id === agentId);
+
+    if (agent === undefined) {
+      return [{ nodeId: node.id, nodeName, reason: `assigned agent \"${agentId}\" was not found in the schema` }];
+    }
+
+    if (!hasConfiguredLlmBinding(agent)) {
+      return [{ nodeId: node.id, nodeName, reason: `assigned agent \"${agent.metadata?.name ?? agent.agent_id}\" has no configured LLM` }];
+    }
+
+    return [];
+  });
+};
+
+const createWorkflowNodeLlmValidationError = (
+  failures: readonly WorkflowNodeLlmValidationFailure[],
+): Error => new Error([
+  'Cannot run goal because these workflow nodes are missing LLM configuration:',
+  ...failures.map((failure) => `- ${failure.nodeName} (${failure.nodeId}): ${failure.reason}`),
+].join('\n'));
+
 const isSessionFinished = (session: RuntimeSessionSnapshot): boolean => {
   if (session.status !== 'running') {
     return true;
@@ -66,17 +132,6 @@ const isSessionFinished = (session: RuntimeSessionSnapshot): boolean => {
   }
 
   return session.state.nextAction?.toLowerCase().includes('completed') === true;
-};
-
-type RuntimeEventEnvelope<TPayload = Record<string, unknown>> = {
-  eventId: string;
-  traceId: string;
-  sessionId: string;
-  sequence: number;
-  eventType: string;
-  ts: string;
-  level: 'info' | 'warn' | 'error';
-  payload: TPayload;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -95,18 +150,209 @@ const isRuntimeSessionSnapshot = (value: unknown): value is RuntimeSessionSnapsh
     && isRecord(value.runtimePlan);
 };
 
-const parseRuntimeEvent = (raw: string): RuntimeEventEnvelope | null => {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
+const parseAgentDepartmentMap = (
+  session: RuntimeSessionSnapshot | null,
+): ReadonlyMap<string, string> => {
+  if (session === null || !isRecord(session.runtimePlan)) {
+    return new Map<string, string>();
+  }
 
-    if (!isRecord(parsed) || typeof parsed.eventType !== 'string' || !isRecord(parsed.payload)) {
-      return null;
+  const runtimePlanTeam = session.runtimePlan['team'];
+
+  if (!isRecord(runtimePlanTeam) || !Array.isArray(runtimePlanTeam.agents)) {
+    return new Map<string, string>();
+  }
+
+  const result = new Map<string, string>();
+
+  for (const entry of runtimePlanTeam.agents) {
+    if (!isRecord(entry)) {
+      continue;
     }
 
-    return parsed as RuntimeEventEnvelope;
-  } catch {
-    return null;
+    const agentId = typeof entry.agentId === 'string'
+      ? entry.agentId
+      : typeof entry.agent_id === 'string'
+        ? entry.agent_id
+        : undefined;
+    const departmentId = typeof entry.departmentId === 'string'
+      ? entry.departmentId
+      : typeof entry.department_id === 'string'
+        ? entry.department_id
+        : undefined;
+
+    if (agentId === undefined || departmentId === undefined) {
+      continue;
+    }
+
+    result.set(agentId, departmentId);
   }
+
+  return result;
+};
+
+const STREAM_EVENT_TYPES = [
+  'snapshot',
+  'snapshot_reset',
+  'metrics.updated',
+  'runtime.session_started',
+  'runtime.session_paused',
+  'runtime.session_resumed',
+  'runtime.session_advanced',
+  'runtime.work_mode_routed',
+  'runtime.interrupted',
+  'runtime.session_completed',
+  'runtime.session_terminated',
+  'discussion.started',
+  'discussion.turn_recorded',
+  'discussion.completed',
+  'discussion.conflict_detected',
+  'review.ticket_admission_completed',
+  'review.step_completed',
+  'review.blocked',
+  'review.revise_required',
+  'pipeline.created',
+  'pipeline.step_started',
+  'pipeline.step_completed',
+  'pipeline.step_runner_completed',
+  'pipeline.handoff_generated',
+  'pipeline.completed',
+  'capability.loaded',
+  'capability.denied',
+  'memory.retrieved',
+  'memory.conflict_detected',
+  'observability.degraded',
+  'heartbeat',
+] as const;
+
+type RuntimeObservabilityState = Pick<
+  RuntimeSessionModel,
+  'runtimeActiveNodeIds' | 'runtimeActiveEdgeIds' | 'runtimeNodeInsights' | 'runtimeEventFeed'
+>;
+
+const createRuntimeEventHandler = (input: {
+  sessionRef: MutableRefObject<RuntimeSessionSnapshot | null>;
+  setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+  setRuntimeActiveNodeIds: Dispatch<SetStateAction<readonly string[]>>;
+  setRuntimeActiveEdgeIds: Dispatch<SetStateAction<readonly string[]>>;
+  setRuntimeNodeInsights: Dispatch<SetStateAction<Readonly<Record<string, RuntimeNodeInsight>>>>;
+  setRuntimeEventFeed: Dispatch<SetStateAction<RuntimeSessionModel['runtimeEventFeed']>>;
+}) => (event: MessageEvent<string>): void => {
+  const runtimeEvent = parseRuntimeEvent(event.data);
+
+  if (runtimeEvent === null) {
+    return;
+  }
+
+  if (runtimeEvent.eventType === 'snapshot' && isRuntimeSessionSnapshot(runtimeEvent.payload)) {
+    input.setSession(runtimeEvent.payload);
+  }
+
+  if (runtimeEvent.eventType === 'snapshot_reset') {
+    input.setMessage('Stream replay reset to latest snapshot.');
+  }
+
+  const agentDepartmentMap = parseAgentDepartmentMap(input.sessionRef.current);
+  const observabilityState = deriveRuntimeObservabilityState(
+    runtimeEvent,
+    (agentId) => agentDepartmentMap.get(agentId),
+  );
+
+  input.setRuntimeActiveNodeIds(observabilityState.nodeIds);
+  input.setRuntimeActiveEdgeIds(observabilityState.edgeIds);
+  input.setRuntimeNodeInsights((current) => ({
+    ...current,
+    ...observabilityState.nodeInsights,
+  }));
+  input.setRuntimeEventFeed((current) => appendRuntimeEventFeed(current, observabilityState.feedItem));
+};
+
+const connectRuntimeStreams = (
+  sessionId: string,
+  onEvent: EventListener,
+  onError: () => void,
+): (() => void) => {
+  const sources = [
+    new EventSource(`/runtime/session/${sessionId}/stream/snapshot`),
+    new EventSource(`/runtime/session/${sessionId}/stream/timeline`),
+    new EventSource(`/runtime/session/${sessionId}/stream/interruption`),
+    new EventSource(`/runtime/session/${sessionId}/stream/review`),
+    new EventSource('/runtime/stream/metrics'),
+  ];
+
+  for (const source of sources) {
+    for (const eventType of STREAM_EVENT_TYPES) {
+      source.addEventListener(eventType, onEvent);
+    }
+
+    source.onerror = onError;
+  }
+
+  return () => {
+    for (const source of sources) {
+      source.close();
+    }
+  };
+};
+
+const useRuntimeObservability = (
+  session: RuntimeSessionSnapshot | null,
+  setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>,
+  setMessage: Dispatch<SetStateAction<string | null>>,
+  setError: Dispatch<SetStateAction<string | null>>,
+): RuntimeObservabilityState => {
+  const [runtimeActiveNodeIds, setRuntimeActiveNodeIds] = useState<readonly string[]>([]);
+  const [runtimeActiveEdgeIds, setRuntimeActiveEdgeIds] = useState<readonly string[]>([]);
+  const [runtimeNodeInsights, setRuntimeNodeInsights] = useState<Readonly<Record<string, RuntimeNodeInsight>>>({});
+  const [runtimeEventFeed, setRuntimeEventFeed] = useState<RuntimeSessionModel['runtimeEventFeed']>([]);
+  const streamRefs = useRef<{ sessionId: string | null; close: () => void }>({ sessionId: null, close: () => undefined });
+  const sessionRef = useRef<RuntimeSessionSnapshot | null>(null);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    const sessionId = session?.sessionId ?? null;
+
+    if (streamRefs.current.sessionId === sessionId) {
+      return;
+    }
+
+    streamRefs.current.close();
+
+    if (sessionId === null) {
+      setRuntimeActiveNodeIds([]);
+      setRuntimeActiveEdgeIds([]);
+      setRuntimeNodeInsights({});
+      setRuntimeEventFeed([]);
+      streamRefs.current = { sessionId: null, close: () => undefined };
+      return;
+    }
+
+    const close = connectRuntimeStreams(
+      sessionId,
+      createRuntimeEventHandler({
+        sessionRef,
+        setSession,
+        setMessage,
+        setRuntimeActiveNodeIds,
+        setRuntimeActiveEdgeIds,
+        setRuntimeNodeInsights,
+        setRuntimeEventFeed,
+      }) as EventListener,
+      () => setError('Realtime runtime stream disconnected. The browser will retry automatically.'),
+    );
+    streamRefs.current = { sessionId, close };
+
+    return () => {
+      streamRefs.current.close();
+      streamRefs.current = { sessionId: null, close: () => undefined };
+    };
+  }, [session?.sessionId, setError, setMessage, setSession]);
+
+  return { runtimeActiveNodeIds, runtimeActiveEdgeIds, runtimeNodeInsights, runtimeEventFeed };
 };
 
 const useSessionOperations = (
@@ -149,6 +395,12 @@ const useSessionOperations = (
       setMessage(null);
 
       try {
+        const llmValidationFailures = collectWorkflowNodeLlmValidationFailures(team);
+
+        if (llmValidationFailures.length > 0) {
+          throw createWorkflowNodeLlmValidationError(llmValidationFailures);
+        }
+
         let nextSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
         let advanceCount = 0;
 
@@ -197,109 +449,10 @@ export const useRuntimeSession = (): RuntimeSessionModel => {
   const [status, setStatus] = useState<RuntimeSessionOperationStatus>(RuntimeSessionOperationStatus.Idle);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const streamRefs = useRef<{
-    sessionId: string | null;
-    close: () => void;
-  }>({
-    sessionId: null,
-    close: () => undefined,
-  });
   const taskDraftEditors = useTaskDraftEditors(setTaskDraft);
   const runMutation = useSessionMutationRunner(setSession, setStatus, setMessage, setError);
   const operations = useSessionOperations(session, taskDraft, setSession, setStatus, setMessage, setError, runMutation);
-
-  useEffect(() => {
-    const sessionId = session?.sessionId ?? null;
-
-    if (streamRefs.current.sessionId === sessionId) {
-      return;
-    }
-
-    streamRefs.current.close();
-
-    if (sessionId === null) {
-      streamRefs.current = { sessionId: null, close: () => undefined };
-      return;
-    }
-
-    const sources = [
-      new EventSource(`/runtime/session/${sessionId}/stream/snapshot`),
-      new EventSource(`/runtime/session/${sessionId}/stream/timeline`),
-      new EventSource(`/runtime/session/${sessionId}/stream/interruption`),
-      new EventSource(`/runtime/session/${sessionId}/stream/review`),
-      new EventSource('/runtime/stream/metrics'),
-    ];
-
-    const onEvent = (event: MessageEvent<string>): void => {
-      const runtimeEvent = parseRuntimeEvent(event.data);
-
-      if (runtimeEvent === null) {
-        return;
-      }
-
-      if (runtimeEvent.eventType === 'snapshot' && isRuntimeSessionSnapshot(runtimeEvent.payload)) {
-        setSession(runtimeEvent.payload);
-      }
-
-      if (runtimeEvent.eventType === 'snapshot_reset') {
-        setMessage('Stream replay reset to latest snapshot.');
-      }
-    };
-
-    const onError = (): void => {
-      setError('Realtime runtime stream disconnected. The browser will retry automatically.');
-    };
-
-    const eventTypes = [
-      'snapshot',
-      'snapshot_reset',
-      'metrics.updated',
-      'runtime.session_started',
-      'runtime.work_mode_routed',
-      'runtime.interrupted',
-      'runtime.session_completed',
-      'runtime.session_terminated',
-      'discussion.started',
-      'discussion.turn_recorded',
-      'discussion.completed',
-      'discussion.conflict_detected',
-      'review.ticket_admission_completed',
-      'review.step_completed',
-      'review.blocked',
-      'review.revise_required',
-      'pipeline.created',
-      'pipeline.step_started',
-      'pipeline.step_completed',
-      'pipeline.step_runner_completed',
-      'pipeline.handoff_generated',
-      'pipeline.completed',
-      'capability.loaded',
-      'capability.denied',
-      'memory.retrieved',
-      'memory.conflict_detected',
-    ] as const;
-
-    for (const source of sources) {
-      for (const eventType of eventTypes) {
-        source.addEventListener(eventType, onEvent as EventListener);
-      }
-      source.onerror = onError;
-    }
-
-    streamRefs.current = {
-      sessionId,
-      close: () => {
-        for (const source of sources) {
-          source.close();
-        }
-      },
-    };
-
-    return () => {
-      streamRefs.current.close();
-      streamRefs.current = { sessionId: null, close: () => undefined };
-    };
-  }, [session?.sessionId]);
+  const runtimeObservability = useRuntimeObservability(session, setSession, setMessage, setError);
 
   return {
     session,
@@ -307,6 +460,7 @@ export const useRuntimeSession = (): RuntimeSessionModel => {
     status,
     message,
     error,
+    ...runtimeObservability,
     ...taskDraftEditors,
     ...operations,
   };

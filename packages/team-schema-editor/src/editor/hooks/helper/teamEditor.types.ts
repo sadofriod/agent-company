@@ -1,6 +1,7 @@
 import type { Connection, Edge, OnEdgesChange, OnNodesChange } from '@xyflow/react';
 
 import type {
+  AgentLlmDocument,
   Selection,
   TeamSchemaDocument,
   TeamSchemaRecord,
@@ -99,6 +100,7 @@ export type TeamEditorModel = {
   updateDepartmentField: (departmentId: string, field: DepartmentField, value: string) => void;
   updateDepartmentList: (departmentId: string, field: DepartmentListField, value: string) => void;
   updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentLlmBinding: (agentId: string, llm: AgentLlmDocument | null) => void;
   updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
   updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
   updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;

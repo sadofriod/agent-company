@@ -1,6 +1,6 @@
 import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 
-import type { AgentDocument, AgentMetadataDocument } from '../../model/types';
+import type { AgentDocument, AgentLlmDocument, AgentMetadataDocument } from '../../model/types';
 import {
   AgentField,
   AgentMetadataField,
@@ -85,6 +85,31 @@ export const updateAgentMetadataList: CaseReducer<
       [action.payload.field]: parseList(action.payload.value),
     },
   }));
+
+  Object.assign(state, withSchema(state, schema));
+};
+
+export const updateAgentLlmBinding: CaseReducer<
+  EditorState,
+  PayloadAction<{ agentId: string; llm: AgentLlmDocument | null }>
+> = (state, action): void => {
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
+    const metadata = createAgentMetadataBase(agent);
+
+    if (action.payload.llm === null) {
+      const { llm, ...metadataWithoutLlm } = metadata;
+      void llm;
+      return { ...agent, metadata: metadataWithoutLlm };
+    }
+
+    return {
+      ...agent,
+      metadata: {
+        ...metadata,
+        llm: action.payload.llm,
+      },
+    };
+  });
 
   Object.assign(state, withSchema(state, schema));
 };

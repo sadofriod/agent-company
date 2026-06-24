@@ -4,6 +4,7 @@ import {
   removeAgent as removeAgentAction,
   removeDepartment as removeDepartmentAction,
   updateAgentField as updateAgentFieldAction,
+  updateAgentLlmBinding as updateAgentLlmBindingAction,
   updateAgentList as updateAgentListAction,
   updateAgentMetadataField as updateAgentMetadataFieldAction,
   updateAgentMetadataList as updateAgentMetadataListAction,
@@ -21,6 +22,7 @@ import {
   updateMemoryRetrievalProfileNumber as updateMemoryRetrievalProfileNumberAction,
   updateTeamField as updateTeamFieldAction,
 } from '../state/core/editorSlice';
+import type { AgentLlmDocument } from '../model/types';
 import type {
   AgentField,
   AgentListField,
@@ -50,6 +52,7 @@ type AgentActions = {
   addAgent: (departmentId: string) => void;
   removeAgent: (agentId: string) => void;
   updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentLlmBinding: (agentId: string, llm: AgentLlmDocument | null) => void;
   updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
   updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
   updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
@@ -105,6 +108,9 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
   const updateAgentField = (agentId: string, field: AgentField, value: string): void => {
     dispatch(updateAgentFieldAction({ agentId, field, value }));
   };
+  const updateAgentLlmBinding = (agentId: string, llm: AgentLlmDocument | null): void => {
+    dispatch(updateAgentLlmBindingAction({ agentId, llm }));
+  };
   const updateAgentList = (
     agentId: string,
     field: AgentListField,
@@ -129,7 +135,7 @@ const useAgentActions = (dispatch: AppDispatch): AgentActions => {
     dispatch(updateAgentMetadataListAction({ agentId, field, value }));
   };
 
-  return { addAgent, removeAgent, updateAgentField, updateAgentList, updateAgentMetadataField, updateAgentMetadataList };
+  return { addAgent, removeAgent, updateAgentField, updateAgentLlmBinding, updateAgentList, updateAgentMetadataField, updateAgentMetadataList };
 };
 
 const useMemoryPolicyActions = (dispatch: AppDispatch): MemoryPolicyActions => {

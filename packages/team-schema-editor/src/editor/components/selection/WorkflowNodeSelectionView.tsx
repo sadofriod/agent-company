@@ -1,9 +1,11 @@
-import type { ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { Button, Divider, MenuItem, Stack, TextField, Typography } from '@mui/material';
 
 import { WorkflowNodeType } from '../../model/types';
-import type { AgentDocument, TeamSchemaDocument, WorkflowGraphNode } from '../../model/types';
+import type { AgentDocument, AgentLlmDocument, TeamSchemaDocument, WorkflowGraphNode } from '../../model/types';
 import { MemoryPolicyView } from './MemoryPolicyView';
+import { LLM_GATEWAY_STORAGE_EVENT, listLlmGatewayConfigs } from '../../../app/llmGateway/llmGatewayStorage';
+import { createAgentLlmDocumentFromGateway, type LlmGatewayConfig } from '../../../app/llmGateway/types';
 import {
   AgentField,
   AgentListField,
@@ -25,6 +27,7 @@ type WorkflowNodeSelectionViewProps = {
   updateWorkflowNodeMetadata: (nodeId: string, field: WorkflowMetadataField, value: string) => void;
   removeWorkflowDraftNode: (nodeId: string) => void;
   updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentLlmBinding: (agentId: string, llm: AgentLlmDocument | null) => void;
   updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
   updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
   updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
@@ -42,6 +45,26 @@ const renderListValue = (items: readonly string[] | undefined): string => (items
 
 const findAgent = (schema: TeamSchemaDocument, agentId: string | undefined): AgentDocument | undefined =>
   schema.agents.find((agent) => agent.agent_id === agentId);
+
+const normalizeOptional = (value: string | undefined): string => value?.trim() ?? '';
+
+const isGatewayMatchLlm = (gateway: LlmGatewayConfig, llm: AgentLlmDocument): boolean => (
+  gateway.provider === llm.provider
+  && gateway.model === normalizeOptional(llm.model)
+  && normalizeOptional(gateway.apiFormat) === normalizeOptional(llm.api_format)
+  && normalizeOptional(gateway.baseUrl) === normalizeOptional(llm.base_url)
+  && normalizeOptional(gateway.apiKeyEnv) === normalizeOptional(llm.api_key_env)
+);
+
+const resolveSelectedGatewayId = (agent: AgentDocument, gateways: readonly LlmGatewayConfig[]): string => {
+  const llm = agent.metadata?.llm;
+  if (llm === undefined) {
+    return '';
+  }
+
+  const matchedGateway = gateways.find((gateway) => isGatewayMatchLlm(gateway, llm));
+  return matchedGateway?.id ?? '';
+};
 
 const createAgentOptions = (schema: TeamSchemaDocument): ReactElement[] => [
   <MenuItem key="unassigned" value="">
@@ -84,6 +107,7 @@ export const WorkflowNodeSelectionView = ({
   updateWorkflowNodeMetadata,
   removeWorkflowDraftNode,
   updateAgentField,
+  updateAgentLlmBinding,
   updateAgentList,
   updateAgentMetadataField,
   updateAgentMetadataList,
@@ -96,11 +120,56 @@ export const WorkflowNodeSelectionView = ({
   updateMemoryRetrievalProfileNumber,
   updateMemoryRetrievalProfileBoolean,
 }: WorkflowNodeSelectionViewProps): ReactElement => {
+  const [llmGateways, setLlmGateways] = useState(() => listLlmGatewayConfigs());
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const refreshGateways = (): void => {
+      setLlmGateways(listLlmGatewayConfigs());
+    };
+
+    window.addEventListener('storage', refreshGateways);
+    window.addEventListener(LLM_GATEWAY_STORAGE_EVENT, refreshGateways);
+
+    return () => {
+      window.removeEventListener('storage', refreshGateways);
+      window.removeEventListener(LLM_GATEWAY_STORAGE_EVENT, refreshGateways);
+    };
+  }, []);
+
   const selectedAgentId = workflowNode.data.workflowAgentId ?? '';
   const agent = findAgent(schema, workflowNode.data.workflowAgentId);
   const agentOptions = createAgentOptions(schema);
   const memoryProfileOptions = createMemoryProfileOptions(schema);
   const isAgentWorkflowNode = workflowNode.data.workflowNodeType === WorkflowNodeType.Agent;
+  const selectedGatewayId = agent === undefined ? '' : resolveSelectedGatewayId(agent, llmGateways);
+
+  const onGatewayChange = (agentId: string, gatewayId: string): void => {
+    if (gatewayId.length === 0) {
+      updateAgentLlmBinding(agentId, null);
+      return;
+    }
+
+    const gateway = llmGateways.find((item) => item.id === gatewayId);
+    if (gateway === undefined) {
+      return;
+    }
+
+    updateAgentLlmBinding(agentId, createAgentLlmDocumentFromGateway(gateway));
+  };
+
+  const onModelChange = (agentDocument: AgentDocument, modelValue: string): void => {
+    const currentLlm = agentDocument.metadata?.llm;
+    if (currentLlm !== undefined) {
+      updateAgentLlmBinding(agentDocument.agent_id, { ...currentLlm, model: modelValue });
+      return;
+    }
+
+    updateAgentField(agentDocument.agent_id, AgentField.Model, modelValue);
+  };
 
   return (
     <Stack spacing={2}>
@@ -165,7 +234,28 @@ export const WorkflowNodeSelectionView = ({
             Agent Runtime
           </Typography>
           <TextField fullWidth label="Role" value={agent.role} onChange={(event) => updateAgentField(agent.agent_id, AgentField.Role, event.target.value)} />
-          <TextField fullWidth label="Model" value={agent.model} onChange={(event) => updateAgentField(agent.agent_id, AgentField.Model, event.target.value)} />
+          <TextField
+            select
+            fullWidth
+            label="LLM API"
+            value={selectedGatewayId}
+            onChange={(event) => onGatewayChange(agent.agent_id, event.target.value)}
+            helperText={llmGateways.length === 0 ? 'No LLM API configured. Add one in the LLM Gateway page.' : 'Select an LLM API entry for this workflow agent.'}
+          >
+            <MenuItem value="">Use agent default model</MenuItem>
+            {llmGateways.map((gateway) => (
+              <MenuItem key={gateway.id} value={gateway.id}>
+                {gateway.name} ({gateway.provider}/{gateway.model})
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            fullWidth
+            label="Model"
+            value={agent.metadata?.llm?.model ?? agent.model}
+            onChange={(event) => onModelChange(agent, event.target.value)}
+            helperText={agent.metadata?.llm === undefined ? 'Used when no LLM API is selected.' : 'Overrides model for the selected LLM API.'}
+          />
           <TextField fullWidth multiline minRows={3} label="Description" value={agent.description ?? ''} onChange={(event) => updateAgentField(agent.agent_id, AgentField.Description, event.target.value)} />
           <TextField fullWidth multiline minRows={3} label="Responsibilities" value={renderListValue(agent.responsibilities)} onChange={(event) => updateAgentList(agent.agent_id, AgentListField.Responsibilities, event.target.value)} />
           <TextField fullWidth multiline minRows={3} label="Skills" value={renderListValue(agent.skills)} onChange={(event) => updateAgentList(agent.agent_id, AgentListField.Skills, event.target.value)} />

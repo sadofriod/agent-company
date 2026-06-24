@@ -9,7 +9,7 @@ import { PipelinePolicyView } from './selection/PipelinePolicyView';
 import { ReviewPolicyView } from './selection/ReviewPolicyView';
 import { TeamSelectionView } from './selection/TeamSelectionView';
 import { WorkflowNodeSelectionView } from './selection/WorkflowNodeSelectionView';
-import type { Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
+import type { AgentLlmDocument, Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
 import type {
   AgentField,
@@ -47,6 +47,7 @@ type SelectionPanelProps = {
   updateDepartmentField: (departmentId: string, field: DepartmentField, value: string) => void;
   updateDepartmentList: (departmentId: string, field: DepartmentListField, value: string) => void;
   updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentLlmBinding: (agentId: string, llm: AgentLlmDocument | null) => void;
   updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
   updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
   updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
@@ -77,6 +78,7 @@ export const SelectionPanel = ({
   updateDepartmentField,
   updateDepartmentList,
   updateAgentField,
+  updateAgentLlmBinding,
   updateAgentList,
   updateAgentMetadataField,
   updateAgentMetadataList,
@@ -216,6 +218,7 @@ export const SelectionPanel = ({
             updateWorkflowNodeMetadata={updateWorkflowNodeMetadata}
             removeWorkflowDraftNode={removeWorkflowDraftNode}
             updateAgentField={updateAgentField}
+            updateAgentLlmBinding={updateAgentLlmBinding}
             updateAgentList={updateAgentList}
             updateAgentMetadataField={updateAgentMetadataField}
             updateAgentMetadataList={updateAgentMetadataList}

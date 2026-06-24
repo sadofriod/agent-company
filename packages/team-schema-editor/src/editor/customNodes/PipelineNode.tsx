@@ -15,6 +15,7 @@ export const PipelineNode = ({ data, selected }: NodeProps<WorkflowGraphNode>): 
 			title={data.nodeName}
 			accent={data.accent}
 			selected={selected}
+			runtimeHighlighted={data.runtimeHighlighted}
 			variant={isContainer ? NodeShellVariant.Container : NodeShellVariant.Standard}
 			workflowNodeType={data.workflowNodeType}
 		>

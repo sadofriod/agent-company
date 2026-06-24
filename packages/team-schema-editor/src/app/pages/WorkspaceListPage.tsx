@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Box, Button, Chip, List, ListItemButton, ListItemText, Paper, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import { FolderOpen, Plus, RefreshCw } from 'lucide-react';
+import { Cpu, FolderOpen, Plus, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { SchemaServiceStatus, type TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
@@ -81,6 +81,13 @@ export const WorkspaceListPage = ({ editor }: WorkspaceListPageProps): ReactElem
               <span>
                 <Button variant="outlined" color="secondary" startIcon={<RefreshCw size={16} />} onClick={editor.refreshSchemaRecords} disabled={isBusy}>
                   Refresh
+                </Button>
+              </span>
+            </Tooltip>
+            <Tooltip title="Manage LLM API entries">
+              <span>
+                <Button variant="outlined" color="secondary" startIcon={<Cpu size={16} />} onClick={() => navigate('/llm-gateways')}>
+                  LLM API
                 </Button>
               </span>
             </Tooltip>

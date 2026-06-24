@@ -39,6 +39,9 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
   const openAgentMarkdown = (): void => {
     void navigate('/agents/markdown');
   };
+  const openLlmGateway = (): void => {
+    void navigate('/llm-gateways');
+  };
   const deleteWorkspace = (): void => {
     void editor.deleteSchema().then(() => navigate('/'));
   };
@@ -80,6 +83,7 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
           schemaServiceStatus={editor.schemaServiceStatus}
           onModeChange={onModeChange}
           onOpenAgentMarkdown={openAgentMarkdown}
+          onOpenLlmGateway={openLlmGateway}
         />
       </Box>
 
@@ -128,6 +132,7 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
               updateDepartmentField={editor.updateDepartmentField}
               updateDepartmentList={editor.updateDepartmentList}
               updateAgentField={editor.updateAgentField}
+              updateAgentLlmBinding={editor.updateAgentLlmBinding}
               updateAgentList={editor.updateAgentList}
               updateAgentMetadataField={editor.updateAgentMetadataField}
               updateAgentMetadataList={editor.updateAgentMetadataList}
@@ -167,6 +172,8 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
             onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}
             onWorkflowConnect={editor.addWorkflowEdge}
             onClearEdgeConnectionError={editor.clearEdgeConnectionError}
+            highlightedNodeIds={runtime.runtimeActiveNodeIds}
+            highlightedEdgeIds={runtime.runtimeActiveEdgeIds}
           />
         </Stack>
       ) : null}

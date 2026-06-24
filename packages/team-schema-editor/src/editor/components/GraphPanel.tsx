@@ -43,6 +43,8 @@ type GraphPanelProps = {
   onAddWorkflowPipelineNode: () => void;
   onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
   onClearEdgeConnectionError: () => void;
+  highlightedNodeIds?: readonly string[];
+  highlightedEdgeIds?: readonly string[];
   inspectorPanel?: ReactNode;
 };
 
@@ -60,6 +62,8 @@ export const GraphPanel = ({
   onAddWorkflowPipelineNode,
   onWorkflowConnect,
   onClearEdgeConnectionError,
+  highlightedNodeIds = [],
+  highlightedEdgeIds = [],
   inspectorPanel,
 }: GraphPanelProps): ReactElement => {
   const {
@@ -73,8 +77,41 @@ export const GraphPanel = ({
     updateLinkMode,
   } = useGraphPanelUiState();
   const isEditing = mode === EditorMode.Edit;
+  const highlightedNodeIdSet = useMemo(() => new Set(highlightedNodeIds), [highlightedNodeIds]);
+  const highlightedEdgeIdSet = useMemo(() => new Set(highlightedEdgeIds), [highlightedEdgeIds]);
+  const graphNodes = useMemo(() => nodes.map((node) => {
+    const runtimeHighlighted = highlightedNodeIdSet.has(node.id);
+
+    if (node.data.runtimeHighlighted === runtimeHighlighted) {
+      return node;
+    }
+
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        runtimeHighlighted,
+      },
+    };
+  }), [highlightedNodeIdSet, nodes]);
+  const graphEdges = useMemo(() => edges.map((edge) => {
+    const runtimeHighlighted = highlightedEdgeIdSet.has(edge.id);
+    const currentData = (edge.data as Record<string, unknown> | undefined) ?? {};
+
+    if (currentData.runtimeHighlighted === runtimeHighlighted) {
+      return edge;
+    }
+
+    return {
+      ...edge,
+      data: {
+        ...currentData,
+        runtimeHighlighted,
+      },
+    };
+  }), [edges, highlightedEdgeIdSet]);
   const hasInspectorPanel = isEditing && inspectorPanel !== undefined && inspectorPanel !== null;
-  const workflowDraftNodeCount = nodes.filter((node) => node.data.workflowNodeType !== undefined).length;
+  const workflowDraftNodeCount = graphNodes.filter((node) => node.data.workflowNodeType !== undefined).length;
   const {
     onConnect,
     onCreateEdge,
@@ -84,8 +121,8 @@ export const GraphPanel = ({
     isTextInputTarget,
   } = useGraphPanelActions({
     isEditing,
-    nodes,
-    edges,
+    nodes: graphNodes,
+    edges: graphEdges,
     pendingConnection,
     linkSourceId,
     linkTargetId,
@@ -100,8 +137,8 @@ export const GraphPanel = ({
 
   const contextValue = useMemo(() => ({
     isEditing,
-    nodes,
-    edges,
+    nodes: graphNodes,
+    edges: graphEdges,
     linkSourceId,
     linkTargetId,
     linkMode,
@@ -125,13 +162,13 @@ export const GraphPanel = ({
     onClearEdgeConnectionError,
   }), [
     edgeConnectionError,
-    edges,
+    graphEdges,
+    graphNodes,
     isEditing,
     isTextInputTarget,
     linkMode,
     linkSourceId,
     linkTargetId,
-    nodes,
     onAddWorkflowAgentNode,
     onAddWorkflowPartNode,
     onAddWorkflowPipelineNode,
@@ -157,7 +194,7 @@ export const GraphPanel = ({
           teamName={schema.team_name ?? schema.team_id}
           departmentCount={schema.departments.length}
           agentCount={schema.agents.length}
-          linkCount={edges.length}
+          linkCount={graphEdges.length}
           draftNodeCount={workflowDraftNodeCount}
         />
 

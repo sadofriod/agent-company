@@ -37,15 +37,17 @@ export const WithDepartmentsEdge = ({
 		borderRadius: 12,
 	});
 	const edgeData = data as WorkflowEdgeData | undefined;
+	const runtimeHighlighted = edgeData?.runtimeHighlighted === true;
+	const isEmphasized = selected === true || runtimeHighlighted;
 	const mergedStyle = {
-		stroke: STROKE,
-		strokeWidth: selected === true ? 3.2 : 2.4,
+		stroke: runtimeHighlighted ? '#f59e0b' : STROKE,
+		strokeWidth: isEmphasized ? 3.6 : 2.4,
 		...style,
 	};
 
 	return (
 		<>
-			<BaseEdge id={`${id}:shadow`} path={path} style={{ stroke: 'rgba(15, 23, 42, 0.14)', strokeWidth: selected === true ? 8 : 6, fill: 'none' }} interactionWidth={0} />
+			<BaseEdge id={`${id}:shadow`} path={path} style={{ stroke: runtimeHighlighted ? 'rgba(245, 158, 11, 0.22)' : 'rgba(15, 23, 42, 0.14)', strokeWidth: isEmphasized ? 8 : 6, fill: 'none' }} interactionWidth={0} />
 			<BaseEdge id={id} path={path} markerEnd={markerEnd} style={mergedStyle} interactionWidth={20} />
 			<EdgeLabelRenderer>
 				<div

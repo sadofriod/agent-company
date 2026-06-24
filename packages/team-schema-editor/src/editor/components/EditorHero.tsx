@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactElement } from 'react';
 import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { FileText, Pencil, Play, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { Cpu, FileText, Pencil, Play, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
 
 import type { EditorMode } from '../model/types';
 import { SchemaLoadStatus } from '../state/core/editorShared';
@@ -17,6 +17,7 @@ type EditorHeroProps = {
   schemaServiceStatus: SchemaServiceStatus;
   onModeChange: (mode: EditorMode) => void;
   onOpenAgentMarkdown: () => void;
+  onOpenLlmGateway: () => void;
 };
 
 export const EditorHero = ({
@@ -30,6 +31,7 @@ export const EditorHero = ({
   schemaServiceStatus,
   onModeChange,
   onOpenAgentMarkdown,
+  onOpenLlmGateway,
 }: EditorHeroProps): ReactElement => {
   const isSchemaReady = schemaLoadStatus === SchemaLoadStatus.Ready;
   const isSchemaLoading = schemaLoadStatus === SchemaLoadStatus.Loading;
@@ -59,6 +61,13 @@ export const EditorHero = ({
         <span>
           <IconButton color="secondary" onClick={onOpenAgentMarkdown} aria-label="Agent markdown">
             <FileText size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="LLM gateway">
+        <span>
+          <IconButton color="secondary" onClick={onOpenLlmGateway} aria-label="LLM gateway">
+            <Cpu size={18} />
           </IconButton>
         </span>
       </Tooltip>

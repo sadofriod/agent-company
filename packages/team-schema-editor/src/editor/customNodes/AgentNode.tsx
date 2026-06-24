@@ -10,7 +10,7 @@ export const AgentNode = ({ data, selected }: NodeProps<WorkflowGraphNode>): Rea
 	const agent = data.agent;
 
 	return (
-		<NodeShell eyebrow="Agent" title={data.nodeName} accent={data.accent} selected={selected} workflowNodeType={data.workflowNodeType}>
+		<NodeShell eyebrow="Agent" title={data.nodeName} accent={data.accent} selected={selected} runtimeHighlighted={data.runtimeHighlighted} workflowNodeType={data.workflowNodeType}>
 			<Stack spacing={0.75}>
 				{agent?.role === undefined ? null : (
 					<Typography sx={nodeTextSx}>
