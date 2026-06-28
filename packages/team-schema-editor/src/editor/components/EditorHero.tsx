@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactElement } from 'react';
 import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
-import { Cpu, FileText, Pencil, Play, RefreshCw, RotateCw, Save, ShieldCheck, Trash2 } from 'lucide-react';
+import { BrainCog, Cpu, FileText, Pencil, Play, RefreshCw, RotateCw, Save, ServerCog, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 
 import type { EditorMode } from '../model/types';
 import { SchemaLoadStatus } from '../state/core/editorShared';
@@ -18,6 +18,9 @@ type EditorHeroProps = {
   onModeChange: (mode: EditorMode) => void;
   onOpenAgentMarkdown: () => void;
   onOpenLlmGateway: () => void;
+  onOpenMcpServers: () => void;
+  onOpenTools: () => void;
+  onOpenSkills: () => void;
 };
 
 export const EditorHero = ({
@@ -32,6 +35,9 @@ export const EditorHero = ({
   onModeChange,
   onOpenAgentMarkdown,
   onOpenLlmGateway,
+  onOpenMcpServers,
+  onOpenTools,
+  onOpenSkills,
 }: EditorHeroProps): ReactElement => {
   const isSchemaReady = schemaLoadStatus === SchemaLoadStatus.Ready;
   const isSchemaLoading = schemaLoadStatus === SchemaLoadStatus.Loading;
@@ -68,6 +74,27 @@ export const EditorHero = ({
         <span>
           <IconButton color="secondary" onClick={onOpenLlmGateway} aria-label="LLM gateway">
             <Cpu size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="MCP servers">
+        <span>
+          <IconButton color="secondary" onClick={onOpenMcpServers} aria-label="MCP servers">
+            <ServerCog size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Tools">
+        <span>
+          <IconButton color="secondary" onClick={onOpenTools} aria-label="Tools">
+            <Wrench size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Skills">
+        <span>
+          <IconButton color="secondary" onClick={onOpenSkills} aria-label="Skills">
+            <BrainCog size={18} />
           </IconButton>
         </span>
       </Tooltip>

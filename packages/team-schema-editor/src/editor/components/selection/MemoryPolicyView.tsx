@@ -1,5 +1,13 @@
 import type { ReactElement } from 'react';
-import { Button, Divider, FormControlLabel, Stack, Switch, TextField, Typography } from '@mui/material';
+import { Button, Divider, FormControlLabel, MenuItem, Stack, Switch, TextField, Typography } from '@mui/material';
+
+import {
+  EvidenceRequiredOutputType,
+  INDEXED_OBJECT_TYPE,
+  MEMORY_CONFLICT_STRATEGY,
+  MEMORY_SCOPE,
+  RETRIEVAL_MODE,
+} from '@agents-team/service/domain/organization';
 
 import type { TeamSchemaDocument } from '../../model/types';
 import {
@@ -23,12 +31,22 @@ type MemoryPolicyViewProps = {
   updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
 };
 
-const renderListValue = (items: readonly string[] | undefined): string => (items ?? []).join('\n');
-
 const toPositiveNumber = (value: string, fallback: number): number => {
   const parsedValue = Number.parseInt(value, 10);
 
   return Number.isFinite(parsedValue) ? Math.max(0, parsedValue) : fallback;
+};
+
+const toStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string');
+  }
+
+  if (typeof value === 'string') {
+    return [value];
+  }
+
+  return [];
 };
 
 export const MemoryPolicyView = ({
@@ -43,16 +61,26 @@ export const MemoryPolicyView = ({
   updateMemoryRetrievalProfileBoolean,
 }: MemoryPolicyViewProps): ReactElement => {
   const memoryPolicy = schema.memory_policy;
+  const retrievalModeOptions = Object.values(RETRIEVAL_MODE);
+  const conflictStrategyOptions = Object.values(MEMORY_CONFLICT_STRATEGY);
+  const indexedObjectTypeOptions = Object.values(INDEXED_OBJECT_TYPE);
+  const evidenceOutputOptions = Object.values(EvidenceRequiredOutputType);
+  const memoryScopeOptions = Object.values(MEMORY_SCOPE);
 
   return (
     <Stack spacing={2}>
       <Typography variant="h6">Memory Policy</Typography>
       <TextField
+        select
         fullWidth
         label="Retrieval Mode"
         value={memoryPolicy?.retrieval_mode ?? 'standard_rag'}
         onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.RetrievalMode, event.target.value)}
-      />
+      >
+        {retrievalModeOptions.map((option) => (
+          <MenuItem key={option} value={option}>{option}</MenuItem>
+        ))}
+      </TextField>
       <TextField
         fullWidth
         label="Vector Store"
@@ -66,27 +94,48 @@ export const MemoryPolicyView = ({
         onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.GraphStore, event.target.value)}
       />
       <TextField
+        select
         fullWidth
-        multiline
-        minRows={3}
         label="Indexed Object Types"
-        value={renderListValue(memoryPolicy?.indexed_object_types)}
-        onChange={(event) => updateMemoryPolicyList(MemoryPolicyListField.IndexedObjectTypes, event.target.value)}
-      />
+        value={memoryPolicy?.indexed_object_types ?? []}
+        onChange={(event) => updateMemoryPolicyList(MemoryPolicyListField.IndexedObjectTypes, toStringArray(event.target.value).join('\n'))}
+        slotProps={{
+          select: {
+            multiple: true,
+          },
+        }}
+      >
+        {indexedObjectTypeOptions.map((option) => (
+          <MenuItem key={option} value={option}>{option}</MenuItem>
+        ))}
+      </TextField>
       <TextField
+        select
         fullWidth
-        multiline
-        minRows={3}
         label="Evidence Required Outputs"
-        value={renderListValue(memoryPolicy?.evidence_required_for_outputs)}
-        onChange={(event) => updateMemoryPolicyList(MemoryPolicyListField.EvidenceRequiredForOutputs, event.target.value)}
-      />
+        value={memoryPolicy?.evidence_required_for_outputs ?? []}
+        onChange={(event) => updateMemoryPolicyList(MemoryPolicyListField.EvidenceRequiredForOutputs, toStringArray(event.target.value).join('\n'))}
+        slotProps={{
+          select: {
+            multiple: true,
+          },
+        }}
+      >
+        {evidenceOutputOptions.map((option) => (
+          <MenuItem key={option} value={option}>{option}</MenuItem>
+        ))}
+      </TextField>
       <TextField
+        select
         fullWidth
         label="Conflict Strategy"
         value={memoryPolicy?.conflict_strategy ?? 'prefer_reviewed_latest'}
         onChange={(event) => updateMemoryPolicyField(MemoryPolicyField.ConflictStrategy, event.target.value)}
-      />
+      >
+        {conflictStrategyOptions.map((option) => (
+          <MenuItem key={option} value={option}>{option}</MenuItem>
+        ))}
+      </TextField>
 
       <Divider />
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
@@ -105,13 +154,21 @@ export const MemoryPolicyView = ({
             onChange={(event) => updateMemoryRetrievalProfileField(profile.profile_id, MemoryRetrievalProfileField.ProfileId, event.target.value)}
           />
           <TextField
+            select
             fullWidth
-            multiline
-            minRows={2}
             label="Allowed Scopes"
-            value={renderListValue(profile.allowed_scopes)}
-            onChange={(event) => updateMemoryRetrievalProfileList(profile.profile_id, MemoryRetrievalProfileListField.AllowedScopes, event.target.value)}
-          />
+            value={profile.allowed_scopes}
+            onChange={(event) => updateMemoryRetrievalProfileList(profile.profile_id, MemoryRetrievalProfileListField.AllowedScopes, toStringArray(event.target.value).join('\n'))}
+            slotProps={{
+              select: {
+                multiple: true,
+              },
+            }}
+          >
+            {memoryScopeOptions.map((option) => (
+              <MenuItem key={option} value={option}>{option}</MenuItem>
+            ))}
+          </TextField>
           <TextField
             fullWidth
             type="number"

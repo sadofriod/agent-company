@@ -71,6 +71,7 @@ const useSessionMutationRunner = (
 };
 
 const MAX_GOAL_ADVANCE_STEPS = 20;
+const RUNTIME_STREAM_CLOSED_ERROR = 'Realtime runtime stream closed. Refresh the session to reconnect.';
 
 type WorkflowNodeLlmValidationFailure = {
   readonly nodeId: string;
@@ -271,6 +272,7 @@ const createRuntimeEventHandler = (input: {
 const connectRuntimeStreams = (
   sessionId: string,
   onEvent: EventListener,
+  onOpen: () => void,
   onError: () => void,
 ): (() => void) => {
   const sources = [
@@ -286,11 +288,18 @@ const connectRuntimeStreams = (
       source.addEventListener(eventType, onEvent);
     }
 
-    source.onerror = onError;
+    source.onopen = onOpen;
+    source.onerror = () => {
+      if (source.readyState === EventSource.CLOSED) {
+        onError();
+      }
+    };
   }
 
   return () => {
     for (const source of sources) {
+      source.onopen = null;
+      source.onerror = null;
       source.close();
     }
   };
@@ -342,7 +351,8 @@ const useRuntimeObservability = (
         setRuntimeNodeInsights,
         setRuntimeEventFeed,
       }) as EventListener,
-      () => setError('Realtime runtime stream disconnected. The browser will retry automatically.'),
+      () => setError((current) => (current === RUNTIME_STREAM_CLOSED_ERROR ? null : current)),
+      () => setError(RUNTIME_STREAM_CLOSED_ERROR),
     );
     streamRefs.current = { sessionId, close };
 

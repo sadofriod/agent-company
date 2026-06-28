@@ -3,8 +3,11 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import '@xyflow/react/dist/style.css';
 
 import { AgentMarkdownPage } from './pages/AgentMarkdownPage';
+import { McpServerPage } from './pages/McpServerPage';
 import { EditorWorkspacePage } from './pages/EditorWorkspacePage';
 import { LlmGatewayPage } from './pages/LlmGatewayPage';
+import { SkillCatalogPage } from './pages/SkillCatalogPage';
+import { ToolCatalogPage } from './pages/ToolCatalogPage';
 import { WorkspaceListPage } from './pages/WorkspaceListPage';
 import { useRuntimeSession } from '../editor/hooks/useRuntimeSession';
 import { useSchemaServiceNotification } from '../editor/hooks/useSchemaServiceNotification';
@@ -31,6 +34,9 @@ export const App = (): ReactElement => {
       />
       <Route path="/agents/markdown" element={<AgentMarkdownPage />} />
       <Route path="/llm-gateways" element={<LlmGatewayPage />} />
+      <Route path="/mcp-servers" element={<McpServerPage />} />
+      <Route path="/tools" element={<ToolCatalogPage />} />
+      <Route path="/skills" element={<SkillCatalogPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

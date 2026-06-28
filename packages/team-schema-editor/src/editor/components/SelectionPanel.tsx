@@ -247,7 +247,7 @@ export const SelectionPanel = ({
             <Typography variant="h5">Selection</Typography>
           </Stack>
           <DiscussionSelectionView
-            form={form}
+            schema={schema}
             updateDiscussionField={updateDiscussionField}
             updateDiscussionNumber={updateDiscussionNumber}
           />

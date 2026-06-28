@@ -23,13 +23,29 @@ import {
   normalizeGatewayDraft,
   saveLlmGatewayConfig,
 } from '../llmGateway/llmGatewayStorage';
-import type { LlmGatewayDraft } from '../llmGateway/types';
+import { LLM_PROVIDER_ADAPTERS, findLlmProviderAdapter, type LlmGatewayDraft } from '../llmGateway/types';
+import { LlmModelDiscoveryField } from '../llmGateway/LlmModelDiscoveryField';
 
 const updateDraftField = (
   draft: LlmGatewayDraft,
   field: keyof LlmGatewayDraft,
   value: string,
 ): LlmGatewayDraft => ({ ...draft, [field]: value });
+
+const applyProviderDefaults = (draft: LlmGatewayDraft, provider: string): LlmGatewayDraft => {
+  const adapter = findLlmProviderAdapter(provider);
+  if (adapter === undefined) {
+    return { ...draft, provider };
+  }
+
+  return {
+    ...draft,
+    provider,
+    apiFormat: draft.apiFormat.length === 0 ? adapter.defaultApiFormat : draft.apiFormat,
+    baseUrl: draft.baseUrl.trim().length === 0 ? adapter.defaultBaseUrl : draft.baseUrl,
+    model: draft.model.trim().length === 0 && adapter.defaultModel !== undefined ? adapter.defaultModel : draft.model,
+  };
+};
 
 export const LlmGatewayPage = (): ReactElement => {
   const navigate = useNavigate();
@@ -47,6 +63,11 @@ export const LlmGatewayPage = (): ReactElement => {
   };
 
   const handleDraftChange = (field: keyof LlmGatewayDraft) => (event: ChangeEvent<HTMLInputElement>): void => {
+    if (field === 'provider') {
+      setDraft((current) => applyProviderDefaults(current, event.target.value));
+      return;
+    }
+
     setDraft((current) => updateDraftField(current, field, event.target.value));
   };
 
@@ -124,11 +145,46 @@ export const LlmGatewayPage = (): ReactElement => {
           <Typography variant="h6">{editingId === null ? 'Add New LLM API' : 'Edit LLM API'}</Typography>
           {error === null ? null : <Alert severity="error">{error}</Alert>}
           <TextField label="Name" value={draft.name} onChange={handleDraftChange('name')} placeholder="Example: OpenAI Production" />
-          <TextField label="Provider" value={draft.provider} onChange={handleDraftChange('provider')} required />
+          <TextField
+            label="Provider"
+            value={draft.provider}
+            onChange={handleDraftChange('provider')}
+            required
+            placeholder="deepseek / lmstudio / custom"
+            helperText="Select a default adapter or enter a custom provider."
+            slotProps={{
+              htmlInput: {
+                list: 'llm-provider-options',
+              },
+            }}
+          />
+          <datalist id="llm-provider-options">
+            {LLM_PROVIDER_ADAPTERS.map((adapter) => (
+              <option key={adapter.provider} value={adapter.provider}>
+                {adapter.displayName}
+              </option>
+            ))}
+          </datalist>
           <TextField label="Model" value={draft.model} onChange={handleDraftChange('model')} required />
           <TextField label="API Format" value={draft.apiFormat} onChange={handleDraftChange('apiFormat')} placeholder="openai" />
           <TextField label="Base URL" value={draft.baseUrl} onChange={handleDraftChange('baseUrl')} placeholder="https://api.example.com/v1" />
-          <TextField label="API Key Env" value={draft.apiKeyEnv} onChange={handleDraftChange('apiKeyEnv')} placeholder="OPENAI_API_KEY" />
+          <TextField
+            label="API Key"
+            type="password"
+            autoComplete="off"
+            value={draft.apiKey}
+            onChange={handleDraftChange('apiKey')}
+            placeholder="sk-..."
+          />
+          <LlmModelDiscoveryField
+            provider={draft.provider}
+            baseUrl={draft.baseUrl}
+            apiKey={draft.apiKey}
+            model={draft.model}
+            onModelChange={(nextModel) => {
+              setDraft((current) => updateDraftField(current, 'model', nextModel));
+            }}
+          />
 
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button variant="contained" startIcon={<Plus size={16} />} onClick={submit} disabled={isSubmitDisabled}>

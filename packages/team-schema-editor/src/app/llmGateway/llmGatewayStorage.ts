@@ -1,4 +1,9 @@
-import { createEmptyLlmGatewayDraft, type LlmGatewayConfig, type LlmGatewayDraft } from './types';
+import {
+  createEmptyLlmGatewayDraft,
+  isAgentLlmApiFormat,
+  type LlmGatewayConfig,
+  type LlmGatewayDraft,
+} from './types';
 
 const STORAGE_KEY = 'agents-team.llm-gateways.v1';
 
@@ -44,14 +49,20 @@ const readRawConfigs = (): LlmGatewayConfig[] => {
         continue;
       }
 
+      const apiFormat = typeof item.apiFormat === 'string' && isAgentLlmApiFormat(item.apiFormat.trim())
+        ? item.apiFormat.trim()
+        : undefined;
+
       configs.push({
         id,
         name: name.length === 0 ? provider : name,
         provider,
         model,
-        ...(typeof item.apiFormat === 'string' && item.apiFormat.trim().length > 0 ? { apiFormat: item.apiFormat.trim() } : {}),
+        ...(apiFormat === undefined ? {} : { apiFormat }),
         ...(typeof item.baseUrl === 'string' && item.baseUrl.trim().length > 0 ? { baseUrl: item.baseUrl.trim() } : {}),
-        ...(typeof item.apiKeyEnv === 'string' && item.apiKeyEnv.trim().length > 0 ? { apiKeyEnv: item.apiKeyEnv.trim() } : {}),
+        ...(typeof item.apiKey === 'string' && item.apiKey.trim().length > 0
+          ? { apiKey: item.apiKey.trim() }
+          : (typeof item.apiKeyEnv === 'string' && item.apiKeyEnv.trim().length > 0 ? { apiKey: item.apiKeyEnv.trim() } : {})),
         createdAt,
         updatedAt,
       });
@@ -83,17 +94,21 @@ export const createDraftFromGateway = (gateway: LlmGatewayConfig): LlmGatewayDra
   model: gateway.model,
   apiFormat: gateway.apiFormat ?? '',
   baseUrl: gateway.baseUrl ?? '',
-  apiKeyEnv: gateway.apiKeyEnv ?? '',
+  apiKey: gateway.apiKey ?? '',
 });
 
-export const normalizeGatewayDraft = (draft: LlmGatewayDraft): LlmGatewayDraft => ({
-  name: draft.name.trim(),
-  provider: draft.provider.trim(),
-  model: draft.model.trim(),
-  apiFormat: draft.apiFormat.trim(),
-  baseUrl: draft.baseUrl.trim(),
-  apiKeyEnv: draft.apiKeyEnv.trim(),
-});
+export const normalizeGatewayDraft = (draft: LlmGatewayDraft): LlmGatewayDraft => {
+  const trimmedApiFormat = draft.apiFormat.trim();
+
+  return {
+    name: draft.name.trim(),
+    provider: draft.provider.trim(),
+    model: draft.model.trim(),
+    apiFormat: isAgentLlmApiFormat(trimmedApiFormat) ? trimmedApiFormat : '',
+    baseUrl: draft.baseUrl.trim(),
+    apiKey: draft.apiKey.trim(),
+  };
+};
 
 export const saveLlmGatewayConfig = (draft: LlmGatewayDraft, id?: string): LlmGatewayConfig => {
   const normalized = normalizeGatewayDraft(draft);
@@ -106,9 +121,11 @@ export const saveLlmGatewayConfig = (draft: LlmGatewayDraft, id?: string): LlmGa
     name: normalized.name.length > 0 ? normalized.name : normalized.provider,
     provider: normalized.provider,
     model: normalized.model,
-    ...(normalizeOptional(normalized.apiFormat) === undefined ? {} : { apiFormat: normalizeOptional(normalized.apiFormat) }),
+    ...(normalizeOptional(normalized.apiFormat) !== undefined && isAgentLlmApiFormat(normalized.apiFormat)
+      ? { apiFormat: normalized.apiFormat }
+      : {}),
     ...(normalizeOptional(normalized.baseUrl) === undefined ? {} : { baseUrl: normalizeOptional(normalized.baseUrl) }),
-    ...(normalizeOptional(normalized.apiKeyEnv) === undefined ? {} : { apiKeyEnv: normalizeOptional(normalized.apiKeyEnv) }),
+    ...(normalizeOptional(normalized.apiKey) === undefined ? {} : { apiKey: normalizeOptional(normalized.apiKey) }),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

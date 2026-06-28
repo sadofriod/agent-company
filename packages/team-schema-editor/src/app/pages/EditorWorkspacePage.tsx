@@ -42,6 +42,15 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
   const openLlmGateway = (): void => {
     void navigate('/llm-gateways');
   };
+  const openMcpServers = (): void => {
+    void navigate('/mcp-servers');
+  };
+  const openTools = (): void => {
+    void navigate('/tools');
+  };
+  const openSkills = (): void => {
+    void navigate('/skills');
+  };
   const deleteWorkspace = (): void => {
     void editor.deleteSchema().then(() => navigate('/'));
   };
@@ -84,6 +93,9 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
           onModeChange={onModeChange}
           onOpenAgentMarkdown={openAgentMarkdown}
           onOpenLlmGateway={openLlmGateway}
+          onOpenMcpServers={openMcpServers}
+          onOpenTools={openTools}
+          onOpenSkills={openSkills}
         />
       </Box>
 
