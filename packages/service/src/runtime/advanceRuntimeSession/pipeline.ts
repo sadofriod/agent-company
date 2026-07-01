@@ -10,6 +10,7 @@ import type {
 import {
 	REVIEW_STATUS,
 	REVIEW_TARGET_TYPE,
+	REVIEWER_KIND,
 	type ReviewResult,
 } from '../../domain/review';
 import type { RuntimeSession } from '../../domain/runtime';
@@ -158,7 +159,7 @@ const validatePipelineDag = (
 		}
 	}
 
-	if (visitedCount !== pipeline.steps.length && session.runtimePlan.pipelinePolicy.dagRequired) {
+	if (visitedCount !== pipeline.steps.length) {
 		issues.push(
 			createIssue(
 				'pipeline_cycle_detected',
@@ -207,7 +208,7 @@ const createPipelineForTicket = (session: RuntimeSession, ticket: Ticket): Valid
 		inputContract: agent.inputContract,
 		outputContract: agent.outputContract,
 		allowedCapabilities: uniqueValues([...agent.skillIds, ...agent.mcpServerIds, ...agent.toolIds]),
-		reviewRequired: session.runtimePlan.pipelinePolicy.reviewBeforeHandoff || index === orderedAgents.length - 1,
+		reviewRequired: true,
 		failurePolicy: ticket.failurePolicy,
 	}));
 	const pipeline: Pipeline = {
@@ -755,7 +756,7 @@ const executeSingleStep = (
 	);
 	const reviewResults = step.reviewRequired
 		? runReviewGate(workingSession, {
-			reviewers: session.runtimePlan.reviewPolicy.stepCompletion,
+			reviewers: [REVIEWER_KIND.LogicReview, REVIEWER_KIND.QualityReview],
 			targetType: REVIEW_TARGET_TYPE.StepOutput,
 			targetId: step.stepId,
 			target: stepResult,

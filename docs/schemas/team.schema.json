@@ -9,9 +9,7 @@
     "team_id",
     "departments",
     "agents",
-    "discussion_policy",
-    "pipeline_policy",
-    "review_policy"
+    "discussion_policy"
   ],
   "properties": {
     "schema_version": { "type": "string" },
@@ -28,9 +26,7 @@
       "items": { "$ref": "#/$defs/agent" }
     },
     "discussion_policy": { "$ref": "#/$defs/discussion_policy" },
-    "pipeline_policy": { "$ref": "#/$defs/pipeline_policy" },
     "memory_policy": { "$ref": "#/$defs/memory_policy" },
-    "review_policy": { "$ref": "#/$defs/review_policy" },
     "layout": { "$ref": "#/$defs/workflow_layout" }
   },
   "$defs": {
@@ -259,22 +255,6 @@
         }
       }
     },
-    "pipeline_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "one_pipeline_per_ticket",
-        "dag_required",
-        "step_owner_required",
-        "review_before_handoff"
-      ],
-      "properties": {
-        "one_pipeline_per_ticket": { "const": true },
-        "dag_required": { "const": true },
-        "step_owner_required": { "type": "boolean" },
-        "review_before_handoff": { "type": "boolean" }
-      }
-    },
     "memory_policy": {
       "type": "object",
       "additionalProperties": false,
@@ -347,27 +327,6 @@
         "max_results": { "type": "integer", "minimum": 1, "maximum": 50 },
         "max_graph_hops": { "type": "integer", "minimum": 0, "maximum": 3 },
         "require_reviewed_memory": { "type": "boolean" }
-      }
-    },
-    "review_policy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["ticket_admission", "step_completion", "allowed_results"],
-      "properties": {
-        "ticket_admission": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "enum": ["logic_review", "quality_review"] }
-        },
-        "step_completion": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "enum": ["logic_review", "quality_review"] }
-        },
-        "allowed_results": {
-          "type": "array",
-          "items": { "enum": ["pass", "revise", "block"] }
-        }
       }
     }
   }

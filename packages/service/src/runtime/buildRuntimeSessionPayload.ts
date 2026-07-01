@@ -9,10 +9,8 @@ import type {
 	Department,
 	DiscussionPolicy,
 	MemoryPolicy,
-	PipelinePolicy,
 	TeamDefinition,
 } from '../domain/organization';
-import type { ReviewPolicy } from '../domain/review';
 
 import { toRuntimeId } from './runtimeEngineShared';
 import { createRuntimePlan } from './createRuntimePlan';
@@ -22,9 +20,7 @@ export type SerializedRuntimePlan = {
 	readonly departments: readonly Department[];
 	readonly agents: readonly AgentDefinition[];
 	readonly discussionPolicy: DiscussionPolicy;
-	readonly pipelinePolicy: PipelinePolicy;
 	readonly memoryPolicy?: MemoryPolicy;
-	readonly reviewPolicy: ReviewPolicy;
 };
 
 export type RuntimeSessionPayload = {
@@ -50,9 +46,7 @@ const serializeRuntimePlan = (runtimeSession: RuntimeSession): SerializedRuntime
 	departments: [...runtimeSession.runtimePlan.departmentsById.values()],
 	agents: [...runtimeSession.runtimePlan.agentsById.values()],
 	discussionPolicy: runtimeSession.runtimePlan.discussionPolicy,
-	pipelinePolicy: runtimeSession.runtimePlan.pipelinePolicy,
 	memoryPolicy: runtimeSession.runtimePlan.memoryPolicy,
-	reviewPolicy: runtimeSession.runtimePlan.reviewPolicy,
 });
 
 export const buildRuntimeSessionPayload = (runtimeSession: RuntimeSession): RuntimeSessionPayload => ({

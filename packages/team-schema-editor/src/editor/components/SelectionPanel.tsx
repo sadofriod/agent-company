@@ -5,8 +5,6 @@ import { AgentSelectionView } from './selection/AgentSelectionView';
 import { DepartmentSelectionView } from './selection/DepartmentSelectionView';
 import { DiscussionSelectionView } from './selection/DiscussionSelectionView';
 import { MemoryPolicyView } from './selection/MemoryPolicyView';
-import { PipelinePolicyView } from './selection/PipelinePolicyView';
-import { ReviewPolicyView } from './selection/ReviewPolicyView';
 import { TeamSelectionView } from './selection/TeamSelectionView';
 import { WorkflowNodeSelectionView } from './selection/WorkflowNodeSelectionView';
 import type { AgentLlmDocument, Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
@@ -29,7 +27,13 @@ import type {
 } from '../state/core/editorShared';
 import type { WorkflowMetadataField } from '../hooks/helper/teamEditor.types';
 
-const inspectorPanelSx = { p: 1.5, minHeight: { xs: 'auto', lg: '100%' } } as const;
+const inspectorPanelSx = {
+  p: 1.5,
+  minHeight: { xs: 'auto', lg: '100%' },
+  maxHeight: { xs: 'none', lg: 'calc(100vh - 130px)' },
+  overflowY: 'auto',
+  boxSizing: 'border-box',
+} as const;
 const inspectorKickerSx = { letterSpacing: 0 } as const;
 
 type SelectionPanelProps = {
@@ -145,6 +149,7 @@ export const SelectionPanel = ({
           <DepartmentSelectionView
             form={form}
             department={department}
+            schema={schema}
             addAgent={addAgent}
             removeDepartment={removeDepartment}
             updateDepartmentField={updateDepartmentField}
@@ -179,11 +184,10 @@ export const SelectionPanel = ({
           <AgentSelectionView
             form={form}
             agent={agent}
+            schema={schema}
             removeAgent={removeAgent}
             updateAgentField={updateAgentField}
             updateAgentList={updateAgentList}
-            updateAgentMetadataField={updateAgentMetadataField}
-            updateAgentMetadataList={updateAgentMetadataList}
           />
         </Stack>
       </Box>
@@ -247,42 +251,11 @@ export const SelectionPanel = ({
             <Typography variant="h5">Selection</Typography>
           </Stack>
           <DiscussionSelectionView
+            form={form}
             schema={schema}
             updateDiscussionField={updateDiscussionField}
             updateDiscussionNumber={updateDiscussionNumber}
           />
-        </Stack>
-      </Box>
-    );
-  }
-
-  if (selection.kind === 'pipeline') {
-    return (
-      <Box sx={inspectorPanelSx}>
-        <Stack spacing={1.5}>
-          <Stack spacing={0.5}>
-            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
-              Inspector
-            </Typography>
-            <Typography variant="h5">Selection</Typography>
-          </Stack>
-          <PipelinePolicyView />
-        </Stack>
-      </Box>
-    );
-  }
-
-  if (selection.kind === 'review') {
-    return (
-      <Box sx={inspectorPanelSx}>
-        <Stack spacing={1.5}>
-          <Stack spacing={0.5}>
-            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
-              Inspector
-            </Typography>
-            <Typography variant="h5">Selection</Typography>
-          </Stack>
-          <ReviewPolicyView schema={schema} />
         </Stack>
       </Box>
     );

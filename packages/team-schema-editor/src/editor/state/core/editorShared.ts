@@ -245,17 +245,6 @@ export const createPendingTeamSchema = (): TeamSchemaDocument => ({
     conflict_resolution: 'supervisor_decision',
     required_outputs: ['team_schema'],
   },
-  pipeline_policy: {
-    one_pipeline_per_ticket: true,
-    dag_required: true,
-    step_owner_required: true,
-    review_before_handoff: true,
-  },
-  review_policy: {
-    ticket_admission: ['logic_review'],
-    step_completion: ['quality_review'],
-    allowed_results: ['pass', 'revise', 'block'],
-  },
 });
 
 export const initialState: EditorState = {

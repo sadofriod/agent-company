@@ -278,7 +278,7 @@ export const WorkflowNodeSelectionView = ({
   };
 
   return (
-    <Stack spacing={1.5} sx={{ minHeight: 0, maxHeight: { xs: 'none', lg: 'calc(100vh - 210px)' }, overflowY: 'auto', pr: 0.5 }}>
+    <Stack spacing={1.5} sx={{ minHeight: 0 }}>
       <Stack spacing={0.5}>
         <Typography variant="h6">{workflowNode.data.workflowMetadata?.name ?? workflowNode.data.nodeName}</Typography>
         <Typography color="text.secondary" sx={{ fontSize: '0.86rem', wordBreak: 'break-all' }}>

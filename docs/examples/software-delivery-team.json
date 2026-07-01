@@ -114,12 +114,6 @@
     "conflict_resolution": "supervisor_decision",
     "required_outputs": ["topic", "decision", "ticket_draft"]
   },
-  "pipeline_policy": {
-    "one_pipeline_per_ticket": true,
-    "dag_required": true,
-    "step_owner_required": true,
-    "review_before_handoff": true
-  },
   "memory_policy": {
     "retrieval_mode": "hybrid_vector_graph",
     "vector_store": "pgvector",
@@ -163,10 +157,5 @@
       "review_result"
     ],
     "conflict_strategy": "return_conflicts_to_review"
-  },
-  "review_policy": {
-    "ticket_admission": ["logic_review", "quality_review"],
-    "step_completion": ["logic_review", "quality_review"],
-    "allowed_results": ["pass", "revise", "block"]
   }
 }

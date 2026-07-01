@@ -39,16 +39,6 @@ export const selectNode: CaseReducer<EditorState, PayloadAction<string | null>> 
     return;
   }
 
-  if (nodeId === 'pipeline') {
-    state.selection = { kind: 'pipeline' };
-    return;
-  }
-
-  if (nodeId === 'review') {
-    state.selection = { kind: 'review' };
-    return;
-  }
-
   if (nodeId === 'memory' || nodeId.startsWith('memory:')) {
     state.selection = { kind: 'memory' };
   }

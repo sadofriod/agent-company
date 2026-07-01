@@ -17,10 +17,9 @@ import type {
   DiscussionPolicy,
   MemoryPolicy,
   MemoryScope,
-  PipelinePolicy,
   TeamDefinition,
 } from './organization';
-import type { ReviewPolicy, ReviewResult } from './review';
+import type { ReviewResult } from './review';
 
 /** 定义运行时支持的工作模式。 */
 export const WORK_MODE = {
@@ -43,12 +42,8 @@ export type RuntimePlan = {
   readonly agentsById: ReadonlyMap<AgentId, AgentDefinition>;
   /** 讨论策略。 */
   readonly discussionPolicy: DiscussionPolicy;
-  /** Pipeline 策略。 */
-  readonly pipelinePolicy: PipelinePolicy;
   /** 可选记忆策略。 */
   readonly memoryPolicy?: MemoryPolicy;
-  /** 审查策略。 */
-  readonly reviewPolicy: ReviewPolicy;
 };
 
 /**

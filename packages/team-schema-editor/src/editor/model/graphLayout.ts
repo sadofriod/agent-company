@@ -6,8 +6,6 @@ import type { AgentDocument, GraphNodeData, SchemaEdgeData, TeamSchemaDocument, 
 
 export const GOAL_NODE_ID = 'goal';
 const DISCUSSION_NODE_ID = 'discussion';
-export const PIPELINE_NODE_ID = 'pipeline';
-const REVIEW_NODE_ID = 'review';
 const DISCUSSION_MEMORY_NODE_ID = 'memory:discussion';
 const SESSION_MEMORY_NODE_ID = 'memory:session';
 
@@ -132,28 +130,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
     }),
   );
 
-  nodes.push(
-    createNode(PIPELINE_NODE_ID, GOVERNANCE_X, governanceY + GOVERNANCE_GAP_Y, {
-      kind: GraphNodeKind.Pipeline,
-      nodeName: 'Pipeline Policy',
-      roleName: 'Workflow',
-      detail: schema.pipeline_policy?.review_before_handoff ? 'review before handoff' : 'direct handoff',
-      accent: 'var(--pipeline-accent)',
-    }),
-  );
-
-  nodes.push(
-    createNode(REVIEW_NODE_ID, GOVERNANCE_X, governanceY + GOVERNANCE_GAP_Y * 2, {
-      kind: GraphNodeKind.Review,
-      nodeName: 'Review Policy',
-      roleName: 'Quality Gate',
-      detail: schema.review_policy?.allowed_results?.join(' / ') ?? '',
-      accent: 'var(--review-accent)',
-    }),
-  );
-
   edges.push(createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', SchemaEdgeTone.Governance));
-  edges.push(createEdge('goal-pipeline', GOAL_NODE_ID, PIPELINE_NODE_ID, 'execute', SchemaEdgeTone.Governance));
 
   if (schema.memory_policy !== undefined) {
     nodes.push(
@@ -181,7 +158,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
     );
 
     edges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
-    edges.push(createEdge('pipeline-memory-session', PIPELINE_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
+    edges.push(createEdge('discussion-memory-session', DISCUSSION_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
   }
 
   if (schema.discussion_policy.supervisor_agent_id !== undefined) {

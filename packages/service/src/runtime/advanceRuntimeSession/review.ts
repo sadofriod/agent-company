@@ -152,7 +152,7 @@ export const runReviewGate = (
 
 		return {
 			reviewId: toReviewId(createRuntimeScopedId('review')),
-			status: session.runtimePlan.reviewPolicy.allowedResults.includes(status)
+			status: [REVIEW_STATUS.Pass, REVIEW_STATUS.Revise, REVIEW_STATUS.Block].includes(status)
 				? status
 				: REVIEW_STATUS.Block,
 			reviewer,
@@ -176,7 +176,7 @@ export const admitTicketDraft = (
 		createEvidenceRef(createStructuredSourceRef(ticketDraft.topicId, 'discussion topic'), session.state.context.task.goal),
 	];
 	const reviewResults = runReviewGate(session, {
-		reviewers: session.runtimePlan.reviewPolicy.ticketAdmission,
+		reviewers: [REVIEWER_KIND.LogicReview, REVIEWER_KIND.QualityReview],
 		targetType: REVIEW_TARGET_TYPE.Ticket,
 		targetId: ticketDraft.ticketDraftId,
 		target: ticketDraft,

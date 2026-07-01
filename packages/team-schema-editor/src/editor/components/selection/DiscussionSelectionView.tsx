@@ -1,64 +1,75 @@
 import type { ReactElement } from 'react';
-import { MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { MenuItem, Stack, Typography } from '@mui/material';
 
 import { CONFLICT_RESOLUTION, DISCUSSION_MODE } from '@agents-team/service/domain/organization';
+import { SelectionFormField } from './SelectionFormField';
+import { SelectionFieldType } from './SelectionFormField';
+import type { UseFormReturn } from 'react-hook-form';
+import type { SelectionFormValues } from './selectionFormValues';
 import type { TeamSchemaDocument } from '../../model/types';
 import { DiscussionField } from '../../state/core/editorShared';
 
 type DiscussionSelectionViewProps = {
+  form: UseFormReturn<SelectionFormValues>;
   schema: TeamSchemaDocument;
   updateDiscussionField: (field: DiscussionField, value: string) => void;
   updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
 };
 
-export const DiscussionSelectionView = ({ schema, updateDiscussionField, updateDiscussionNumber }: DiscussionSelectionViewProps): ReactElement => {
+export const DiscussionSelectionView = ({ form, schema, updateDiscussionField, updateDiscussionNumber }: DiscussionSelectionViewProps): ReactElement => {
   const modeOptions = Object.values(DISCUSSION_MODE);
   const conflictResolutionOptions = Object.values(CONFLICT_RESOLUTION);
+
+  const supervisorAgentOptions = [
+    <MenuItem key="none" value="">
+      None
+    </MenuItem>,
+    ...schema.agents.map((agent) => (
+      <MenuItem key={agent.agent_id} value={agent.agent_id}>
+        {agent.metadata?.name ?? agent.agent_id}
+      </MenuItem>
+    )),
+  ];
 
   return (
     <Stack spacing={2}>
       <Typography variant="h6">Discussion Policy</Typography>
-      <TextField
-        select
-        fullWidth
+      
+      <SelectionFormField
+        form={form}
+        name="mode"
         label="Mode"
-        value={schema.discussion_policy.mode}
-        onChange={(event) => updateDiscussionField(DiscussionField.Mode, event.target.value)}
-      >
-        {modeOptions.map((option) => (
-          <MenuItem key={option} value={option}>{option}</MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        fullWidth
-        type="number"
-        label="Max Rounds"
-        value={schema.discussion_policy.max_rounds}
-        onChange={(event) => updateDiscussionNumber('max_rounds', Number.parseInt(event.target.value, 10))}
+        select
+        options={modeOptions}
+        onValueChange={(value) => updateDiscussionField(DiscussionField.Mode, value)}
       />
-      <TextField
-        select
-        fullWidth
+
+      <SelectionFormField
+        form={form}
+        name="max_rounds"
+        label="Max Rounds"
+        type={SelectionFieldType.Number}
+        onValueChange={(value) => updateDiscussionNumber('max_rounds', Number.parseInt(value, 10))}
+      />
+
+      <SelectionFormField
+        form={form}
+        name="supervisor_agent_id"
         label="Supervisor Agent Id"
-        value={schema.discussion_policy.supervisor_agent_id ?? ''}
-        onChange={(event) => updateDiscussionField(DiscussionField.SupervisorAgentId, event.target.value)}
-      >
-        <MenuItem value="">None</MenuItem>
-        {schema.agents.map((agent) => (
-          <MenuItem key={agent.agent_id} value={agent.agent_id}>{agent.metadata?.name ?? agent.agent_id}</MenuItem>
-        ))}
-      </TextField>
-      <TextField
         select
-        fullWidth
-        label="Conflict Resolution"
-        value={schema.discussion_policy.conflict_resolution}
-        onChange={(event) => updateDiscussionField(DiscussionField.ConflictResolution, event.target.value)}
+        onValueChange={(value) => updateDiscussionField(DiscussionField.SupervisorAgentId, value)}
       >
-        {conflictResolutionOptions.map((option) => (
-          <MenuItem key={option} value={option}>{option}</MenuItem>
-        ))}
-      </TextField>
+        {supervisorAgentOptions}
+      </SelectionFormField>
+
+      <SelectionFormField
+        form={form}
+        name="conflict_resolution"
+        label="Conflict Resolution"
+        select
+        options={conflictResolutionOptions}
+        onValueChange={(value) => updateDiscussionField(DiscussionField.ConflictResolution, value)}
+      />
     </Stack>
   );
 };

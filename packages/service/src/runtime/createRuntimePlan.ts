@@ -42,7 +42,6 @@ export const createRuntimePlan = (team: TeamDefinition): RuntimePlan => {
       ...team.discussionPolicy,
       requiredOutputs: copyArray(team.discussionPolicy.requiredOutputs),
     },
-    pipelinePolicy: { ...team.pipelinePolicy },
     memoryPolicy:
       team.memoryPolicy === undefined
         ? undefined
@@ -57,12 +56,6 @@ export const createRuntimePlan = (team: TeamDefinition): RuntimePlan => {
               team.memoryPolicy.evidenceRequiredForOutputs,
             ),
           },
-    reviewPolicy: {
-      ...team.reviewPolicy,
-      ticketAdmission: copyArray(team.reviewPolicy.ticketAdmission),
-      stepCompletion: copyArray(team.reviewPolicy.stepCompletion),
-      allowedResults: copyArray(team.reviewPolicy.allowedResults),
-    },
   }));
 
   return {
@@ -72,8 +65,6 @@ export const createRuntimePlan = (team: TeamDefinition): RuntimePlan => {
     ),
     agentsById: new Map(teamSnapshot.agents.map((agent) => [agent.agentId, agent])),
     discussionPolicy: teamSnapshot.discussionPolicy,
-    pipelinePolicy: teamSnapshot.pipelinePolicy,
     memoryPolicy: teamSnapshot.memoryPolicy,
-    reviewPolicy: teamSnapshot.reviewPolicy,
   };
 };

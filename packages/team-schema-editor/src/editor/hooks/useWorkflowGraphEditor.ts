@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { Connection, Edge, NodeChange, NodePositionChange, OnEdgesChange, OnNodesChange, XYPosition } from '@xyflow/react';
 import { applyEdgeChanges, applyNodeChanges } from '@xyflow/react';
 
-import { GOAL_NODE_ID, PIPELINE_NODE_ID, buildGraph } from '../model/graphLayout';
+import { GOAL_NODE_ID, buildGraph } from '../model/graphLayout';
 import { WorkflowEdgeMode, WorkflowNodeType } from '../model/types';
 import type { AgentDocument, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { applyWorkflowLayoutDocument } from '../model/workflowLayout';
@@ -50,7 +50,7 @@ const getEdgeMode = (edge: Edge): WorkflowEdgeMode | null => {
 };
 
 const isPipelineNode = (node: WorkflowGraphNode): boolean =>
-  node.id === PIPELINE_NODE_ID || node.id.startsWith(WORKFLOW_PIPELINE_NODE_PREFIX);
+  node.id.startsWith(WORKFLOW_PIPELINE_NODE_PREFIX);
 
 const collectPipelineChildIds = (parentId: string, edges: Edge[]): Set<string> => {
   const pipelineEdges = edges.filter((edge) => getEdgeMode(edge) === WorkflowEdgeMode.Pipeline);

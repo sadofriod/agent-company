@@ -62,13 +62,6 @@ export type DiscussionPolicyDocument = {
   required_outputs: string[];
 };
 
-export type PipelinePolicyDocument = {
-  one_pipeline_per_ticket: true;
-  dag_required: true;
-  step_owner_required: boolean;
-  review_before_handoff: boolean;
-};
-
 export type MemoryRetrievalProfileDocument = {
   profile_id: string;
   allowed_scopes: string[];
@@ -87,12 +80,6 @@ export type MemoryPolicyDocument = {
   conflict_strategy: string;
 };
 
-export type ReviewPolicyDocument = {
-  ticket_admission: string[];
-  step_completion: string[];
-  allowed_results: string[];
-};
-
 export type TeamSchemaDocument = {
   schema_version: string;
   team_id: string;
@@ -100,9 +87,7 @@ export type TeamSchemaDocument = {
   departments: DepartmentDocument[];
   agents: AgentDocument[];
   discussion_policy: DiscussionPolicyDocument;
-  pipeline_policy: PipelinePolicyDocument;
   memory_policy?: MemoryPolicyDocument;
-  review_policy: ReviewPolicyDocument;
   layout?: WorkflowLayoutDocument;
 };
 
@@ -303,8 +288,6 @@ export type Selection =
   | { kind: 'agent'; agentId: string }
   | { kind: 'workflowNode'; nodeId: string }
   | { kind: 'discussion' }
-  | { kind: 'pipeline' }
-  | { kind: 'review' }
   | { kind: 'memory' };
 
 export type ValidationIssue = {

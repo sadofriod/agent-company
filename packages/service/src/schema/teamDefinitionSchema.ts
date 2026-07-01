@@ -10,10 +10,8 @@ import type {
   EvidenceRequiredOutputType,
   MemoryPolicy,
   MemoryRetrievalProfile,
-  PipelinePolicy,
   TeamDefinition,
 } from '../domain/organization';
-import type { ReviewPolicy } from '../domain/review';
 import {
   conflictResolutionSchema,
   discussionModeSchema,
@@ -168,23 +166,6 @@ const discussionPolicySchema = z
     }),
   );
 
-const pipelinePolicySchema = z
-  .object({
-    one_pipeline_per_ticket: z.literal(true),
-    dag_required: z.literal(true),
-    step_owner_required: z.boolean(),
-    review_before_handoff: z.boolean(),
-  })
-  .strict()
-  .transform(
-    (value): PipelinePolicy => ({
-      onePipelinePerTicket: value.one_pipeline_per_ticket,
-      dagRequired: value.dag_required,
-      stepOwnerRequired: value.step_owner_required,
-      reviewBeforeHandoff: value.review_before_handoff,
-    }),
-  );
-
 const memoryRetrievalProfileSchema = z
   .object({
     profile_id: nonEmptyStringSchema,
@@ -224,21 +205,6 @@ const memoryPolicySchema = z
       retrievalProfiles: value.retrieval_profiles,
       evidenceRequiredForOutputs: value.evidence_required_for_outputs as readonly EvidenceRequiredOutputType[],
       conflictStrategy: value.conflict_strategy,
-    }),
-  );
-
-const reviewPolicySchema = z
-  .object({
-    ticket_admission: z.array(reviewerKindSchema).min(1),
-    step_completion: z.array(reviewerKindSchema).min(1),
-    allowed_results: z.array(reviewStatusSchema),
-  })
-  .strict()
-  .transform(
-    (value): ReviewPolicy => ({
-      ticketAdmission: value.ticket_admission,
-      stepCompletion: value.step_completion,
-      allowedResults: value.allowed_results,
     }),
   );
 
@@ -302,9 +268,7 @@ export const teamSchema = z
     departments: z.array(departmentSchema).min(1),
     agents: z.array(agentSchema).min(1),
     discussion_policy: discussionPolicySchema,
-    pipeline_policy: pipelinePolicySchema,
     memory_policy: memoryPolicySchema.optional(),
-    review_policy: reviewPolicySchema,
     layout: workflowLayoutSchema.optional(),
   })
   .strict()
@@ -316,8 +280,6 @@ export const teamSchema = z
       departments: value.departments,
       agents: value.agents,
       discussionPolicy: value.discussion_policy,
-      pipelinePolicy: value.pipeline_policy,
       memoryPolicy: value.memory_policy,
-      reviewPolicy: value.review_policy,
     }),
   );

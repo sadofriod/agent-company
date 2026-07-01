@@ -4,7 +4,6 @@ import type {
   MemoryProfileId,
   TeamId,
 } from './base';
-import type { ReviewPolicy } from './review';
 
 /** 定义讨论阶段支持的协作拓扑。 */
 export const DISCUSSION_MODE = {
@@ -197,20 +196,6 @@ export type DiscussionPolicy = {
 };
 
 /**
- * 描述单 Ticket Pipeline 的构造约束。
- */
-export type PipelinePolicy = {
-  /** 是否强制一个 Ticket 对应一个 Pipeline。 */
-  readonly onePipelinePerTicket: true;
-  /** 是否强制 Pipeline 为 DAG。 */
-  readonly dagRequired: true;
-  /** 是否要求每个 Step 都声明 Owner。 */
-  readonly stepOwnerRequired: boolean;
-  /** 是否要求交接前必须先经过审查。 */
-  readonly reviewBeforeHandoff: boolean;
-};
-
-/**
  * 描述单个记忆检索配置档。
  */
 export type MemoryRetrievalProfile = {
@@ -269,10 +254,6 @@ export type TeamDefinition = {
   readonly agents: readonly AgentDefinition[];
   /** 讨论策略。 */
   readonly discussionPolicy: DiscussionPolicy;
-  /** Pipeline 策略。 */
-  readonly pipelinePolicy: PipelinePolicy;
   /** 可选的记忆治理策略。 */
   readonly memoryPolicy?: MemoryPolicy;
-  /** 审查策略。 */
-  readonly reviewPolicy: ReviewPolicy;
 };
