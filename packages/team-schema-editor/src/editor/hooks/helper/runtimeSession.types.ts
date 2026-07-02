@@ -79,6 +79,7 @@ export type RuntimeSessionModel = {
   setTaskGoal: (value: string) => void;
   setTaskConstraints: (value: string) => void;
   runGoal: (team: TeamSchemaDocument) => Promise<void>;
+  loadSession: (sessionId: string) => Promise<void>;
   refreshSession: () => Promise<void>;
   pauseSession: () => Promise<void>;
   resumeSession: () => Promise<void>;

@@ -10,7 +10,7 @@ export const DiscussionNode = ({ data, selected }: NodeProps<WorkflowGraphNode>)
 	const policy = data.discussionPolicy;
 
 	return (
-		<NodeShell eyebrow="Discussion" title={data.nodeName} accent={data.accent} selected={selected} runtimeHighlighted={data.runtimeHighlighted} workflowNodeType={data.workflowNodeType}>
+		<NodeShell eyebrow="Discussion" title={data.nodeName} accent={data.accent} selected={selected} runtimeHighlighted={data.runtimeHighlighted} runtimeDimmed={data.runtimeDimmed} workflowNodeType={data.workflowNodeType}>
 			<Stack spacing={0.75}>
 				{policy?.mode === undefined ? null : (
 					<Typography sx={nodeTextSx}>

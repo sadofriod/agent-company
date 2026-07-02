@@ -377,7 +377,7 @@ const useSessionOperations = (
     mutation: () => Promise<RuntimeSessionSnapshot>,
     successMessage: string,
   ) => Promise<void>,
-): Pick<RuntimeSessionModel, 'runGoal' | 'refreshSession' | 'pauseSession' | 'resumeSession' | 'terminateSession'> => {
+): Pick<RuntimeSessionModel, 'runGoal' | 'loadSession' | 'refreshSession' | 'pauseSession' | 'resumeSession' | 'terminateSession'> => {
   const [startRuntimeSession] = useStartRuntimeSessionMutation();
   const [loadRuntimeSession] = useLazyGetRuntimeSessionQuery();
   const [advanceRuntimeSession] = useAdvanceRuntimeSessionMutation();
@@ -438,6 +438,8 @@ const useSessionOperations = (
         setError(formatError(mutationError));
       }
     },
+    loadSession: async (sessionId: string) =>
+      runMutation(RuntimeSessionOperationStatus.Refreshing, () => loadRuntimeSession(sessionId).unwrap(), 'Runtime session loaded.'),
     refreshSession: async () =>
       runIfSessionExists(RuntimeSessionOperationStatus.Refreshing, (sessionId) => loadRuntimeSession(sessionId).unwrap(), 'Runtime session refreshed.'),
     pauseSession: async () =>

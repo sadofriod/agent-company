@@ -35,6 +35,7 @@ export const SchemaRelationEdge = ({
   const toneStyle = toneStyles[tone];
   const label = edgeData?.label ?? tone;
   const runtimeHighlighted = edgeData?.runtimeHighlighted === true;
+  const runtimeDimmed = edgeData?.runtimeDimmed === true;
   const isEmphasized = selected === true || runtimeHighlighted;
 
   return (
@@ -42,14 +43,14 @@ export const SchemaRelationEdge = ({
       <BaseEdge
         id={`${id}:shadow`}
         path={path}
-        style={{ stroke: runtimeHighlighted ? 'rgba(245, 158, 11, 0.22)' : 'rgba(15, 23, 42, 0.12)', strokeWidth: isEmphasized ? 7 : 5, fill: 'none' }}
+        style={{ stroke: runtimeHighlighted ? 'rgba(245, 158, 11, 0.22)' : 'rgba(15, 23, 42, 0.12)', strokeWidth: isEmphasized ? 7 : 5, fill: 'none', opacity: runtimeDimmed ? 0.24 : 1 }}
         interactionWidth={0}
       />
       <BaseEdge
         id={id}
         path={path}
         markerEnd={markerEnd}
-        style={{ stroke: runtimeHighlighted ? '#f59e0b' : toneStyle.stroke, strokeWidth: isEmphasized ? 3.2 : 1.8, fill: 'none' }}
+        style={{ stroke: runtimeHighlighted ? '#f59e0b' : toneStyle.stroke, strokeWidth: isEmphasized ? 3.2 : 1.8, fill: 'none', opacity: runtimeDimmed ? 0.28 : 1 }}
         interactionWidth={22}
       />
       <EdgeLabelRenderer>
@@ -63,6 +64,7 @@ export const SchemaRelationEdge = ({
             border: `1px solid ${toneStyle.border}`,
             borderRadius: 4,
             boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
+            opacity: runtimeDimmed ? 0.32 : 1,
             fontSize: 10,
             fontWeight: 800,
             letterSpacing: 0,

@@ -77,12 +77,14 @@ export const GraphPanel = ({
     updateLinkMode,
   } = useGraphPanelUiState();
   const isEditing = mode === EditorMode.Edit;
+  const hasRuntimeHighlights = !isEditing && (highlightedNodeIds.length > 0 || highlightedEdgeIds.length > 0);
   const highlightedNodeIdSet = useMemo(() => new Set(highlightedNodeIds), [highlightedNodeIds]);
   const highlightedEdgeIdSet = useMemo(() => new Set(highlightedEdgeIds), [highlightedEdgeIds]);
   const graphNodes = useMemo(() => nodes.map((node) => {
     const runtimeHighlighted = highlightedNodeIdSet.has(node.id);
+    const runtimeDimmed = hasRuntimeHighlights && !runtimeHighlighted;
 
-    if (node.data.runtimeHighlighted === runtimeHighlighted) {
+    if (node.data.runtimeHighlighted === runtimeHighlighted && node.data.runtimeDimmed === runtimeDimmed) {
       return node;
     }
 
@@ -91,14 +93,16 @@ export const GraphPanel = ({
       data: {
         ...node.data,
         runtimeHighlighted,
+        runtimeDimmed,
       },
     };
-  }), [highlightedNodeIdSet, nodes]);
+  }), [hasRuntimeHighlights, highlightedNodeIdSet, nodes]);
   const graphEdges = useMemo(() => edges.map((edge) => {
     const runtimeHighlighted = highlightedEdgeIdSet.has(edge.id);
+    const runtimeDimmed = hasRuntimeHighlights && !runtimeHighlighted;
     const currentData = (edge.data as Record<string, unknown> | undefined) ?? {};
 
-    if (currentData.runtimeHighlighted === runtimeHighlighted) {
+    if (currentData.runtimeHighlighted === runtimeHighlighted && currentData.runtimeDimmed === runtimeDimmed) {
       return edge;
     }
 
@@ -107,9 +111,10 @@ export const GraphPanel = ({
       data: {
         ...currentData,
         runtimeHighlighted,
+        runtimeDimmed,
       },
     };
-  }), [edges, highlightedEdgeIdSet]);
+  }), [edges, hasRuntimeHighlights, highlightedEdgeIdSet]);
   const hasInspectorPanel = isEditing && inspectorPanel !== undefined && inspectorPanel !== null;
   const workflowDraftNodeCount = graphNodes.filter((node) => node.data.workflowNodeType !== undefined).length;
   const {

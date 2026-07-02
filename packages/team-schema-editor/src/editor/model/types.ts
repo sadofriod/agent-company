@@ -178,6 +178,7 @@ export const enum WorkflowNodeType {
 export type WorkflowEdgeData = {
   mode: WorkflowEdgeMode;
   runtimeHighlighted?: boolean;
+  runtimeDimmed?: boolean;
 };
 
 export enum SchemaEdgeTone {
@@ -195,6 +196,7 @@ export type SchemaEdgeData = {
   label?: string;
   tone: SchemaEdgeTone;
   runtimeHighlighted?: boolean;
+  runtimeDimmed?: boolean;
 };
 
 export const enum GraphNodeKind {
@@ -224,6 +226,7 @@ export type GraphNodeData = {
   discussionPolicy?: DiscussionPolicyDocument;
   memoryPolicy?: MemoryPolicyDocument;
   runtimeHighlighted?: boolean;
+  runtimeDimmed?: boolean;
 };
 
 export type WorkflowGraphNode = Node<GraphNodeData, 'workflow'>;

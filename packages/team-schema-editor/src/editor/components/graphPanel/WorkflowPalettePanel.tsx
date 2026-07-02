@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 import { Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { Bot, GitBranch, Layers } from 'lucide-react';
 
@@ -25,6 +25,9 @@ export const WorkflowPalettePanel = (): ReactElement => {
       {node.data.nodeName}
     </MenuItem>
   ));
+  const connectableNodeIdSet = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
+  const safeLinkSourceId = connectableNodeIdSet.has(linkSourceId) ? linkSourceId : '';
+  const safeLinkTargetId = connectableNodeIdSet.has(linkTargetId) ? linkTargetId : '';
 
   return (
     <Box
@@ -58,10 +61,10 @@ export const WorkflowPalettePanel = (): ReactElement => {
         <Typography variant="overline" color="text.secondary" sx={{ fontSize: '0.75rem', fontWeight: 850, letterSpacing: 0 }}>
           Link
         </Typography>
-        <TextField select fullWidth size="small" label="Source" value={linkSourceId} onChange={(event) => onLinkSourceIdChange(event.target.value)}>
+        <TextField select fullWidth size="small" label="Source" value={safeLinkSourceId} onChange={(event) => onLinkSourceIdChange(event.target.value)}>
           {connectableNodeOptions}
         </TextField>
-        <TextField select fullWidth size="small" label="Target" value={linkTargetId} onChange={(event) => onLinkTargetIdChange(event.target.value)}>
+        <TextField select fullWidth size="small" label="Target" value={safeLinkTargetId} onChange={(event) => onLinkTargetIdChange(event.target.value)}>
           {connectableNodeOptions}
         </TextField>
         <TextField
@@ -81,7 +84,7 @@ export const WorkflowPalettePanel = (): ReactElement => {
           color="warning"
           startIcon={<GitBranch size={16} />}
           onClick={onCreateEdge}
-          disabled={linkSourceId.length === 0 || linkTargetId.length === 0}
+          disabled={safeLinkSourceId.length === 0 || safeLinkTargetId.length === 0}
           fullWidth
         >
           Create edge

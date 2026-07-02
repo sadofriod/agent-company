@@ -5,25 +5,21 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { EditorHero } from '../../editor/components/EditorHero';
 import { GraphPanel } from '../../editor/components/GraphPanel';
-import { RuntimePanel } from '../../editor/components/RuntimePanel';
 import { SelectionPanel } from '../../editor/components/SelectionPanel';
-import type { RuntimeSessionModel } from '../../editor/hooks/useRuntimeSession';
 import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
 import { EditorMode } from '../../editor/model/types';
 import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
 
 type EditorWorkspacePageProps = {
   editor: TeamEditorModel;
-  mode: EditorMode;
-  runtime: RuntimeSessionModel;
-  onModeChange: (mode: EditorMode) => void;
 };
 
-export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: EditorWorkspacePageProps): ReactElement => {
+export const EditorWorkspacePage = ({ editor }: EditorWorkspacePageProps): ReactElement => {
   const navigate = useNavigate();
   const { schemaKey } = useParams<{ schemaKey: string }>();
   const isSchemaReady = editor.schemaLoadStatus === SchemaLoadStatus.Ready;
   const workspaceName = editor.schema.team_name ?? editor.schema.team_id;
+  const mode = EditorMode.Edit;
 
   useEffect(() => {
     if (schemaKey === undefined) {
@@ -90,7 +86,11 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
           deleteSchema={deleteWorkspace}
           schemaLoadStatus={editor.schemaLoadStatus}
           schemaServiceStatus={editor.schemaServiceStatus}
-          onModeChange={onModeChange}
+          onModeChange={(nextMode) => {
+            if (nextMode === EditorMode.Run) {
+              void navigate(`/workspaces/${schemaKey ?? editor.selectedSchemaKey ?? editor.schema.team_id}/run`);
+            }
+          }}
           onOpenAgentMarkdown={openAgentMarkdown}
           onOpenLlmGateway={openLlmGateway}
           onOpenMcpServers={openMcpServers}
@@ -113,7 +113,7 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
         </Box>
       )}
 
-      {isSchemaReady && mode === EditorMode.Edit ? (
+      {isSchemaReady ? (
         <GraphPanel
           schema={editor.schema}
           mode={mode}
@@ -161,33 +161,6 @@ export const EditorWorkspacePage = ({ editor, mode, runtime, onModeChange }: Edi
             />
           )}
         />
-      ) : null}
-
-      {isSchemaReady && mode === EditorMode.Run ? (
-        <Stack spacing={1.5} sx={{ flex: '1 1 auto', minWidth: 0, minHeight: 0 }}>
-          <RuntimePanel
-            schema={editor.schema}
-            runtime={runtime}
-            onRunGoal={() => runtime.runGoal(editor.schema)}
-          />
-          <GraphPanel
-            schema={editor.schema}
-            mode={mode}
-            nodes={editor.nodes}
-            edges={editor.edges}
-            edgeConnectionError={editor.edgeConnectionError}
-            onNodesChange={editor.onNodesChange}
-            onEdgesChange={editor.onEdgesChange}
-            onNodeSelect={editor.onNodeSelect}
-            onAddWorkflowAgentNode={editor.addWorkflowAgentNode}
-            onAddWorkflowPartNode={editor.addWorkflowPartNode}
-            onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}
-            onWorkflowConnect={editor.addWorkflowEdge}
-            onClearEdgeConnectionError={editor.clearEdgeConnectionError}
-            highlightedNodeIds={runtime.runtimeActiveNodeIds}
-            highlightedEdgeIds={runtime.runtimeActiveEdgeIds}
-          />
-        </Stack>
       ) : null}
     </Box>
   );
