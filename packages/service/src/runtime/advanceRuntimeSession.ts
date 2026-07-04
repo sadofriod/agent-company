@@ -16,10 +16,10 @@ export type AdvanceRuntimeSessionOptions = {
 	readonly stepRunner?: AgentStepRunner;
 };
 
-export const advanceRuntimeSession = (
+export const advanceRuntimeSession = async (
 	session: RuntimeSession,
 	options: AdvanceRuntimeSessionOptions = {},
-): ValidationResult<RuntimeSession> => {
+): Promise<ValidationResult<RuntimeSession>> => {
 	if (session.status !== 'running') {
 		return { ok: false, issues: createNotRunningIssues(session.status) };
 	}
@@ -65,5 +65,5 @@ export const advanceRuntimeSession = (
 
 	return workModeDecision.mode === WORK_MODE.Discussion
 		? executeDiscussionStage(nextSession)
-		: executePipelineStage(nextSession, { stepRunner: options.stepRunner });
+		: await executePipelineStage(nextSession, { stepRunner: options.stepRunner });
 };

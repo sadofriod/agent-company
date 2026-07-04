@@ -412,14 +412,15 @@ const useSessionOperations = (
         }
 
         let nextSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
+        setSession(nextSession);
         let advanceCount = 0;
 
         while (!isSessionFinished(nextSession) && advanceCount < MAX_GOAL_ADVANCE_STEPS) {
           nextSession = await advanceRuntimeSession(nextSession.sessionId).unwrap();
+          setSession(nextSession);
           advanceCount += 1;
         }
 
-        setSession(nextSession);
         setStatus(RuntimeSessionOperationStatus.Idle);
 
         if (nextSession.state.interruption !== undefined) {

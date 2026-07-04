@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:5173",
+      "localStorage": [
+        {
+          "name": "agents-team.llm-gateways.v1",
+          "value": "[{\"id\":\"gateway-e2e-lmstudio\",\"name\":\"E2E LM Studio\",\"provider\":\"lmstudio\",\"model\":\"google/gemma-4-12b\",\"apiFormat\":\"openai_chat\",\"baseUrl\":\"http://localhost:1234/v1\",\"createdAt\":\"2026-07-04T08:23:43.449Z\",\"updatedAt\":\"2026-07-04T08:23:43.449Z\"}]"
+        }
+      ]
+    }
+  ]
+}

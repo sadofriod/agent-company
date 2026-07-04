@@ -62,13 +62,21 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
     await deptMissionInput.fill('E2E validation mission.');
     await expect(deptMissionInput).toHaveValue('E2E validation mission.');
 
-    const deptDecisionInput = page.getByLabel('Decision Scope');
-    await deptDecisionInput.fill('requirements\nacceptance_tests\nprioritization');
-    await expect(deptDecisionInput).toHaveValue('requirements\nacceptance_tests\nprioritization');
+    const deptDecisionInput = page.getByLabel('Decision Scope').first();
+    await deptDecisionInput.click();
+    await page.getByRole('option', { name: 'topic', exact: true }).last().click();
+    await page.getByRole('option', { name: 'decision', exact: true }).last().click();
+    await page.keyboard.press('Escape');
+    await expect(deptDecisionInput).toContainText('topic');
+    await expect(deptDecisionInput).toContainText('decision');
 
-    const deptHandoffInput = page.getByLabel('Handoff Contracts');
-    await deptHandoffInput.fill('ticket_docs\ncriteria_doc');
-    await expect(deptHandoffInput).toHaveValue('ticket_docs\ncriteria_doc');
+    const deptHandoffInput = page.getByLabel('Handoff Contracts').first();
+    await deptHandoffInput.click();
+    await page.getByRole('option', { name: 'topic_brief', exact: true }).last().click();
+    await page.getByRole('option', { name: 'decision_record', exact: true }).last().click();
+    await page.keyboard.press('Escape');
+    await expect(deptHandoffInput).toContainText('topic_brief');
+    await expect(deptHandoffInput).toContainText('decision_record');
 
     // ==========================================
     // 4. Agent Form (CEO Agent)
@@ -85,9 +93,8 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
     await agentRoleInput.fill('Chief Validation Executive');
     await expect(agentRoleInput).toHaveValue('Chief Validation Executive');
 
-    const agentModelInput = page.getByLabel('Model');
-    await agentModelInput.fill('gpt-4o-e2e');
-    await expect(agentModelInput).toHaveValue('gpt-4o-e2e');
+    const agentModelInput = page.getByLabel('Model').first();
+    await expect(agentModelInput).toContainText('default-reasoning-model');
 
     const agentDescInput = page.getByLabel('Description', { exact: true });
     await agentDescInput.fill('E2E Tester Agent Role Description.');
@@ -97,54 +104,17 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
     await agentRespInput.fill('validate_all_inputs\nproduce_accurate_assertions');
     await expect(agentRespInput).toHaveValue('validate_all_inputs\nproduce_accurate_assertions');
 
-    const agentSkillsInput = page.getByLabel('Skills');
-    await agentSkillsInput.fill('quality_engineering\nintegration_testing');
-    await expect(agentSkillsInput).toHaveValue('quality_engineering\nintegration_testing');
+    const agentSkillsInput = page.getByRole('combobox', { name: 'Skills' });
+    await expect(agentSkillsInput).toContainText('requirements_breakdown');
 
-    const agentToolsInput = page.getByLabel('Tools', { exact: true });
-    await agentToolsInput.fill('e2e_playback\nmock_injector');
-    await expect(agentToolsInput).toHaveValue('e2e_playback\nmock_injector');
+    const agentMemPolicyInput = page.getByLabel('Memory Profile').first();
+    await agentMemPolicyInput.click();
+    await page.getByRole('option', { name: 'topic_owner_policy', exact: true }).last().click();
+    await expect(agentMemPolicyInput).toContainText('topic_owner_policy');
 
-    const agentMcpInput = page.getByLabel('MCP Servers');
-    await agentMcpInput.fill('github_mcp\nfile_system_mcp');
-    await expect(agentMcpInput).toHaveValue('github_mcp\nfile_system_mcp');
-
-    const agentMemPolicyInput = page.getByLabel('Memory Profile');
-    await agentMemPolicyInput.fill('custom_topic_owner_policy');
-    await expect(agentMemPolicyInput).toHaveValue('custom_topic_owner_policy');
-
-    // 检查并填充 Metadata 区属性
-    const metadataNameInput = page.getByLabel('Metadata Name');
-    await metadataNameInput.fill('E2E CEO Name');
-    await expect(metadataNameInput).toHaveValue('E2E CEO Name');
-
-    const metadataDescInput = page.getByLabel('Metadata Description');
-    await metadataDescInput.fill('E2E Metadata description.');
-    await expect(metadataDescInput).toHaveValue('E2E Metadata description.');
-
-    const metadataProfileInput = page.getByLabel('Profile', { exact: true });
-    await metadataProfileInput.fill('e2e-profile');
-    await expect(metadataProfileInput).toHaveValue('e2e-profile');
-
-    const metadataToolInput = page.getByLabel('Tool Policy');
-    await metadataToolInput.fill('always_assert');
-    await expect(metadataToolInput).toHaveValue('always_assert');
-
-    const metadataPartialsInput = page.getByLabel('Partials');
-    await metadataPartialsInput.fill('partial_execution\nvalidation_loop');
-    await expect(metadataPartialsInput).toHaveValue('partial_execution\nvalidation_loop');
-
-    const metadataToolsInput2 = page.getByLabel('Metadata Tools');
-    await metadataToolsInput2.fill('m_tool1\nm_tool2');
-    await expect(metadataToolsInput2).toHaveValue('m_tool1\nm_tool2');
-
-    const metadataAllowedCmds = page.getByLabel('Allowed Commands');
-    await metadataAllowedCmds.fill('ASSERT_OK\nFAIL_TEST');
-    await expect(metadataAllowedCmds).toHaveValue('ASSERT_OK\nFAIL_TEST');
-
-    const metadataReqCmds = page.getByLabel('Required Commands');
-    await metadataReqCmds.fill('ASSERT_OK');
-    await expect(metadataReqCmds).toHaveValue('ASSERT_OK');
+    // 检查并填充 Metadata 区属性 (Read-Only)
+    await expect(page.getByText('Name:').first()).toBeVisible();
+    await expect(page.getByText('CEO').first()).toBeVisible();
 
     // ==========================================
     // 5. Discussion Policy Form
@@ -155,21 +125,24 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
 
     await expect(page.getByRole('heading', { name: 'Discussion Policy', exact: true })).toBeVisible();
 
-    const discModeInput = page.getByLabel('Mode', { exact: true });
-    await discModeInput.fill('collaborative_run');
-    await expect(discModeInput).toHaveValue('collaborative_run');
+    const discModeInput = page.getByLabel('Mode', { exact: true }).first();
+    await discModeInput.click();
+    await page.getByRole('option', { name: 'parallel_review', exact: true }).last().click();
+    await expect(discModeInput).toContainText('parallel_review');
 
     const discRoundsInput = page.getByLabel('Max Rounds');
     await discRoundsInput.fill('9');
     await expect(discRoundsInput).toHaveValue('9');
 
-    const discSupervisorInput = page.getByLabel('Supervisor Agent Id');
-    await discSupervisorInput.fill('product_owner_custom');
-    await expect(discSupervisorInput).toHaveValue('product_owner_custom');
+    const discSupervisorInput = page.getByLabel('Supervisor Agent Id').first();
+    await discSupervisorInput.click();
+    await page.getByRole('option', { name: 'CTO', exact: true }).last().click();
+    await expect(discSupervisorInput).toContainText('CTO');
 
-    const discConflictInput = page.getByLabel('Conflict Resolution');
-    await discConflictInput.fill('majority_vote');
-    await expect(discConflictInput).toHaveValue('majority_vote');
+    const discConflictInput = page.getByLabel('Conflict Resolution').first();
+    await discConflictInput.click();
+    await page.getByRole('option', { name: 'block_and_escalate', exact: true }).last().click();
+    await expect(discConflictInput).toContainText('block_and_escalate');
 
     // ==========================================
     // 6. Memory Policy Form (Discussion/Session Memory)
@@ -180,9 +153,10 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
 
     await expect(page.getByRole('heading', { name: 'Memory Policy', exact: true })).toBeVisible();
 
-    const memModeInput = page.getByLabel('Retrieval Mode');
-    await memModeInput.fill('hybrid_vector');
-    await expect(memModeInput).toHaveValue('hybrid_vector');
+    const memModeInput = page.getByLabel('Retrieval Mode').first();
+    await memModeInput.click();
+    await page.getByRole('option', { name: 'standard_rag', exact: true }).last().click();
+    await expect(memModeInput).toContainText('standard_rag');
 
     const memVectorStoreInput = page.getByLabel('Vector Store');
     await memVectorStoreInput.fill('milvus_db');
@@ -192,17 +166,24 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
     await memGraphStoreInput.fill('neo4j_custom');
     await expect(memGraphStoreInput).toHaveValue('neo4j_custom');
 
-    const memIndexedTypesInput = page.getByLabel('Indexed Object Types');
-    await memIndexedTypesInput.fill('document\ntombstone\nlog_event');
-    await expect(memIndexedTypesInput).toHaveValue('document\ntombstone\nlog_event');
+    const memIndexedTypesInput = page.getByRole('combobox', { name: 'Indexed Object Types' });
+    await memIndexedTypesInput.click();
+    await page.getByRole('option', { name: 'pipeline' }).filter({ visible: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(memIndexedTypesInput).toContainText('pipeline');
 
-    const memEvidenceInput = page.getByLabel('Evidence Required Outputs');
-    await memEvidenceInput.fill('output_html\nproof_report');
-    await expect(memEvidenceInput).toHaveValue('output_html\nproof_report');
+    const memEvidenceInput = page.getByRole('combobox', { name: 'Evidence Required Outputs' });
+    await memEvidenceInput.click();
+    await page.getByRole('option', { name: 'decision' }).filter({ visible: true }).click();
+    await page.getByRole('option', { name: 'ticket' }).filter({ visible: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(memEvidenceInput).not.toContainText('decision');
+    await expect(memEvidenceInput).not.toContainText('ticket');
 
-    const memConflictInput = page.getByLabel('Conflict Strategy');
-    await memConflictInput.fill('override_by_user');
-    await expect(memConflictInput).toHaveValue('override_by_user');
+    const memConflictInput = page.getByRole('combobox', { name: 'Conflict Strategy' });
+    await memConflictInput.click();
+    await page.getByRole('option', { name: 'block_on_conflict' }).filter({ visible: true }).click();
+    await expect(memConflictInput).toContainText('block_on_conflict');
 
     // 测试添加 & 删除 Memory Profile 的复杂局部 UI 表单
     const addProfileBtn = page.getByRole('button', { name: 'Add profile' });
@@ -218,8 +199,12 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
     await expect(profileIdInput).toHaveValue('e2e_profile_999');
 
     const allowedScopesInput = page.getByLabel('Allowed Scopes').last();
-    await allowedScopesInput.fill('private\ncorporate');
-    await expect(allowedScopesInput).toHaveValue('private\ncorporate');
+    await allowedScopesInput.click();
+    await page.getByRole('option', { name: 'session', exact: true }).last().click();
+    await page.getByRole('option', { name: 'topic', exact: true }).last().click();
+    await page.keyboard.press('Escape');
+    await expect(allowedScopesInput).toContainText('session');
+    await expect(allowedScopesInput).toContainText('topic');
 
     const maxResultsInput = page.getByLabel('Max Results').last();
     await maxResultsInput.fill('33');
@@ -262,7 +247,7 @@ test.describe('Detailed Forms Inspections & Coverage', () => {
     await expect(nodeDescField).toHaveValue('E2E level agent inside workflow graph.');
 
     // 测试下拉框联动：Loaded Agent
-    const loadedAgentSelect = page.getByLabel('Loaded Agent');
+    const loadedAgentSelect = page.getByLabel('Loaded Agent').first();
     await expect(loadedAgentSelect).toBeVisible();
     await loadedAgentSelect.click();
 

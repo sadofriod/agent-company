@@ -47,6 +47,7 @@ const handler: RequestHandler = async (request, response): Promise<void> => {
 		team: teamValidation.value,
 		task: parsedBody.value.task,
 		...(parsedBody.value.traceId === undefined ? {} : { traceId: parsedBody.value.traceId }),
+		...(parsedBody.value.testScenarios === undefined ? {} : { testScenarios: parsedBody.value.testScenarios }),
 	});
 
 	sendData(response, buildRuntimeSessionPayload(runtimeSession), 201);

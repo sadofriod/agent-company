@@ -32,6 +32,9 @@
 - [07-runtime-audit-implementation.md](07-runtime-audit-implementation.md)：ExecutionContext、工作模式路由、中断回退和审计流。
 - [08-acceptance-test-implementation.md](08-acceptance-test-implementation.md)：MVP 验收测试、集成测试和放行矩阵。
 - [09-service-architecture-overview.md](09-service-architecture-overview.md)：当前 `packages/service` 的实现架构总览、主链路和存储设计。
+- [10-event-driven-readonly-hooks-observability.md](10-event-driven-readonly-hooks-observability.md)：前端事件驱动只读能力、可观测性和运行态集成方案。
+- [11-runtime-session-list-api-plan.md](11-runtime-session-list-api-plan.md)：Runtime Session 列表 API 的分页、过滤和前后端联调计划。
+- [12-e2e-spec.md](12-e2e-spec.md)：基于 PRD 的端到端测试规格，覆盖编辑模式、执行模式、审查回退和治理边界。
 
 ## 推荐实现顺序
 

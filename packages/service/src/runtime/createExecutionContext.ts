@@ -1,4 +1,4 @@
-import type { AuditEvent } from '../domain/runtime';
+import type { AuditEvent, RuntimeTestScenarios } from '../domain/runtime';
 import { WORK_MODE, type RuntimePlan, type RuntimeState, type RuntimeTask } from '../domain/runtime';
 
 import { uniqueMemoryScopes } from './runtimeEngineShared';
@@ -9,6 +9,7 @@ type CreateExecutionContextInput = {
 	readonly task: RuntimeTask;
 	readonly traceId: string;
 	readonly auditTrail: readonly AuditEvent[];
+	readonly testScenarios?: RuntimeTestScenarios;
 };
 
 export const createExecutionContext = (input: CreateExecutionContextInput): RuntimeState => ({
@@ -20,6 +21,7 @@ export const createExecutionContext = (input: CreateExecutionContextInput): Runt
 		currentMode: WORK_MODE.Discussion,
 		auditTrail: input.auditTrail,
 		memoryScopes: uniqueMemoryScopes(input.runtimePlan.team),
+		testScenarios: input.testScenarios,
 	},
 	workModeDecision: {
 		mode: WORK_MODE.Discussion,

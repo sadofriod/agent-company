@@ -15,6 +15,15 @@ const runtimeSessionStartBodySchema = z.object({
 	task: runtimeTaskSchema,
 	team: z.record(z.string(), z.unknown()).optional(),
 	traceId: z.string().min(1).optional(),
+	testScenarios: z.object({
+		pipelineCycle: z.boolean().optional(),
+		capabilityMissing: z.boolean().optional(),
+		ragEvidenceMissing: z.boolean().optional(),
+		handoffFieldMissing: z.boolean().optional(),
+		memoryScopePollution: z.boolean().optional(),
+		memoryConflictEscalation: z.boolean().optional(),
+		unauthorizedRetrieval: z.boolean().optional(),
+	}).strict().optional(),
 });
 
 const toIssue = (entry: z.ZodIssue): SchemaIssue => ({
@@ -34,6 +43,15 @@ export const parseRuntimeSessionStartBody = (
 	};
 	readonly team?: Record<string, unknown>;
 	readonly traceId?: string;
+	readonly testScenarios?: {
+		readonly pipelineCycle?: boolean;
+		readonly capabilityMissing?: boolean;
+		readonly ragEvidenceMissing?: boolean;
+		readonly handoffFieldMissing?: boolean;
+		readonly memoryScopePollution?: boolean;
+		readonly memoryConflictEscalation?: boolean;
+		readonly unauthorizedRetrieval?: boolean;
+	};
 }> => {
 	const parsedBody = runtimeSessionStartBodySchema.safeParse(body);
 

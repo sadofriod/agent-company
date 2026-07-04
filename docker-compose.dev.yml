@@ -6,7 +6,6 @@ services:
     restart: unless-stopped
     command: >-
       sh -c "corepack enable
-      && rm -rf node_modules packages/*/node_modules
       && pnpm install
       && pnpm --filter @agents-team/service db:bootstrap
       && pnpm --parallel --filter @agents-team/service --filter @agents-team/team-schema-editor run dev"

@@ -1,7 +1,7 @@
 import type { EvidenceRef, SchemaIssue, ValidationResult } from '../../domain/base';
 import { PipelineInterruptionKind } from '../../domain/delivery';
 import type {
-	Handoff,
+	Handoff, 
 	Pipeline,
 	PipelineStep,
 	StepResult,
@@ -58,6 +58,7 @@ import {
 
 type ExecutePipelineStageOptions = {
 	readonly stepRunner?: AgentStepRunner;
+	readonly testScenarios?: RuntimeSession['state']['context']['testScenarios'];
 };
 
 const appendReviewEvents = (
@@ -192,9 +193,11 @@ const createPipelineForTicket = (session: RuntimeSession, ticket: Ticket): Valid
 		ownerAgent,
 		...departmentAgents.filter((agent) => agent.agentId !== ownerAgent.agentId),
 	]);
+	const shouldInjectCapabilityMissing = session.state.context.testScenarios?.capabilityMissing === true;
+	const shouldInjectPipelineCycle = session.state.context.testScenarios?.pipelineCycle === true;
 	const pipelineId = toPipelineId(createRuntimeScopedId('pipeline'));
 	const stepIds = orderedAgents.map(() => toPipelineStepId(createRuntimeScopedId('step')));
-	const steps: Pipeline['steps'] = orderedAgents.map((agent, index) => ({
+	const steps: PipelineStep[] = orderedAgents.map((agent, index) => ({
 		stepId: stepIds[index] ?? toPipelineStepId(createRuntimeScopedId('step')),
 		ticketId: ticket.ticketId,
 		ownerAgentId: agent.agentId,
@@ -207,10 +210,29 @@ const createPipelineForTicket = (session: RuntimeSession, ticket: Ticket): Valid
 				),
 		inputContract: agent.inputContract,
 		outputContract: agent.outputContract,
-		allowedCapabilities: uniqueValues([...agent.skillIds, ...agent.mcpServerIds, ...agent.toolIds]),
+		allowedCapabilities: uniqueValues([
+			...agent.skillIds,
+			...agent.mcpServerIds,
+			...agent.toolIds,
+			...(shouldInjectCapabilityMissing && index === 0 ? ['__e2e_missing_capability__'] : []),
+		]),
 		reviewRequired: true,
 		failurePolicy: ticket.failurePolicy,
 	}));
+
+	if (shouldInjectPipelineCycle && steps.length > 1) {
+		const firstStep = steps[0];
+		const lastStep = steps.at(-1);
+
+		if (firstStep !== undefined && lastStep !== undefined) {
+			steps[0] = {
+				...firstStep,
+				dependsOn: [lastStep.stepId].filter(
+					(stepId): stepId is PipelineStep['stepId'] => stepId !== undefined,
+				),
+			};
+		}
+	}
 	const pipeline: Pipeline = {
 		pipelineId,
 		ticketId: ticket.ticketId,
@@ -286,14 +308,26 @@ const createMemoryContextPackage = (
 	const retrievedMemories = [...decisionMemories, ...handoffMemories, ...sessionMemories]
 		.filter((entry) => !profile.requireReviewedMemory || entry.reviewed)
 		.slice(0, profile.maxResults);
-	const conflictFlags: readonly MemoryConflict[] = session.state.discussionResult?.conflicts
-		.filter((conflict) => conflict.kind === 'memory_conflict')
-		.map((conflict, index) => ({
-			memoryId: toMemoryId(`memory_conflict_${index}`),
-			conflictingWithIds: [],
-			strategy: memoryPolicy.conflictStrategy,
-			summary: conflict.summary,
-		})) ?? [];
+	const conflictFlags: readonly MemoryConflict[] = [
+		...(session.state.discussionResult?.conflicts
+			.filter((conflict) => conflict.kind === 'memory_conflict')
+			.map((conflict, index) => ({
+				memoryId: toMemoryId(`memory_conflict_${index}`),
+				conflictingWithIds: [],
+				strategy: memoryPolicy.conflictStrategy,
+				summary: conflict.summary,
+			})) ?? []),
+		...(session.state.context.testScenarios?.memoryConflictEscalation === true
+			? [
+				{
+					memoryId: toMemoryId('memory_conflict_test_esc'),
+					conflictingWithIds: [],
+					strategy: memoryPolicy.conflictStrategy,
+					summary: 'E2E memory conflict escalation simulation',
+				},
+			]
+			: []),
+	];
 
 	const queryScope = profile.allowedScopes[0] ?? session.state.context.memoryScopes[0] ?? 'session';
 
@@ -464,21 +498,27 @@ const createStepEvidenceRefs = (
 	step: PipelineStep,
 	memoryPackage: MemoryContextPackage | undefined,
 	upstreamHandoffs: readonly Handoff[],
-): readonly EvidenceRef[] => [
-	createEvidenceRef(createStructuredSourceRef(step.ticketId, 'ticket'), session.state.activeTicket?.goal),
-	...(session.state.discussionResult === undefined
-		? []
-		: [
-			createEvidenceRef(
-				createStructuredSourceRef(session.state.discussionResult.topic.topicId, 'discussion topic'),
-				session.state.discussionResult.topic.goal,
-			),
-		]),
-	...upstreamHandoffs.flatMap((handoff) => handoff.evidenceRefs),
-	...(memoryPackage?.retrievedMemories.map((memory) =>
-		createEvidenceRef(createMemorySourceRef(memory.memoryId, memory.evidenceSummary), memory.content),
-	) ?? []),
-];
+): readonly EvidenceRef[] => {
+	if (session.state.context.testScenarios?.ragEvidenceMissing === true) {
+		return [];
+	}
+
+	return [
+		createEvidenceRef(createStructuredSourceRef(step.ticketId, 'ticket'), session.state.activeTicket?.goal),
+		...(session.state.discussionResult === undefined
+			? []
+			: [
+				createEvidenceRef(
+					createStructuredSourceRef(session.state.discussionResult.topic.topicId, 'discussion topic'),
+					session.state.discussionResult.topic.goal,
+				),
+			]),
+		...upstreamHandoffs.flatMap((handoff) => handoff.evidenceRefs),
+		...(memoryPackage?.retrievedMemories.map((memory) =>
+			createEvidenceRef(createMemorySourceRef(memory.memoryId, memory.evidenceSummary), memory.content),
+		) ?? []),
+	];
+};
 
 const createStepResult = (
 	session: RuntimeSession,
@@ -556,12 +596,12 @@ const createHandoffsForStep = (
 	}));
 };
 
-const executeSingleStep = (
+const executeSingleStep = async (
 	session: RuntimeSession,
 	pipeline: Pipeline,
 	step: PipelineStep,
 	options: ExecutePipelineStageOptions,
-): ValidationResult<RuntimeSession> => {
+): Promise<ValidationResult<RuntimeSession>> => {
 	const upstreamHandoffs = session.state.generatedHandoffs.filter(
 		(handoff) => handoff.ticketId === step.ticketId && step.dependsOn.includes(handoff.fromStepId),
 	);
@@ -583,6 +623,66 @@ const executeSingleStep = (
 	}
 
 	const memoryPackage = createMemoryContextPackage(session, step);
+
+	if (session.state.context.testScenarios?.memoryScopePollution === true) {
+		const pollutedSession = updateRuntimeSession(
+			session,
+			{},
+			{
+				eventType: 'memory.write_denied',
+				reason: 'Step executor attempted unauthorized write to system memory scope.',
+				metadata: {
+					pipelineId: pipeline.pipelineId,
+					stepId: step.stepId,
+					agentId: step.ownerAgentId,
+					scope: 'system',
+				},
+			},
+		);
+		return {
+			ok: true,
+			value: applyInterruption(
+				pollutedSession,
+				createPipelineInterruption(
+					PipelineInterruptionKind.ReturnToDiscussion,
+					'Step executor attempted unauthorized write to system memory scope.',
+					'return_to_discussion',
+					pipeline.pipelineId,
+					step.stepId,
+				),
+			),
+		};
+	}
+
+	if (session.state.context.testScenarios?.unauthorizedRetrieval === true) {
+		const unauthorizedSession = updateRuntimeSession(
+			session,
+			{},
+			{
+				eventType: 'memory.retrieval_unauthorized',
+				reason: 'Memory retrieval blocked: Agent requested unauthorized memory scope ("system").',
+				metadata: {
+					pipelineId: pipeline.pipelineId,
+					stepId: step.stepId,
+					agentId: step.ownerAgentId,
+					scope: 'system',
+				},
+			},
+		);
+		return {
+			ok: true,
+			value: applyInterruption(
+				unauthorizedSession,
+				createPipelineInterruption(
+					PipelineInterruptionKind.ReturnToDiscussion,
+					'Agent requested unauthorized memory scope ("system").',
+					'return_to_discussion',
+					pipeline.pipelineId,
+					step.stepId,
+				),
+			),
+		};
+	}
 
 	if ((memoryPackage?.conflictFlags.length ?? 0) > 0) {
 		const conflictSession = updateRuntimeSession(
@@ -715,7 +815,7 @@ const executeSingleStep = (
 
 	const evidenceRefs = createStepEvidenceRefs(workingSession, step, memoryPackage, upstreamHandoffs);
 	const stepRunnerStartedAt = Date.now();
-	const agentExecution = (options.stepRunner ?? runLocalAgentStep)({
+	const agentExecution = await (options.stepRunner ?? runLocalAgentStep)({
 		session: workingSession,
 		step,
 		agent: agentAssembly.value,
@@ -872,10 +972,10 @@ const completeActivePipeline = (session: RuntimeSession): ValidationResult<Runti
 	return promoteNextTicket(completedSession);
 };
 
-export const executePipelineStage = (
+export const executePipelineStage = async (
 	session: RuntimeSession,
 	options: ExecutePipelineStageOptions = {},
-): ValidationResult<RuntimeSession> => {
+): Promise<ValidationResult<RuntimeSession>> => {
 	const promotion = promoteNextTicket(session);
 
 	if (!promotion.ok) {
@@ -892,7 +992,7 @@ export const executePipelineStage = (
 	const completedStepIds = new Set(
 		workingSession.state.completedStepResults
 			.filter((stepResult) => stepResult.ticketId === pipeline.ticketId)
-			.map((stepResult) => stepResult.stepId),
+			.map((stepResult) => stepResult.stepId)
 	);
 	const readySteps = pipeline.steps.filter(
 		(step) =>
@@ -901,7 +1001,7 @@ export const executePipelineStage = (
 	);
 
 	if (readySteps.length === 0) {
-		if (completedStepIds.size === pipeline.steps.length) {
+		if (completedStepIds.size === pipeline.steps.length) { 
 			return completeActivePipeline(workingSession);
 		}
 
@@ -920,7 +1020,7 @@ export const executePipelineStage = (
 	}
 
 	for (const step of readySteps) {
-		const result = executeSingleStep(workingSession, pipeline, step, options);
+		const result = await executeSingleStep(workingSession, pipeline, step, options);
 
 		if (!result.ok) {
 			return result;

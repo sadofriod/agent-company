@@ -5,6 +5,7 @@ import type { TeamDefinition } from '../domain/organization';
 import {
 	RUNTIME_SESSION_STATUS,
 	type RuntimeSession,
+	type RuntimeTestScenarios,
 	type RuntimeTask,
 } from '../domain/runtime';
 import { RUNTIME_EVENT_TYPE } from '../domain/runtimeEvent';
@@ -38,6 +39,7 @@ type StartRuntimeSessionInput = {
 	readonly task: RuntimeTask;
 	readonly team: TeamDefinition;
 	readonly traceId?: string;
+	readonly testScenarios?: RuntimeTestScenarios;
 };
 
 export type RuntimeSessionSchedulerOptions = {
@@ -214,7 +216,7 @@ const advanceSession = async (
 		return createSessionNotRunning(session);
 	}
 
-	const advancedSession = advanceRuntimeSession(session, { stepRunner: options.stepRunner });
+	const advancedSession = await advanceRuntimeSession(session, { stepRunner: options.stepRunner });
 
 	if (!advancedSession.ok) {
 		return advancedSession;
@@ -275,6 +277,7 @@ export const createRuntimeSessionScheduler = (
 					task: input.task,
 					traceId,
 					auditTrail: [auditEvent],
+					testScenarios: input.testScenarios,
 				}),
 			};
 

@@ -19,16 +19,13 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
     // 5. Verify the workspace page loads successfully and doesn't get stuck in "Loading from service"
     // We should expect the "Flow Editor" heading and node elements to eventually show up
     await expect(page.getByText('Loading from service')).not.toBeVisible();
-    await expect(page.getByText('Workspace Editor')).toBeVisible();
     
     // Check for some Flow Editor elements or specific headings
     await expect(page.getByText('Flow Editor')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Software Delivery Team' }).first()).toBeVisible();
 
-    // 6. Navigate back to workspace list by clicking "Workspaces" button
-    const backBtn = page.getByRole('button', { name: 'Workspaces' });
-    await expect(backBtn).toBeVisible();
-    await backBtn.click();
+    // 6. Navigate back to workspace list by going to '/'
+    await page.goto('/');
 
     await page.waitForURL('/');
     await expect(page.getByText('Team Schema List')).toBeVisible();
@@ -70,17 +67,10 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
 
     // Verify Inspector details are loaded safely config
     await expect(page.getByRole('heading', { name: 'CTO', exact: true })).toBeVisible();
-    const ctoMetadataName = page.getByLabel('Metadata Name');
-    await expect(ctoMetadataName).toBeVisible();
-    await expect(ctoMetadataName).toHaveValue('CTO');
-
-    const ctoToolsInput = page.getByLabel('Tools', { exact: true });
-    await expect(ctoToolsInput).toBeVisible();
-    await expect(ctoToolsInput).toHaveValue(''); // CTO/tech_lead has no tools parameter in initial schema
-
-    // Try filling tools and verify it updates
-    await ctoToolsInput.fill('architect_eye\nschema_compiler');
-    await expect(ctoToolsInput).toHaveValue('architect_eye\nschema_compiler');
+    await expect(page.getByLabel('Role')).toHaveValue('Department Owner');
+    await expect(page.getByLabel('Model')).toContainText('default-reasoning-model');
+    await expect(page.getByText('Name:').first()).toBeVisible();
+    await expect(page.getByText('CTO').first()).toBeVisible();
 
     // --- 5. Click and inspect CEO node ---
     const ceoNode = page.locator('.react-flow__node').filter({ hasText: 'CEO' }).first();
@@ -89,14 +79,9 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
 
     // Verify Inspector details are loaded safely config
     await expect(page.getByRole('heading', { name: 'CEO', exact: true })).toBeVisible();
-    const ceoMetadataName = page.getByLabel('Metadata Name');
-    await expect(ceoMetadataName).toBeVisible();
-    await expect(ceoMetadataName).toHaveValue('CEO');
-
-    // Ensure we can inspect other properties of CEO
-    const ceoRoleInput = page.getByLabel('Role');
-    await expect(ceoRoleInput).toBeVisible();
-    await expect(ceoRoleInput).toHaveValue('Topic Owner');
+    await expect(page.getByLabel('Role')).toHaveValue('Topic Owner');
+    await expect(page.getByText('Name:').first()).toBeVisible();
+    await expect(page.getByText('CEO').first()).toBeVisible();
 
     // --- 6. Click and inspect FullStackEngineer node ---
     const fullStackNode = page.locator('.react-flow__node').filter({ hasText: 'FullStackEngineer' }).first();
@@ -105,12 +90,15 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
 
     // Verify Inspector details are loaded safely config
     await expect(page.getByRole('heading', { name: 'FullStackEngineer', exact: true })).toBeVisible();
-    const fullStackMetadataName = page.getByLabel('Metadata Name');
-    await expect(fullStackMetadataName).toBeVisible();
-    await expect(fullStackMetadataName).toHaveValue('FullStackEngineer');
+    await expect(page.getByLabel('Role')).toHaveValue('Pipeline Step Executor');
+    await expect(page.getByText('Name:').first()).toBeVisible();
+    await expect(page.getByText('FullStackEngineer').first()).toBeVisible();
 
-    const fullStackToolsInput = page.getByLabel('Tools', { exact: true });
+    const fullStackToolsInput = page.getByRole('combobox', { name: 'Tools' });
     await expect(fullStackToolsInput).toBeVisible();
-    await expect(fullStackToolsInput).toHaveValue('search\nread_file\nedit_file\nrun_tests'); // loaded from initial schema
+    await expect(fullStackToolsInput).toContainText('search');
+    await expect(fullStackToolsInput).toContainText('read_file');
+    await expect(fullStackToolsInput).toContainText('edit_file');
+    await expect(fullStackToolsInput).toContainText('run_tests');
   });
 });

@@ -88,6 +88,17 @@ const createReviewIssues = (
 
 		if (
 			reviewer === REVIEWER_KIND.QualityReview &&
+			session.state.context.testScenarios?.handoffFieldMissing === true
+		) {
+			issues.push({
+				field: 'payload.missingRequiredField',
+				severity: REVIEW_STATUS.Revise,
+				message: 'Quality check failed: Upstream handoff is missing the required output fields.',
+			});
+		}
+
+		if (
+			reviewer === REVIEWER_KIND.QualityReview &&
 			evidenceRefs.length === 0 &&
 			session.runtimePlan.memoryPolicy?.evidenceRequiredForOutputs.includes(EvidenceRequiredOutputType.Handoff)
 		) {

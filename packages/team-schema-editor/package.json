@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/editor/hooks/use*.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:lmstudio": "E2E_LMSTUDIO_PROVIDER=lmstudio E2E_LMSTUDIO_BASE_URL=http://localhost:1234/v1 playwright test"
   },
   "dependencies": {
     "@agents-team/service": "workspace:*",

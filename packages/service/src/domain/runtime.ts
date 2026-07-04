@@ -47,6 +47,26 @@ export type RuntimePlan = {
 };
 
 /**
+ * 仅供端到端测试使用的运行时场景开关。
+ */
+export type RuntimeTestScenarios = {
+  /** 注入循环依赖的 Pipeline fixture。 */
+  readonly pipelineCycle?: boolean;
+  /** 注入能力缺失的 Pipeline step。 */
+  readonly capabilityMissing?: boolean;
+  /** 注入缺失证据引用的 step output。 */
+  readonly ragEvidenceMissing?: boolean;
+  /** 注入上游 Handoff 字段缺失。 */
+  readonly handoffFieldMissing?: boolean;
+  /** 注入写入 Scope 越权污染。 */
+  readonly memoryScopePollution?: boolean;
+  /** 注入检索到冲突记忆导致冲突升级。 */
+  readonly memoryConflictEscalation?: boolean;
+  /** 注入越权检索 scope 遭治理拒绝。 */
+  readonly unauthorizedRetrieval?: boolean;
+};
+
+/**
  * 表示工作模式路由结果。
  */
 export type WorkModeDecision = {
@@ -94,6 +114,8 @@ export type ExecutionContext = {
   readonly auditTrail: readonly AuditEvent[];
   /** 当前允许使用的记忆作用域。 */
   readonly memoryScopes: readonly MemoryScope[];
+  /** 仅供测试使用的运行场景开关。 */
+  readonly testScenarios?: RuntimeTestScenarios;
 };
 
 /**
