@@ -22,10 +22,7 @@ import type {
 } from '../../domain/memory';
 import { createAgentAssemblyFactory, type AgentAssembly } from '../../agent/assembly';
 import {
-	CAPABILITY_EXPIRY,
 	CAPABILITY_SCOPE,
-	CAPABILITY_TYPE,
-	type CapabilityGrant,
 	type CapabilityLoadPlan,
 } from '../../domain/capability';
 import {
@@ -46,6 +43,7 @@ import {
 	toPipelineId,
 	toPipelineStepId,
 } from '../runtimeEngineShared';
+import { createCapabilityLoadPlan } from '../../capability/createCapabilityLoadPlan';
 import { runReviewGate } from './review';
 import {
 	SESSION_COMPLETE_MESSAGE,
@@ -368,41 +366,26 @@ const loadStepCapabilities = (
 		};
 	}
 
-	const capabilityTypeById = new Map<string, CapabilityGrant['capabilityType']>([
-		...agent.skillIds.map((capabilityId) => [capabilityId, CAPABILITY_TYPE.Skill] as const),
-		...agent.mcpServerIds.map((capabilityId) => [capabilityId, CAPABILITY_TYPE.McpServer] as const),
-		...agent.toolIds.map((capabilityId) => [capabilityId, CAPABILITY_TYPE.Tool] as const),
-	]);
-	const grants: CapabilityGrant[] = [];
-	const deniedCapabilityIds = step.allowedCapabilities
-		.filter((capabilityId) => !capabilityTypeById.has(capabilityId))
-		.map(toCapabilityId);
+	const department = session.runtimePlan.departmentsById.get(agent.departmentId);
 
-	for (const capabilityId of step.allowedCapabilities) {
-		const capabilityType = capabilityTypeById.get(capabilityId);
-
-		if (capabilityType === undefined) {
-			continue;
-		}
-
-		grants.push({
-			capabilityId: toCapabilityId(capabilityId),
-			capabilityType,
-			grantedToAgentId: step.ownerAgentId,
-			grantedForStepId: step.stepId,
+	if (department === undefined) {
+		return {
 			scope: CAPABILITY_SCOPE.PipelineStep,
-			reason: `Capability ${capabilityId} is declared on the step owner agent.`,
-			sourceRefs: [createStructuredSourceRef(step.stepId, 'pipeline step')],
-			expiresWhen: CAPABILITY_EXPIRY.StepCompleted,
-		});
+			targetId: step.stepId,
+			grants: [],
+			deniedCapabilityIds: step.allowedCapabilities.map(toCapabilityId),
+		};
 	}
 
-	return {
+	return createCapabilityLoadPlan({
+		agent,
+		department,
 		scope: CAPABILITY_SCOPE.PipelineStep,
 		targetId: step.stepId,
-		grants,
-		deniedCapabilityIds,
-	};
+		requestedCapabilityIds: step.allowedCapabilities,
+		stepId: step.stepId,
+		agentId: step.ownerAgentId,
+	});
 };
 
 const assembleStepAgent = (

@@ -19,9 +19,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { EditorHero } from '../../editor/components/EditorHero';
 import { GraphPanel } from '../../editor/components/GraphPanel';
+import { RuntimeReviewPanel } from '../../editor/components/RuntimeReviewPanel';
+import { RuntimeCapabilityPanel } from '../../editor/components/RuntimeCapabilityPanel';
+import { RuntimeDiscussionPanel } from '../../editor/components/RuntimeDiscussionPanel';
 import type { RuntimeSessionModel } from '../../editor/hooks/useRuntimeSession';
 import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
 import type { RuntimeEventFeedItem } from '../../editor/hooks/helper/runtimeSession.types';
+import { useListRuntimeSessionsQuery } from '../../editor/api/runtimeSessionApi';
 import { EditorMode } from '../../editor/model/types';
 import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
 
@@ -103,6 +107,23 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
   const workspaceName = editor.schema.team_name ?? editor.schema.team_id;
   const [selectedRuntimeNodeId, setSelectedRuntimeNodeId] = useState<string | null>(null);
   const [sessionList, setSessionList] = useState<readonly RuntimeSessionListItem[]>([]);
+
+  // Load historical sessions from backend
+  const { data: historicalSessions } = useListRuntimeSessionsQuery({ limit: 50 }, { skip: !isSchemaReady });
+
+  useEffect(() => {
+    if (historicalSessions === undefined) return;
+    setSessionList((current) => {
+      const backendItems = historicalSessions.items.map((s) => ({
+        sessionId: s.sessionId,
+        status: s.status,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      }));
+      const merged = [...backendItems, ...current.filter((c) => !backendItems.some((b) => b.sessionId === c.sessionId))];
+      return sortSessionList(merged);
+    });
+  }, [historicalSessions]);
 
   useEffect(() => {
     if (schemaKey === undefined) {
@@ -254,7 +275,7 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
               <Typography variant="subtitle2">Run Sessions</Typography>
               <Typography variant="caption" color="text.secondary">Sessions executed in current workspace runtime</Typography>
             </Box>
-            <List disablePadding>
+            <List disablePadding data-testid="session-list">
               {sessionList.length === 0 ? (
                 <Box sx={{ px: 1.25, py: 1.5 }}>
                   <Typography variant="body2" color="text.secondary">No sessions yet. Run once to create a session.</Typography>
@@ -264,6 +285,9 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                   key={item.sessionId}
                   selected={item.sessionId === currentSessionId}
                   disabled={isBusy}
+                  data-testid="session-list-item"
+                  data-session-id={item.sessionId}
+                  data-session-status={item.status}
                   onClick={() => {
                     void runtime.loadSession(item.sessionId);
                   }}
@@ -405,8 +429,39 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
             </Alert>
           )}
 
+          {/* Discussion turns — shown on discussion node */}
+          {selectedRuntimeNodeId === 'discussion' && (runtime.session?.state.discussionResult?.turns?.length ?? 0) > 0 && (
+            <Box data-testid="discussion-turns-panel">
+              <RuntimeDiscussionPanel
+                turns={runtime.session!.state.discussionResult!.turns!}
+                mode={runtime.session?.state.context?.currentMode}
+              />
+            </Box>
+          )}
+
+          {/* Review results — shown globally when session has reviews */}
+          {(runtime.session?.state.reviewResults?.length ?? 0) > 0 && (
+            <Box data-testid="review-results-panel">
+              <RuntimeReviewPanel reviewResults={runtime.session!.state.reviewResults!} />
+            </Box>
+          )}
+
+          {/* Capability interruption — shown when session interrupted by denied capability */}
+          {(() => {
+            const interruption = runtime.session?.state.interruption;
+            if (interruption === undefined || (interruption.deniedCapabilityIds?.length ?? 0) === 0) return null;
+            return (
+              <Box data-testid="capability-denial-panel">
+                <RuntimeCapabilityPanel
+                  grants={[]}
+                  deniedIds={interruption.deniedCapabilityIds ?? []}
+                />
+              </Box>
+            );
+          })()}
+
           {selectedNodeErrorEvents.length === 0 ? null : (
-            <Box sx={{ mb: 1.25 }}>
+            <Box sx={{ mb: 1.25, mt: 1.25 }}>
               <Typography variant="subtitle2" sx={{ mb: 0.75 }}>Error Events</Typography>
               <Stack spacing={0.75}>
                 {selectedNodeErrorEvents.map((item) => (
@@ -420,7 +475,7 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
             </Box>
           )}
 
-          <Box>
+          <Box sx={{ mt: 1.25 }}>
             <Typography variant="subtitle2" sx={{ mb: 0.75 }}>Node Logs</Typography>
             {selectedNodeFeed.length === 0 ? (
               <Typography variant="body2" color="text.secondary">No runtime logs for this node yet.</Typography>

@@ -54,6 +54,11 @@ export type RuntimeSessionScheduler = {
 	readonly resumeSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
 	readonly advanceSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
 	readonly terminateSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
+	readonly listSessions: (options: {
+		readonly status?: string;
+		readonly cursor?: string;
+		readonly limit: number;
+	}) => Promise<{ readonly items: readonly RuntimeSession[]; readonly nextCursor?: string; readonly total: number }>;
 	readonly observability: RuntimeSessionObservability;
 };
 
@@ -311,6 +316,14 @@ export const createRuntimeSessionScheduler = (
 			advanceSession(sessions, observability.recordSession, sessionId, options),
 		terminateSession: (sessionId: string): Promise<ValidationResult<RuntimeSession>> =>
 			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Terminate),
+		listSessions: async (listOptions) => {
+			const page = await options.observabilityRepository.listSessionsPage(listOptions);
+			return {
+				items: page.items.map((item) => item.session),
+				nextCursor: page.nextCursor,
+				total: page.total,
+			};
+		},
 		observability: observability.controller,
 	};
 };

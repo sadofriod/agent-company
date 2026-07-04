@@ -73,3 +73,46 @@ model RuntimeSnapshot {
   @@index([sessionId, updatedAt])
   @@map("runtime_snapshots")
 }
+
+model MemoryObject {
+  id              String   @id @default(cuid())
+  memoryId        String   @unique @map("memory_id")
+  objectType      String   @map("object_type")
+  sourceObjectType String  @map("source_object_type")
+  scope           String
+  sourceObjectId  String   @map("source_object_id")
+  sessionId       String?  @map("session_id")
+  ticketId        String?  @map("ticket_id")
+  topicId         String?  @map("topic_id")
+  pipelineId      String?  @map("pipeline_id")
+  summary         String
+  content         String
+  visibility      String   @default("team")
+  expiryCondition String   @map("expiry_condition")
+  version         Int      @default(1)
+  embeddingStatus String   @default("pending") @map("embedding_status")
+  reviewState     String   @default("pending") @map("review_state")
+  evidenceRefs    Json     @default("[]") @map("evidence_refs")
+  sourceRefs      Json     @default("[]") @map("source_refs")
+  expiresAt       DateTime? @map("expires_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([scope, sessionId])
+  @@index([scope, reviewState])
+  @@map("memory_objects")
+}
+
+model MemoryGraphEdge {
+  id          String   @id @default(cuid())
+  fromId      String   @map("from_id")
+  toId        String   @map("to_id")
+  edgeType    String   @map("edge_type")
+  sessionId   String?  @map("session_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([fromId, toId, edgeType])
+  @@index([fromId])
+  @@index([toId])
+  @@map("memory_graph_edges")
+}

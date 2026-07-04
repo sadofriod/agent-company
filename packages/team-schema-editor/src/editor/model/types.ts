@@ -136,10 +136,24 @@ export type RuntimeSessionSnapshot = {
     };
     pendingTickets?: unknown[];
     completedTickets?: unknown[];
-    completedStepResults?: unknown[];
-    reviewResults?: unknown[];
-    generatedHandoffs?: unknown[];
-    interruption?: unknown;
+    completedStepResults?: RuntimeStepResult[];
+    reviewResults?: RuntimeReviewResult[];
+    generatedHandoffs?: RuntimeHandoff[];
+    discussionResult?: {
+      topic?: { topicId: string; goal: string };
+      decisions?: Array<{ decisionId: string; conclusion: string; rationale: string }>;
+      ticketDrafts?: Array<{ ticketDraftId: string; title: string; ownerAgentId: string }>;
+      turns?: RuntimeDiscussionTurn[];
+      conflicts?: Array<{ summary: string; kind: string }>;
+      pendingItems?: Array<{ summary: string; blockingReason?: string }>;
+      maxRoundsReached?: boolean;
+    };
+    interruption?: {
+      kind: string;
+      message: string;
+      suggestedAction?: string;
+      deniedCapabilityIds?: string[];
+    };
     nextAction?: string;
   };
 };
@@ -155,6 +169,80 @@ export const enum RuntimeStatus {
   Paused = 'paused',
   Terminated = 'terminated',
 }
+
+// ---------------------------------------------------------------------------
+// Runtime session domain types (mirrors service domain)
+// ---------------------------------------------------------------------------
+
+export type RuntimeReviewIssue = {
+  field: string;
+  severity: 'pass' | 'revise' | 'block';
+  message: string;
+  suggestedOwnerAgentId?: string;
+};
+
+export type RuntimeReviewResult = {
+  reviewId: string;
+  status: 'pass' | 'revise' | 'block';
+  reviewer: 'logic_review' | 'quality_review';
+  issues: RuntimeReviewIssue[];
+  targetId: string;
+  targetType: string;
+};
+
+export type RuntimeCapabilityGrant = {
+  capabilityId: string;
+  capabilityType: 'skill' | 'mcp_server' | 'tool';
+  grantedToAgentId: string;
+  scope: string;
+  reason: string;
+  expiresWhen: string;
+};
+
+export type RuntimeCapabilityDenial = {
+  capabilityId: string;
+  reason?: string;
+};
+
+export type RuntimeDiscussionTurn = {
+  round: number;
+  agentId: string;
+  departmentId: string;
+  promptSummary: string;
+  structuredOutput: {
+    recommendation?: string;
+    ownerDepartmentId?: string;
+    mode?: string;
+    [key: string]: unknown;
+  };
+};
+
+export type RuntimeStepResult = {
+  stepId: string;
+  ticketId: string;
+  ownerAgentId: string;
+  output: Record<string, unknown>;
+  generatedAt: string;
+};
+
+export type RuntimeHandoff = {
+  handoffId: string;
+  ticketId: string;
+  fromStepId: string;
+  fromAgentId: string;
+  toStepId?: string;
+  toAgentId?: string;
+  inputContract: string;
+  outputContract: string;
+  payload: Record<string, unknown>;
+};
+
+export type RuntimeSessionListResponse = {
+  items: RuntimeSessionSnapshot[];
+  nextCursor?: string;
+  total: number;
+  limit: number;
+};
 
 export const enum WorkflowEdgeMode {
   Discuss = 'discuss',

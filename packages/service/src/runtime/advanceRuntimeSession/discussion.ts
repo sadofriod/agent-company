@@ -36,6 +36,8 @@ import {
 	uniqueValues,
 	updateRuntimeSession,
 } from './shared';
+import { createAgentAssemblyFactory } from '../../agent/assembly/createAgentAssemblyFactory';
+import { callAgentLlm } from '../../agent/gateway/callAgentLlm';
 
 const getDepartmentScore = (
 	department: Department,
@@ -183,12 +185,141 @@ const resolveOwnerDepartment = (
 	};
 };
 
-const createDiscussionTurns = (
+// ---------------------------------------------------------------------------
+// LLM-backed discussion turn execution (per mode)
+// ---------------------------------------------------------------------------
+
+const buildTurnEvidenceRef = (session: RuntimeSession): ReturnType<typeof createEvidenceRef> =>
+	createEvidenceRef(
+		createDocumentSourceRef(session.state.context.traceId, 'runtime task trace'),
+		session.state.context.task.goal,
+	);
+
+/** Call one agent for their discussion turn and return structured output. */
+const callAgentTurn = async (
+	session: RuntimeSession,
+	agent: AgentDefinition,
+	systemPrompt: string,
+	userPrompt: string,
+	round: number,
+	ownerDepartmentId: string | undefined,
+	mode: string,
+): Promise<DiscussionTurn> => {
+	const assembly = createAgentAssemblyFactory(session.runtimePlan).assemble(agent.agentId);
+	const fallback = `${agent.role} contributed to discussion in ${mode} mode.`;
+	const recommendation = await callAgentLlm({
+		gateway: assembly.gateway,
+		systemPrompt,
+		userPrompt,
+		fallbackResponse: fallback,
+	});
+
+	return {
+		round,
+		agentId: agent.agentId,
+		departmentId: agent.departmentId,
+		promptSummary: userPrompt,
+		structuredOutput: {
+			recommendation,
+			ownerDepartmentId,
+			mode,
+		},
+		evidenceRefs: [buildTurnEvidenceRef(session)],
+	};
+};
+
+/**
+ * supervisor_led: Supervisor asks each department lead for input (round n),
+ * then makes a final arbitration call (last round).
+ */
+const executeSupervisorLedTurns = async (
+	session: RuntimeSession,
+	orderedAgents: readonly AgentDefinition[],
+	supervisorAgent: AgentDefinition | undefined,
+	topic: Topic,
+	ownerDepartmentId: string | undefined,
+): Promise<readonly DiscussionTurn[]> => {
+	const mode = DISCUSSION_MODE.SupervisorLed;
+	const taskCtx = `Task: ${session.state.context.task.title}. Goal: ${session.state.context.task.goal}.`;
+	const deptLeads = orderedAgents.filter((a) => a.agentId !== supervisorAgent?.agentId);
+	const turns: DiscussionTurn[] = [];
+
+	// Dept leads give their perspective
+	for (let i = 0; i < deptLeads.length; i++) {
+		const agent = deptLeads[i]!;
+		const systemPrompt = `You are ${agent.role} in department ${agent.departmentId}. Provide your department's perspective on the task.`;
+		const userPrompt = `${taskCtx} Topic: ${topic.goal}. Constraints: ${topic.constraints.join('; ')}. What is your department's recommendation?`;
+		turns.push(await callAgentTurn(session, agent, systemPrompt, userPrompt, i + 1, ownerDepartmentId, mode));
+	}
+
+	// Supervisor arbitrates
+	if (supervisorAgent !== undefined) {
+		const priorRecommendations = turns.map((t) => `${t.agentId}: ${String(t.structuredOutput.recommendation)}`).join('\n');
+		const systemPrompt = `You are ${supervisorAgent.role}. Review all department inputs and produce the final decision.`;
+		const userPrompt = `${taskCtx}\n\nDepartment inputs:\n${priorRecommendations}\n\nMake a final decision on owner department and execution plan.`;
+		turns.push(await callAgentTurn(session, supervisorAgent, systemPrompt, userPrompt, turns.length + 1, ownerDepartmentId, mode));
+	}
+
+	return turns;
+};
+
+/**
+ * sequential_handoff: Each agent gets the previous agent's recommendation as context.
+ */
+const executeSequentialHandoffTurns = async (
+	session: RuntimeSession,
+	orderedAgents: readonly AgentDefinition[],
+	topic: Topic,
+	ownerDepartmentId: string | undefined,
+): Promise<readonly DiscussionTurn[]> => {
+	const mode = DISCUSSION_MODE.SequentialHandoff;
+	const taskCtx = `Task: ${session.state.context.task.title}. Goal: ${session.state.context.task.goal}.`;
+	const turns: DiscussionTurn[] = [];
+	let previousRecommendation = '';
+
+	for (let i = 0; i < orderedAgents.length; i++) {
+		const agent = orderedAgents[i]!;
+		const systemPrompt = `You are ${agent.role}. Build upon the prior agent's analysis for this task.`;
+		const handoffContext = previousRecommendation.length > 0
+			? `\n\nPrevious agent's analysis:\n${previousRecommendation}`
+			: '';
+		const userPrompt = `${taskCtx} Topic: ${topic.goal}.${handoffContext}\n\nProvide your recommendation for the next stage.`;
+		const turn = await callAgentTurn(session, agent, systemPrompt, userPrompt, i + 1, ownerDepartmentId, mode);
+		turns.push(turn);
+		previousRecommendation = String(turn.structuredOutput.recommendation);
+	}
+
+	return turns;
+};
+
+/**
+ * parallel_review: All agents produce independent input simultaneously (implemented
+ * sequentially for safety); their outputs are collected without cross-dependency.
+ */
+const executeParallelReviewTurns = async (
+	session: RuntimeSession,
+	orderedAgents: readonly AgentDefinition[],
+	topic: Topic,
+	ownerDepartmentId: string | undefined,
+): Promise<readonly DiscussionTurn[]> => {
+	const mode = DISCUSSION_MODE.ParallelReview;
+	const taskCtx = `Task: ${session.state.context.task.title}. Goal: ${session.state.context.task.goal}.`;
+
+	const turnPromises = orderedAgents.map((agent) => {
+		const systemPrompt = `You are ${agent.role}. Independently review this task and provide your recommendation.`;
+		const userPrompt = `${taskCtx} Topic: ${topic.goal}. Constraints: ${topic.constraints.join('; ')}. What is your independent recommendation?`;
+		return callAgentTurn(session, agent, systemPrompt, userPrompt, 1, ownerDepartmentId, mode);
+	});
+
+	return Promise.all(turnPromises);
+};
+
+const createDiscussionTurnsAsync = async (
 	session: RuntimeSession,
 	participantDepartments: readonly Department[],
 	topic: Topic,
 	ownerDepartmentId: Department['departmentId'] | undefined,
-): readonly DiscussionTurn[] => {
+): Promise<readonly DiscussionTurn[]> => {
 	const departmentLeadAgents = participantDepartments
 		.map((department) => selectLeadAgent(session, department.departmentId))
 		.filter((agent): agent is AgentDefinition => agent !== undefined);
@@ -200,49 +331,21 @@ const createDiscussionTurns = (
 		session.runtimePlan.discussionPolicy.mode === DISCUSSION_MODE.SupervisorLed && supervisorAgent !== undefined
 			? uniqueValues([supervisorAgent, ...departmentLeadAgents])
 			: departmentLeadAgents;
-	const sharedPrompt = `Task goal: ${session.state.context.task.goal}. Topic: ${topic.goal}.`;
 
-	if (session.runtimePlan.discussionPolicy.mode === DISCUSSION_MODE.ParallelReview) {
-		return orderedAgents.map((agent) => ({
-			round: 1,
-			agentId: agent.agentId,
-			departmentId: agent.departmentId,
-			promptSummary: sharedPrompt,
-			structuredOutput: {
-				recommendation: `${agent.role} reviewed the task for ${agent.departmentId}.`,
-				ownerDepartmentId,
-				mode: session.runtimePlan.discussionPolicy.mode,
-			},
-			evidenceRefs: [
-				createEvidenceRef(
-					createDocumentSourceRef(session.state.context.traceId, 'runtime task trace'),
-					session.state.context.task.goal,
-				),
-			],
-		}));
+	switch (session.runtimePlan.discussionPolicy.mode) {
+		case DISCUSSION_MODE.SupervisorLed:
+			return executeSupervisorLedTurns(session, orderedAgents, supervisorAgent, topic, ownerDepartmentId);
+		case DISCUSSION_MODE.SequentialHandoff:
+			return executeSequentialHandoffTurns(session, orderedAgents, topic, ownerDepartmentId);
+		case DISCUSSION_MODE.ParallelReview:
+			return executeParallelReviewTurns(session, orderedAgents, topic, ownerDepartmentId);
+		default:
+			return executeSequentialHandoffTurns(session, orderedAgents, topic, ownerDepartmentId);
 	}
-
-	return orderedAgents.map((agent, index) => ({
-		round: index + 1,
-		agentId: agent.agentId,
-		departmentId: agent.departmentId,
-		promptSummary: sharedPrompt,
-		structuredOutput: {
-			recommendation: `${agent.role} advanced the discussion in ${session.runtimePlan.discussionPolicy.mode} mode.`,
-			ownerDepartmentId,
-			mode: session.runtimePlan.discussionPolicy.mode,
-			sequence: index + 1,
-		},
-		evidenceRefs: [
-			createEvidenceRef(
-				createDocumentSourceRef(session.state.context.traceId, 'runtime task trace'),
-				session.state.context.task.goal,
-			),
-		],
-	}));
 };
 
-const createDiscussionArtifacts = (session: RuntimeSession): DiscussionResult => {
+
+const createDiscussionArtifacts = async (session: RuntimeSession): Promise<DiscussionResult> => {
 	const participantDepartments = createParticipantDepartments(session);
 	const ownerResolution = resolveOwnerDepartment(session, participantDepartments);
 	const topicId = toTopicId(createRuntimeScopedId('topic'));
@@ -269,7 +372,7 @@ const createDiscussionArtifacts = (session: RuntimeSession): DiscussionResult =>
 			subtopics,
 			decisions: [],
 			ticketDrafts: [],
-			turns: createDiscussionTurns(session, participantDepartments, topic, undefined),
+			turns: await createDiscussionTurnsAsync(session, participantDepartments, topic, undefined),
 			conflicts: ownerResolution.conflicts,
 			pendingItems: ownerResolution.pendingItems,
 			recommendedArbiterAgentId: session.runtimePlan.discussionPolicy.supervisorAgentId,
@@ -319,7 +422,7 @@ const createDiscussionArtifacts = (session: RuntimeSession): DiscussionResult =>
 		subtopics,
 		decisions: [decision],
 		ticketDrafts,
-		turns: createDiscussionTurns(session, participantDepartments, topic, ownerResolution.ownerDepartment.departmentId),
+		turns: await createDiscussionTurnsAsync(session, participantDepartments, topic, ownerResolution.ownerDepartment.departmentId),
 		conflicts: [],
 		pendingItems:
 			ticketDrafts.length === 0
@@ -336,7 +439,7 @@ const createDiscussionArtifacts = (session: RuntimeSession): DiscussionResult =>
 	};
 };
 
-export const executeDiscussionStage = (session: RuntimeSession): ValidationResult<RuntimeSession> => {
+export const executeDiscussionStage = async (session: RuntimeSession): Promise<ValidationResult<RuntimeSession>> => {
 	const startedSession = updateRuntimeSession(
 		session,
 		{},
@@ -348,7 +451,7 @@ export const executeDiscussionStage = (session: RuntimeSession): ValidationResul
 			},
 		},
 	);
-	const discussionResult = createDiscussionArtifacts(startedSession);
+	const discussionResult = await createDiscussionArtifacts(startedSession);
 	let nextSession = updateRuntimeSession(
 		startedSession,
 		{

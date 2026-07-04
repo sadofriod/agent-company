@@ -64,6 +64,6 @@ export const advanceRuntimeSession = async (
 	}
 
 	return workModeDecision.mode === WORK_MODE.Discussion
-		? executeDiscussionStage(nextSession)
+		? await executeDiscussionStage(nextSession)
 		: await executePipelineStage(nextSession, { stepRunner: options.stepRunner });
 };

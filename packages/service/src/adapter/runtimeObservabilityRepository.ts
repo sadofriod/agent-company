@@ -18,9 +18,20 @@ export type RuntimeSessionSnapshotRecord = {
 	readonly sequence: number;
 };
 
+export type SessionListPage = {
+	readonly items: readonly RuntimeSessionSnapshotRecord[];
+	readonly nextCursor?: string;
+	readonly total: number;
+};
+
 export type RuntimeObservabilityRepository = {
 	readonly listEvents: () => Promise<readonly RuntimeEvent[]>;
 	readonly listLatestSnapshots: () => Promise<readonly RuntimeSessionSnapshotRecord[]>;
+	readonly listSessionsPage: (options: {
+		readonly status?: string;
+		readonly cursor?: string;
+		readonly limit: number;
+	}) => Promise<SessionListPage>;
 	readonly loadSessionSnapshot: (sessionId: string) => Promise<RuntimeSessionSnapshotRecord | undefined>;
 	readonly loadEventsAfterSequence: (
 		sessionId: string,
@@ -113,6 +124,33 @@ export const createPrismaRuntimeObservabilityRepository = (
 		});
 
 		return records.map(parseRuntimeSnapshot);
+	},
+	listSessionsPage: async ({ status, cursor, limit }) => {
+		// Count total distinct sessions
+		const allSnapshots = await prisma.runtimeSnapshot.findMany({
+			distinct: ['sessionId'],
+			orderBy: [{ sessionId: 'asc' }, { sequence: 'desc' }],
+		});
+
+		const parsed = allSnapshots.map(parseRuntimeSnapshot);
+
+		// Apply status filter in-process (status lives in the snapshot JSON)
+		const filtered = status !== undefined
+			? parsed.filter((item: RuntimeSessionSnapshotRecord) => (item.session as { status?: string }).status === status)
+			: parsed;
+
+		// Cursor-based pagination: cursor is a sessionId
+		const startIndex = cursor !== undefined
+			? filtered.findIndex((item: RuntimeSessionSnapshotRecord) => item.session.sessionId === cursor) + 1
+			: 0;
+
+		const page = filtered.slice(startIndex, startIndex + limit);
+		const lastItem = page.at(-1);
+		const nextCursor = page.length === limit && lastItem !== undefined
+			? lastItem.session.sessionId
+			: undefined;
+
+		return { items: page, nextCursor, total: filtered.length };
 	},
 	loadSessionSnapshot: async (sessionId) => {
 		const record = await prisma.runtimeSnapshot.findFirst({

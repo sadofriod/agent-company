@@ -21,6 +21,8 @@ import type { RuntimeSession } from '../../domain/runtime';
 
 import { createStructuredSourceRef, createRuntimeScopedId, toReviewId, toTicketId } from '../runtimeEngineShared';
 import { createEvidenceRef } from './shared';
+import { logicReview } from '../../review/logicReview';
+import { qualityReview } from '../../review/qualityReview';
 
 type ReviewTarget = TicketDraft | Pipeline | StepResult;
 type ReviewTargetType = typeof REVIEW_TARGET_TYPE[keyof typeof REVIEW_TARGET_TYPE];
@@ -32,6 +34,15 @@ const createReviewIssues = (
 	target: ReviewTarget,
 	evidenceRefs: readonly EvidenceRef[],
 ): readonly ReviewIssue[] => {
+	// Delegate to dedicated review modules for full business logic coverage.
+	if (reviewer === REVIEWER_KIND.LogicReview) {
+		return logicReview(session, targetType, target);
+	}
+	if (reviewer === REVIEWER_KIND.QualityReview) {
+		return qualityReview(session, targetType, target, evidenceRefs);
+	}
+
+	// Legacy path kept for backward-compat; should not be reached in normal flow.
 	if (targetType === REVIEW_TARGET_TYPE.Ticket) {
 		const ticketDraft = target as TicketDraft;
 		const issues: ReviewIssue[] = [];
