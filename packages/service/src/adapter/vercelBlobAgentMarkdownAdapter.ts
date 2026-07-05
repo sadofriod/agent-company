@@ -1,7 +1,7 @@
 import { del, put } from '@vercel/blob';
 
 import type { ValidationResult } from '../domain/base';
-import type { AgentMarkdownFileSummary } from '../agent/markdown';
+import { AgentMarkdownWriteMode, type AgentMarkdownFileSummary } from '../agent/markdown';
 import {
   createAgentMarkdownFileSummary,
   fail,
@@ -10,7 +10,7 @@ import {
   ok,
   validateAgentMarkdownContent,
 } from '../agent/markdown';
-import type { AgentMarkdownAdapter } from './agentMarkdownAdapter';
+import { AgentMarkdownStorageProvider, type AgentMarkdownAdapter } from './agentMarkdownAdapter';
 import {
   createAgentMarkdownMetadataInput,
   type AgentMarkdownMetadataRecord,
@@ -83,7 +83,7 @@ export const createVercelBlobAgentMarkdownAdapter = ({
 
   return {
     list: async () => {
-      const records = await metadataRepository.listByProvider('vercel_blob');
+      const records = await metadataRepository.listByProvider(AgentMarkdownStorageProvider.VercelBlob);
       const results = await Promise.all(records.map(createSummaryFromRecord));
 
       return results.flatMap((result) => (result.ok ? [result.value] : []));
@@ -97,7 +97,7 @@ export const createVercelBlobAgentMarkdownAdapter = ({
 
       const record = await metadataRepository.findByPath(normalizedPath.value.relativePath);
 
-      if (record === undefined || record.storageProvider !== 'vercel_blob') {
+      if (record === undefined || record.storageProvider !== AgentMarkdownStorageProvider.VercelBlob) {
         return fail([
           markdownIssue('file_missing', ['path'], `Markdown 文件不存在：${normalizedPath.value.relativePath}`),
         ]);
@@ -142,13 +142,13 @@ export const createVercelBlobAgentMarkdownAdapter = ({
 
       const existingRecord = await metadataRepository.findByPath(normalizedPath.value.relativePath);
 
-      if (mode === 'create' && existingRecord !== undefined) {
+      if (mode === AgentMarkdownWriteMode.Create && existingRecord !== undefined) {
         return fail([
           markdownIssue('file_conflict', ['path'], `Markdown 文件已存在：${normalizedPath.value.relativePath}`),
         ]);
       }
 
-      if (mode === 'update' && existingRecord?.storageProvider !== 'vercel_blob') {
+      if (mode === AgentMarkdownWriteMode.Update && existingRecord?.storageProvider !== AgentMarkdownStorageProvider.VercelBlob) {
         return fail([
           markdownIssue('file_missing', ['path'], `Markdown 文件不存在：${normalizedPath.value.relativePath}`),
         ]);
@@ -170,7 +170,7 @@ export const createVercelBlobAgentMarkdownAdapter = ({
       await metadataRepository.upsert(
         createAgentMarkdownMetadataInput({
           summary,
-          storageProvider: 'vercel_blob',
+          storageProvider: AgentMarkdownStorageProvider.VercelBlob,
           storagePath: blob.url,
         }),
       );
@@ -186,7 +186,7 @@ export const createVercelBlobAgentMarkdownAdapter = ({
 
       const record = await metadataRepository.findByPath(normalizedPath.value.relativePath);
 
-      if (record === undefined || record.storageProvider !== 'vercel_blob') {
+      if (record === undefined || record.storageProvider !== AgentMarkdownStorageProvider.VercelBlob) {
         return fail([
           markdownIssue('file_missing', ['path'], `Markdown 文件不存在：${normalizedPath.value.relativePath}`),
         ]);

@@ -5,12 +5,20 @@ import type { TeamDefinition } from '../domain/organization';
 import {
 	RUNTIME_SESSION_STATUS,
 	type RuntimeSession,
+	type RuntimeTestScenarios,
 	type RuntimeTask,
 } from '../domain/runtime';
+import { RUNTIME_EVENT_TYPE } from '../domain/runtimeEvent';
 
 import { advanceRuntimeSession } from './advanceRuntimeSession';
+import type { AgentStepRunner } from './agentStepRunner';
 import { createExecutionContext } from './createExecutionContext';
 import { createRuntimePlan } from './createRuntimePlan';
+import {
+	createRuntimeSessionObservability,
+	type RuntimeSessionObservability,
+} from './runtimeObservability';
+import type { RuntimeObservabilityRepository } from '../adapter/runtimeObservabilityRepository';
 import {
 	createAuditEvent,
 	createIssue,
@@ -31,15 +39,27 @@ type StartRuntimeSessionInput = {
 	readonly task: RuntimeTask;
 	readonly team: TeamDefinition;
 	readonly traceId?: string;
+	readonly testScenarios?: RuntimeTestScenarios;
+};
+
+export type RuntimeSessionSchedulerOptions = {
+	readonly stepRunner?: AgentStepRunner;
+	readonly observabilityRepository: RuntimeObservabilityRepository;
 };
 
 export type RuntimeSessionScheduler = {
-	readonly startSession: (input: StartRuntimeSessionInput) => RuntimeSession;
-	readonly getSession: (sessionId: string) => ValidationResult<RuntimeSession>;
-	readonly pauseSession: (sessionId: string) => ValidationResult<RuntimeSession>;
-	readonly resumeSession: (sessionId: string) => ValidationResult<RuntimeSession>;
-	readonly advanceSession: (sessionId: string) => ValidationResult<RuntimeSession>;
-	readonly terminateSession: (sessionId: string) => ValidationResult<RuntimeSession>;
+	readonly startSession: (input: StartRuntimeSessionInput) => Promise<RuntimeSession>;
+	readonly getSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
+	readonly pauseSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
+	readonly resumeSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
+	readonly advanceSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
+	readonly terminateSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
+	readonly listSessions: (options: {
+		readonly status?: string;
+		readonly cursor?: string;
+		readonly limit: number;
+	}) => Promise<{ readonly items: readonly RuntimeSession[]; readonly nextCursor?: string; readonly total: number }>;
+	readonly observability: RuntimeSessionObservability;
 };
 
 const SESSION_TRANSITIONS: Readonly<
@@ -57,11 +77,11 @@ const SESSION_TRANSITIONS: Readonly<
 };
 
 const ACTION_EVENT_TYPE: Readonly<Record<RuntimeSessionAction | 'start', string>> = {
-	start: 'runtime_session.started',
-	pause: 'runtime_session.paused',
-	resume: 'runtime_session.resumed',
-	advance: 'runtime_session.advanced',
-	terminate: 'runtime_session.terminated',
+	start: RUNTIME_EVENT_TYPE.RuntimeSessionStarted,
+	pause: RUNTIME_EVENT_TYPE.RuntimeSessionPaused,
+	resume: RUNTIME_EVENT_TYPE.RuntimeSessionResumed,
+	advance: RUNTIME_EVENT_TYPE.RuntimeSessionAdvanced,
+	terminate: RUNTIME_EVENT_TYPE.RuntimeSessionTerminated,
 };
 
 const ACTION_REASON: Readonly<Record<RuntimeSessionAction | 'start', string>> = {
@@ -151,11 +171,12 @@ const getTransitionTarget = (
 	return SESSION_TRANSITIONS[status][action];
 };
 
-const applyAction = (
+const applyAction = async (
 	sessions: Map<ReturnType<typeof toRuntimeId>, RuntimeSession>,
+	recordSession: (session: RuntimeSession, previousSession?: RuntimeSession) => Promise<void>,
 	sessionId: string,
 	action: RuntimeSessionAction,
-): ValidationResult<RuntimeSession> => {
+): Promise<ValidationResult<RuntimeSession>> => {
 	const runtimeId = toRuntimeId(sessionId);
 	const session = sessions.get(runtimeId);
 
@@ -179,14 +200,16 @@ const applyAction = (
 	);
 
 	sessions.set(nextSession.sessionId, nextSession);
-
+	await recordSession(nextSession, session);
 	return { ok: true, value: nextSession };
 };
 
-const advanceSession = (
+const advanceSession = async (
 	sessions: Map<ReturnType<typeof toRuntimeId>, RuntimeSession>,
+	recordSession: (session: RuntimeSession, previousSession?: RuntimeSession) => Promise<void>,
 	sessionId: string,
-): ValidationResult<RuntimeSession> => {
+	options: RuntimeSessionSchedulerOptions,
+): Promise<ValidationResult<RuntimeSession>> => {
 	const runtimeId = toRuntimeId(sessionId);
 	const session = sessions.get(runtimeId);
 
@@ -198,7 +221,7 @@ const advanceSession = (
 		return createSessionNotRunning(session);
 	}
 
-	const advancedSession = advanceRuntimeSession(session);
+	const advancedSession = await advanceRuntimeSession(session, { stepRunner: options.stepRunner });
 
 	if (!advancedSession.ok) {
 		return advancedSession;
@@ -224,15 +247,18 @@ const advanceSession = (
 	};
 
 	sessions.set(nextSession.sessionId, nextSession);
-
+	await recordSession(nextSession, session);
 	return { ok: true, value: nextSession };
 };
 
-export const createRuntimeSessionScheduler = (): RuntimeSessionScheduler => {
+export const createRuntimeSessionScheduler = (
+	options: RuntimeSessionSchedulerOptions,
+): RuntimeSessionScheduler => {
 	const sessions = new Map<ReturnType<typeof toRuntimeId>, RuntimeSession>();
+	const observability = createRuntimeSessionObservability(options.observabilityRepository);
 
 	return {
-		startSession: (input: StartRuntimeSessionInput): RuntimeSession => {
+		startSession: async (input: StartRuntimeSessionInput): Promise<RuntimeSession> => {
 			const sessionId = toRuntimeId(randomUUID());
 			const traceId = input.traceId ?? randomUUID();
 			const timestamp = createTimestamp();
@@ -256,30 +282,48 @@ export const createRuntimeSessionScheduler = (): RuntimeSessionScheduler => {
 					task: input.task,
 					traceId,
 					auditTrail: [auditEvent],
+					testScenarios: input.testScenarios,
 				}),
 			};
 
 			sessions.set(sessionId, session);
+			await observability.recordSession(session);
 
 			return session;
 		},
-		getSession: (sessionId: string): ValidationResult<RuntimeSession> => {
+		getSession: async (sessionId: string): Promise<ValidationResult<RuntimeSession>> => {
 			const runtimeId = toRuntimeId(sessionId);
 			const session = sessions.get(runtimeId);
 
 			if (session === undefined) {
-				return createSessionNotFound(sessionId);
+				const snapshot = await options.observabilityRepository.loadSessionSnapshot(sessionId);
+
+				if (snapshot === undefined) {
+					return createSessionNotFound(sessionId);
+				}
+
+				sessions.set(snapshot.session.sessionId, snapshot.session);
+				return { ok: true, value: snapshot.session };
 			}
 
 			return { ok: true, value: session };
 		},
-		pauseSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Pause),
-		resumeSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Resume),
-		advanceSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			advanceSession(sessions, sessionId),
-		terminateSession: (sessionId: string): ValidationResult<RuntimeSession> =>
-			applyAction(sessions, sessionId, RUNTIME_SESSION_ACTION.Terminate),
+		pauseSession: (sessionId: string): Promise<ValidationResult<RuntimeSession>> =>
+			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Pause),
+		resumeSession: (sessionId: string): Promise<ValidationResult<RuntimeSession>> =>
+			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Resume),
+		advanceSession: (sessionId: string): Promise<ValidationResult<RuntimeSession>> =>
+			advanceSession(sessions, observability.recordSession, sessionId, options),
+		terminateSession: (sessionId: string): Promise<ValidationResult<RuntimeSession>> =>
+			applyAction(sessions, observability.recordSession, sessionId, RUNTIME_SESSION_ACTION.Terminate),
+		listSessions: async (listOptions) => {
+			const page = await options.observabilityRepository.listSessionsPage(listOptions);
+			return {
+				items: page.items.map((item) => item.session),
+				nextCursor: page.nextCursor,
+				total: page.total,
+			};
+		},
+		observability: observability.controller,
 	};
 };

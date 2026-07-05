@@ -2,12 +2,8 @@ import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path';
 
 import type { ValidationResult } from '../../domain/base';
-import type {
-  AgentMarkdownFile,
-  AgentMarkdownFileSummary,
-  AgentMarkdownValidationDetails,
-  AgentMarkdownWriteMode,
-} from './types';
+import { AgentMarkdownWriteMode } from './types';
+import type { AgentMarkdownFile, AgentMarkdownFileSummary, AgentMarkdownValidationDetails } from './types';
 import { validateAgentMarkdownContent } from './contentValidation';
 import { createDefaultAgentsDirectory, resolveAgentMarkdownPath } from './path';
 import { fail, markdownIssue, ok } from './result';
@@ -150,13 +146,13 @@ export const writeAgentMarkdownFile = async (
 
   const exists = await fileExists(resolvedPath.value.absolutePath);
 
-  if (mode === 'create' && exists) {
+  if (mode === AgentMarkdownWriteMode.Create && exists) {
     return fail([
       markdownIssue('file_conflict', ['path'], `Markdown 文件已存在：${resolvedPath.value.relativePath}`),
     ]);
   }
 
-  if (mode === 'update' && !exists) {
+  if (mode === AgentMarkdownWriteMode.Update && !exists) {
     return fail([
       markdownIssue('file_missing', ['path'], `Markdown 文件不存在：${resolvedPath.value.relativePath}`),
     ]);

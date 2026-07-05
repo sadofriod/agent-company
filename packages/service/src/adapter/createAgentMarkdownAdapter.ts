@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 
-import type { AgentMarkdownAdapter, AgentMarkdownStorageProvider } from './agentMarkdownAdapter';
+import { AgentMarkdownStorageProvider, type AgentMarkdownAdapter } from './agentMarkdownAdapter';
 import { createPrismaAgentMarkdownMetadataRepository } from './agentMarkdownMetadataRepository';
 import { createLocalAgentMarkdownAdapter } from './localAgentMarkdownAdapter';
 import { getPrismaClient } from './prismaClient';
@@ -15,14 +15,14 @@ export type CreateAgentMarkdownAdapterOptions = {
 
 const resolveDefaultStorageProvider = (): AgentMarkdownStorageProvider => {
   if (process.env.NODE_ENV === 'production') {
-    return 'vercel_blob';
+    return AgentMarkdownStorageProvider.VercelBlob;
   }
 
-  return 'local';
+  return AgentMarkdownStorageProvider.Local;
 };
 
 const parseStorageProvider = (value: string | undefined): AgentMarkdownStorageProvider => {
-  if (value === 'local' || value === 'vercel_blob') {
+  if (value === AgentMarkdownStorageProvider.Local || value === AgentMarkdownStorageProvider.VercelBlob) {
     return value;
   }
 
@@ -37,7 +37,7 @@ export const createAgentMarkdownAdapter = (
   const storageProvider = options.storageProvider ?? parseStorageProvider(process.env.AGENT_MARKDOWN_STORAGE);
   const blobPrefix = options.blobPrefix ?? process.env.AGENT_MARKDOWN_BLOB_PREFIX;
 
-  if (storageProvider === 'vercel_blob') {
+  if (storageProvider === AgentMarkdownStorageProvider.VercelBlob) {
     return createVercelBlobAgentMarkdownAdapter({ metadataRepository, blobPrefix });
   }
 

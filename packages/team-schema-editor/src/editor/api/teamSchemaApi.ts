@@ -11,19 +11,24 @@ import {
 } from './shared';
 import type { TeamSchemaDocument, TeamSchemaRecord, ValidationIssue } from '../model/types';
 
+export enum SaveSchemaMethod {
+  Post = 'POST',
+  Put = 'PUT',
+}
+
 export const teamSchemaApi = editorApi.injectEndpoints({
   endpoints: (builder) => ({
-    listTeamSchemaRecords: builder.query<readonly TeamSchemaRecord[], void>({
+    listTeamSchemaRecords: builder.query<TeamSchemaRecord[], void>({
       query: () => TEAM_SCHEMA_BASE,
       transformResponse: (payload: unknown) => {
         const data = unwrapEnvelope<unknown>(payload);
 
         if (Array.isArray(data)) {
-          return data as readonly TeamSchemaRecord[];
+          return data as TeamSchemaRecord[];
         }
 
         if (isRecord(data) && Array.isArray(data.schemas)) {
-          return data.schemas as readonly TeamSchemaRecord[];
+          return data.schemas as TeamSchemaRecord[];
         }
 
         throw new Error(formatFailurePayload(payload, 'Unable to load team schema records.'));
@@ -52,7 +57,7 @@ export const teamSchemaApi = editorApi.injectEndpoints({
       },
       providesTags: (_result, _error, key) => [{ type: 'TeamSchema', id: key }],
     }),
-    validateTeamSchema: builder.mutation<{ readonly ok: true } | { readonly ok: false; readonly issues: readonly ValidationIssue[] }, TeamSchemaDocument>({
+    validateTeamSchema: builder.mutation<{ ok: true } | { ok: false; issues: ValidationIssue[] }, TeamSchemaDocument>({
       async queryFn(schema, _api, _extraOptions, fetchWithBQ) {
         const result = await fetchWithBQ({
           url: TEAM_VALIDATE_ENDPOINT,
@@ -84,7 +89,7 @@ export const teamSchemaApi = editorApi.injectEndpoints({
         return { data: { ok: true } };
       },
     }),
-    saveTeamSchema: builder.mutation<TeamSchemaDocument, { readonly key: string; readonly schema: TeamSchemaDocument; readonly method: 'POST' | 'PUT' }>({
+    saveTeamSchema: builder.mutation<TeamSchemaDocument, { key: string; schema: TeamSchemaDocument; method: SaveSchemaMethod }>({
       query: ({ key, schema, method }) => ({
         url: `${TEAM_SCHEMA_BASE}/${key}`,
         method,

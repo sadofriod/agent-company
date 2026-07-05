@@ -4,7 +4,8 @@ import { getPrismaClient } from '../adapter/prismaClient';
 import { createPrismaTeamSchemaRepository } from '../adapter/teamSchemaRepository';
 import type { SchemaIssue, ValidationResult } from '../domain/base';
 import { loadTeamSchema } from './loadTeamSchema';
-import { issue } from './teamSchemaShared';
+import { teamSchema } from './teamDefinitionSchema';
+import { issue, mapZodIssue } from './teamSchemaShared';
 
 const TEAM_SCHEMA_KEY = 'current';
 
@@ -71,10 +72,13 @@ export const readTeamSchemaDocument = async (key = TEAM_SCHEMA_KEY): Promise<Val
 };
 
 export const parseTeamSchemaDocument = (input: unknown): ValidationResult<Prisma.InputJsonValue> => {
-	const validation = loadTeamSchema(input);
+	const parsedTeam = teamSchema.safeParse(input);
 
-	if (!validation.ok) {
-		return validation;
+	if (!parsedTeam.success) {
+		return {
+			ok: false,
+			issues: parsedTeam.error.issues.map(mapZodIssue),
+		};
 	}
 
 	if (!isRecord(input)) {

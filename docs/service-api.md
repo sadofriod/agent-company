@@ -783,6 +783,25 @@
 - `404`：session 不存在
 - `409`：当前状态不允许终止
 
+### Runtime Readonly SSE Streams
+
+以下接口全部为 SSE，只读，不提供写语义：
+
+1. `GET /runtime/session/:id/stream/snapshot`
+2. `GET /runtime/session/:id/stream/timeline`
+3. `GET /runtime/session/:id/stream/steps/:stepId/trace`
+4. `GET /runtime/session/:id/stream/interruption`
+5. `GET /runtime/session/:id/stream/review`
+6. `GET /runtime/stream/metrics`
+
+约束：
+
+- `Content-Type: text/event-stream`
+- 事件包含 `id`、`event`、`data` 三元组
+- 支持 `Last-Event-ID` 断线续传
+- 服务端周期推送 `heartbeat` 事件
+- 当无法续传时，先推送 `snapshot_reset`，再推送最新快照与增量事件
+
 ## 调用示例
 
 ### 校验 Markdown

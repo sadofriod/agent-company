@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { SourceRefKind } from '../domain/base';
 import type {
 	AgentId,
 	AuditEventId,
@@ -46,25 +47,25 @@ export const createIssue = (
 export const createTimestamp = (): string => new Date().toISOString();
 
 export const createStructuredSourceRef = (id: string, label: string): SourceRef => ({
-	kind: 'structured_object',
+	kind: SourceRefKind.StructuredObject,
 	id,
 	label,
 });
 
 export const createMemorySourceRef = (id: string, label: string): SourceRef => ({
-	kind: 'memory',
+	kind: SourceRefKind.Memory,
 	id,
 	label,
 });
 
 export const createAuditSourceRef = (id: string, label: string): SourceRef => ({
-	kind: 'audit_event',
+	kind: SourceRefKind.AuditEvent,
 	id,
 	label,
 });
 
 export const createDocumentSourceRef = (id: string, label: string): SourceRef => ({
-	kind: 'document',
+	kind: SourceRefKind.Document,
 	id,
 	label,
 });

@@ -1,5 +1,6 @@
 import type { ValidationResult } from '../domain/base';
 import { WORK_MODE, type RuntimeSession } from '../domain/runtime';
+import { RUNTIME_EVENT_TYPE } from '../domain/runtimeEvent';
 
 import { executeDiscussionStage } from './advanceRuntimeSession/discussion';
 import { executePipelineStage } from './advanceRuntimeSession/pipeline';
@@ -8,9 +9,17 @@ import {
 	createNotRunningIssues,
 	updateRuntimeSession,
 } from './advanceRuntimeSession/shared';
+import type { AgentStepRunner } from './agentStepRunner';
 import { routeWorkMode } from './routeWorkMode';
 
-export const advanceRuntimeSession = (session: RuntimeSession): ValidationResult<RuntimeSession> => {
+export type AdvanceRuntimeSessionOptions = {
+	readonly stepRunner?: AgentStepRunner;
+};
+
+export const advanceRuntimeSession = async (
+	session: RuntimeSession,
+	options: AdvanceRuntimeSessionOptions = {},
+): Promise<ValidationResult<RuntimeSession>> => {
 	if (session.status !== 'running') {
 		return { ok: false, issues: createNotRunningIssues(session.status) };
 	}
@@ -25,7 +34,7 @@ export const advanceRuntimeSession = (session: RuntimeSession): ValidationResult
 			},
 		},
 		{
-			eventType: 'runtime.work_mode_routed',
+			eventType: RUNTIME_EVENT_TYPE.RuntimeWorkModeRouted,
 			reason: workModeDecision.reason,
 			metadata: {
 				mode: workModeDecision.mode,
@@ -41,13 +50,20 @@ export const advanceRuntimeSession = (session: RuntimeSession): ValidationResult
 		nextSession.state.interruption === undefined &&
 		nextSession.state.completedTickets.length > 0
 	) {
-		nextSession = updateRuntimeSession(nextSession, {
-			nextAction: SESSION_COMPLETE_MESSAGE,
-		});
+		nextSession = updateRuntimeSession(
+			nextSession,
+			{
+				nextAction: SESSION_COMPLETE_MESSAGE,
+			},
+			{
+				eventType: RUNTIME_EVENT_TYPE.RuntimeSessionCompleted,
+				reason: SESSION_COMPLETE_MESSAGE,
+			},
+		);
 		return { ok: true, value: nextSession };
 	}
 
 	return workModeDecision.mode === WORK_MODE.Discussion
-		? executeDiscussionStage(nextSession)
-		: executePipelineStage(nextSession);
+		? await executeDiscussionStage(nextSession)
+		: await executePipelineStage(nextSession, { stepRunner: options.stepRunner });
 };

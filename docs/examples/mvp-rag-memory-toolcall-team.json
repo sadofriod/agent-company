@@ -1,0 +1,262 @@
+{
+  "schema_version": "0.1.0",
+  "team_id": "mvp-rag-memory-toolcall-team",
+  "team_name": "MVP RAG Memory Tool Call Team",
+  "departments": [
+    {
+      "department_id": "product_intake",
+      "name": "Product Intake",
+      "mission": "Clarify user goals, route ownership, and produce reviewed ticket drafts.",
+      "decision_scope": ["requirements", "topic", "decision", "ticket_draft", "priority"],
+      "agents": ["product_supervisor"],
+      "handoff_contracts": ["topic_brief", "decision_record", "ticket_draft"]
+    },
+    {
+      "department_id": "delivery_engineering",
+      "name": "Delivery Engineering",
+      "mission": "Plan, retrieve memory, call tools, implement, and verify the delivery pipeline.",
+      "decision_scope": ["delivery", "engineering", "implementation", "rag", "tool_call", "verification"],
+      "agents": ["delivery_lead", "rag_engineer", "tool_executor"],
+      "handoff_contracts": ["implementation_plan", "memory_context_package", "verified_deliverable"]
+    },
+    {
+      "department_id": "governance_review",
+      "name": "Governance Review",
+      "mission": "Review logic, output quality, evidence, and memory governance before downstream handoff.",
+      "decision_scope": ["logic_review", "quality_review", "memory_governance", "acceptance"],
+      "agents": ["review_captain"],
+      "handoff_contracts": ["review_result", "block_or_revise_reason", "acceptance_summary"]
+    }
+  ],
+  "agents": [
+    {
+      "agent_id": "product_supervisor",
+      "department_id": "product_intake",
+      "role": "Supervisor Owner",
+      "model": "reasoning-small",
+      "metadata": {
+        "name": "ProductSupervisor",
+        "description": "Routes the task, resolves owner conflicts, and emits structured topic, decision, and ticket draft artifacts.",
+        "profile": "planning",
+        "tool_policy": "read_only_planning",
+        "partials": ["topic-routing", "ticket-admission"],
+        "tools": ["ticket_router", "memory_policy_check"],
+        "allowed_commands": ["CHECK_IN", "NEW_TICKET"],
+        "required_commands": ["CHECK_IN"],
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "reasoning-small",
+          "api_format": "openai_chat",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "temperature": 0.2,
+          "max_tokens": 2000
+        }
+      },
+      "description": "Owns discussion convergence and ticket draft admission readiness.",
+      "responsibilities": ["route_topic", "resolve_owner", "draft_ticket", "record_decision"],
+      "input_contract": "user_request",
+      "output_contract": "reviewable_ticket_draft",
+      "skills": ["requirements_breakdown", "owner_routing"],
+      "mcp_servers": [],
+      "tools": ["ticket_router", "memory_policy_check"],
+      "memory_access_policy": "supervisor_multilevel_memory"
+    },
+    {
+      "agent_id": "delivery_lead",
+      "department_id": "delivery_engineering",
+      "role": "Department Owner",
+      "model": "reasoning-medium",
+      "metadata": {
+        "name": "DeliveryLead",
+        "description": "Turns the admitted ticket into a sequenced delivery plan and verifies that handoffs are consumable.",
+        "profile": "architecture",
+        "tool_policy": "read_heavy",
+        "partials": ["delivery-planning", "handoff-contracts"],
+        "tools": ["ticket_context_lookup", "repository_search"],
+        "allowed_commands": ["CHECK_IN", "DELIVERABLE"],
+        "required_commands": ["CHECK_IN"],
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "reasoning-medium",
+          "api_format": "openai_chat",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "temperature": 0.15,
+          "max_tokens": 3000
+        }
+      },
+      "description": "Plans implementation order, contracts, and risk controls for the ticket pipeline.",
+      "responsibilities": ["plan_pipeline", "define_handoff", "load_delivery_context"],
+      "input_contract": "reviewable_ticket_draft",
+      "output_contract": "implementation_plan",
+      "skills": ["technical_planning", "risk_review"],
+      "mcp_servers": ["repository_mcp"],
+      "tools": ["ticket_context_lookup", "repository_search"],
+      "memory_access_policy": "delivery_multilevel_memory"
+    },
+    {
+      "agent_id": "rag_engineer",
+      "department_id": "delivery_engineering",
+      "role": "RAG Engineer",
+      "model": "reasoning-medium",
+      "metadata": {
+        "name": "RAGEngineer",
+        "description": "Builds a scoped memory context package from vector and graph retrieval, preserving source evidence and conflicts.",
+        "profile": "rag",
+        "tool_policy": "retrieval_governed",
+        "partials": ["memory-retrieval", "evidence-chain"],
+        "tools": ["vector_search", "graph_expand", "memory_conflict_scan"],
+        "allowed_commands": ["CHECK_IN", "DELIVERABLE"],
+        "required_commands": ["CHECK_IN", "DELIVERABLE"],
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "reasoning-medium",
+          "api_format": "openai_responses",
+          "base_url": "https://gateway.internal.example/v1",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "headers": {
+            "x-agent-team": "mvp-rag-memory-toolcall-team"
+          },
+          "temperature": 0.1,
+          "max_tokens": 3500
+        }
+      },
+      "description": "Retrieves authorized system, session, topic, and ticket memory for downstream implementation.",
+      "responsibilities": ["query_memory", "rank_evidence", "flag_conflicts", "package_context"],
+      "input_contract": "implementation_plan",
+      "output_contract": "memory_context_package",
+      "skills": ["rag_query_design", "evidence_summarization"],
+      "mcp_servers": ["pgvector_mcp", "graph_memory_mcp"],
+      "tools": ["vector_search", "graph_expand", "memory_conflict_scan"],
+      "memory_access_policy": "rag_multilevel_memory"
+    },
+    {
+      "agent_id": "tool_executor",
+      "department_id": "delivery_engineering",
+      "role": "Pipeline Step Executor",
+      "model": "coding-medium",
+      "metadata": {
+        "name": "ToolExecutor",
+        "description": "Executes the final delivery step using governed tools and emits a verified deliverable handoff.",
+        "profile": "execution",
+        "tool_policy": "execution_write_reviewed",
+        "partials": ["execution", "verification"],
+        "tools": ["read_file", "edit_file", "run_tests", "emit_artifact_manifest"],
+        "allowed_commands": ["CHECK_IN", "DELIVERABLE"],
+        "required_commands": ["CHECK_IN", "DELIVERABLE"],
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "coding-medium",
+          "api_format": "openai_responses",
+          "base_url": "https://gateway.internal.example/v1",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "headers": {
+            "x-agent-team": "mvp-rag-memory-toolcall-team"
+          },
+          "temperature": 0.05,
+          "max_tokens": 5000
+        }
+      },
+      "description": "Consumes the RAG package and delivery plan, calls implementation tools, and reports verifiable outputs.",
+      "responsibilities": ["execute_tool_call", "produce_deliverable", "run_verification", "generate_handoff"],
+      "input_contract": "memory_context_package",
+      "output_contract": "verified_deliverable",
+      "skills": ["implementation", "test_execution"],
+      "mcp_servers": ["repository_mcp", "test_runner_mcp"],
+      "tools": ["read_file", "edit_file", "run_tests", "emit_artifact_manifest"],
+      "memory_access_policy": "execution_multilevel_memory"
+    },
+    {
+      "agent_id": "review_captain",
+      "department_id": "governance_review",
+      "role": "Review Captain",
+      "model": "reasoning-small",
+      "metadata": {
+        "name": "ReviewCaptain",
+        "description": "Reviews logic, quality, handoff consumability, and memory evidence before outputs move downstream.",
+        "profile": "review",
+        "tool_policy": "evidence_read_only",
+        "partials": ["logic-review", "quality-review"],
+        "tools": ["evidence_trace", "schema_lint"],
+        "allowed_commands": ["CHECK_IN"],
+        "required_commands": ["CHECK_IN"],
+        "llm": {
+          "provider": "openai-compatible",
+          "model": "reasoning-small",
+          "api_format": "openai_chat",
+          "api_key_env": "AGENT_GATEWAY_KEY",
+          "temperature": 0,
+          "max_tokens": 2000
+        }
+      },
+      "description": "Checks review gates and returns pass, revise, or block with evidence.",
+      "responsibilities": ["logic_review", "quality_review", "evidence_check"],
+      "input_contract": "review_target_with_evidence",
+      "output_contract": "review_result",
+      "skills": ["logic_review", "quality_review"],
+      "mcp_servers": [],
+      "tools": ["evidence_trace", "schema_lint"],
+      "memory_access_policy": "review_multilevel_memory"
+    }
+  ],
+  "discussion_policy": {
+    "mode": "supervisor_led",
+    "max_rounds": 3,
+    "supervisor_agent_id": "product_supervisor",
+    "conflict_resolution": "supervisor_decision",
+    "required_outputs": ["topic", "decision", "ticket_draft"]
+  },
+  "memory_policy": {
+    "retrieval_mode": "hybrid_vector_graph",
+    "vector_store": "pgvector://agents_team_memory",
+    "graph_store": "local_graph://agents_team_memory",
+    "indexed_object_types": [
+      "memory_object",
+      "topic",
+      "decision",
+      "ticket",
+      "pipeline",
+      "handoff",
+      "review_result",
+      "audit_event"
+    ],
+    "retrieval_profiles": [
+      {
+        "profile_id": "supervisor_multilevel_memory",
+        "allowed_scopes": ["system", "session", "topic"],
+        "max_results": 12,
+        "max_graph_hops": 2,
+        "require_reviewed_memory": false
+      },
+      {
+        "profile_id": "delivery_multilevel_memory",
+        "allowed_scopes": ["system", "session", "topic", "ticket"],
+        "max_results": 16,
+        "max_graph_hops": 2,
+        "require_reviewed_memory": false
+      },
+      {
+        "profile_id": "rag_multilevel_memory",
+        "allowed_scopes": ["system", "session", "topic", "ticket"],
+        "max_results": 20,
+        "max_graph_hops": 3,
+        "require_reviewed_memory": false
+      },
+      {
+        "profile_id": "execution_multilevel_memory",
+        "allowed_scopes": ["system", "session", "ticket"],
+        "max_results": 12,
+        "max_graph_hops": 1,
+        "require_reviewed_memory": false
+      },
+      {
+        "profile_id": "review_multilevel_memory",
+        "allowed_scopes": ["system", "session", "topic", "ticket"],
+        "max_results": 12,
+        "max_graph_hops": 2,
+        "require_reviewed_memory": false
+      }
+    ],
+    "evidence_required_for_outputs": ["decision", "ticket", "handoff", "review_result"],
+    "conflict_strategy": "return_conflicts_to_review"
+  }
+}

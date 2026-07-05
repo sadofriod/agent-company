@@ -1,15 +1,28 @@
 import { editorApi } from './baseApi';
 import { RUNTIME_SESSION_BASE, toRuntimeTaskPayload, unwrapEnvelope } from './shared';
-import type { RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../model/types';
+import type { RuntimeSessionListResponse, RuntimeSessionSnapshot, RuntimeTaskDraft, TeamSchemaDocument } from '../model/types';
+
+const RUNTIME_SESSIONS_LIST = '/runtime/sessions';
 
 export const runtimeSessionApi = editorApi.injectEndpoints({
   endpoints: (builder) => ({
+    listRuntimeSessions: builder.query<RuntimeSessionListResponse, { status?: string; cursor?: string; limit?: number }>({
+      query: ({ status, cursor, limit = 20 } = {}) => {
+        const params = new URLSearchParams();
+        if (status !== undefined) params.set('status', status);
+        if (cursor !== undefined) params.set('cursor', cursor);
+        params.set('limit', String(limit));
+        return `${RUNTIME_SESSIONS_LIST}?${params.toString()}`;
+      },
+      transformResponse: (payload: unknown) => unwrapEnvelope<RuntimeSessionListResponse>(payload),
+      providesTags: ['RuntimeSession'],
+    }),
     getRuntimeSession: builder.query<RuntimeSessionSnapshot, string>({
       query: (sessionId) => `${RUNTIME_SESSION_BASE}/${sessionId}`,
       transformResponse: (payload: unknown) => unwrapEnvelope<RuntimeSessionSnapshot>(payload),
       providesTags: (_result, _error, sessionId) => [{ type: 'RuntimeSession', id: sessionId }],
     }),
-    startRuntimeSession: builder.mutation<RuntimeSessionSnapshot, { readonly task: RuntimeTaskDraft; readonly team: TeamSchemaDocument }>({
+    startRuntimeSession: builder.mutation<RuntimeSessionSnapshot, { task: RuntimeTaskDraft; team: TeamSchemaDocument }>({
       query: ({ task, team }) => ({
         url: RUNTIME_SESSION_BASE,
         method: 'POST',
@@ -57,6 +70,7 @@ export const runtimeSessionApi = editorApi.injectEndpoints({
 });
 
 export const {
+  useListRuntimeSessionsQuery,
   useAdvanceRuntimeSessionMutation,
   useGetRuntimeSessionQuery,
   useLazyGetRuntimeSessionQuery,

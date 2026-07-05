@@ -14,6 +14,11 @@ export const selectNode: CaseReducer<EditorState, PayloadAction<string | null>> 
     return;
   }
 
+  if (nodeId === 'goal') {
+    state.selection = { kind: 'team' };
+    return;
+  }
+
   if (nodeId.startsWith('department:')) {
     state.selection = { kind: 'department', departmentId: nodeId.replace('department:', '') };
     return;
@@ -24,22 +29,17 @@ export const selectNode: CaseReducer<EditorState, PayloadAction<string | null>> 
     return;
   }
 
+  if (nodeId.startsWith('workflow-agent:') || nodeId.startsWith('workflow-part:') || nodeId.startsWith('workflow-pipeline:')) {
+    state.selection = { kind: 'workflowNode', nodeId };
+    return;
+  }
+
   if (nodeId === 'discussion') {
     state.selection = { kind: 'discussion' };
     return;
   }
 
-  if (nodeId === 'pipeline') {
-    state.selection = { kind: 'pipeline' };
-    return;
-  }
-
-  if (nodeId === 'review') {
-    state.selection = { kind: 'review' };
-    return;
-  }
-
-  if (nodeId === 'memory') {
+  if (nodeId === 'memory' || nodeId.startsWith('memory:')) {
     state.selection = { kind: 'memory' };
   }
 };

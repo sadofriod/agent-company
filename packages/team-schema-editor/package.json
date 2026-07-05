@@ -8,7 +8,10 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/editor/hooks/use*.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:lmstudio": "E2E_LMSTUDIO_PROVIDER=lmstudio E2E_LMSTUDIO_BASE_URL=http://localhost:1234/v1 playwright test"
   },
   "dependencies": {
     "@agents-team/service": "workspace:*",
@@ -17,17 +20,24 @@
     "@mui/material": "^9.0.1",
     "@reduxjs/toolkit": "^2.12.0",
     "@xyflow/react": "^12.8.6",
+    "lucide-react": "^1.17.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.76.1",
-    "react-redux": "^9.3.0"
+    "react-redux": "^9.3.0",
+    "react-router-dom": "^7.17.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.60.0",
+    "@types/eslint": "^9.6.1",
     "@types/node": "^24.10.1",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.4",
+    "eslint": "^9.39.1",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.2",
     "vite": "^7.1.12"
   }
 }

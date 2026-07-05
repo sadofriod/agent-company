@@ -8,9 +8,7 @@ const serializeRuntimePlan = (runtimePlan: RuntimePlan) => ({
 	departments: [...runtimePlan.departmentsById.values()],
 	agents: [...runtimePlan.agentsById.values()],
 	discussionPolicy: runtimePlan.discussionPolicy,
-	pipelinePolicy: runtimePlan.pipelinePolicy,
 	memoryPolicy: runtimePlan.memoryPolicy,
-	reviewPolicy: runtimePlan.reviewPolicy,
 });
 
 const serializeAgentAssembly = (agentAssembly: AgentAssembly) => ({

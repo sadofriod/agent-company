@@ -1,12 +1,23 @@
 import type { Edge } from '@xyflow/react';
+import { MarkerType } from '@xyflow/react';
 
-import type { GraphNodeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
+import { GraphNodeKind, MemoryScope, SchemaEdgeTone, WorkflowEdgeType } from './types';
+import type { AgentDocument, GraphNodeData, SchemaEdgeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
 
-const TEAM_NODE_ID = 'team';
+export const GOAL_NODE_ID = 'goal';
 const DISCUSSION_NODE_ID = 'discussion';
-const PIPELINE_NODE_ID = 'pipeline';
-const REVIEW_NODE_ID = 'review';
-const MEMORY_NODE_ID = 'memory';
+const DISCUSSION_MEMORY_NODE_ID = 'memory:discussion';
+const SESSION_MEMORY_NODE_ID = 'memory:session';
+
+const GOAL_X = -300;
+const DEPARTMENT_X = 40;
+const AGENT_X = 380;
+const GOVERNANCE_X = 760;
+const MEMORY_X = 1080;
+const START_Y = 40;
+const AGENT_GAP_Y = 140;
+const MIN_DEPARTMENT_GROUP_HEIGHT = 190;
+const GOVERNANCE_GAP_Y = 160;
 
 const createNode = (
   id: string,
@@ -20,112 +31,134 @@ const createNode = (
   type: 'workflow',
 });
 
-const createEdge = (id: string, source: string, target: string, label?: string, animated = false): Edge => ({
-  id,
-  source,
-  target,
-  label,
-  animated,
-});
+const schemaEdgeColors: Record<SchemaEdgeTone, string> = {
+  [SchemaEdgeTone.Structure]: '#667085',
+  [SchemaEdgeTone.Governance]: '#a8558f',
+  [SchemaEdgeTone.Memory]: '#3b8290',
+};
 
-export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: WorkflowGraphNode[]; readonly edges: Edge[] } => {
+const createEdge = (
+  id: string,
+  source: string,
+  target: string,
+  label?: string,
+  tone: SchemaEdgeTone = SchemaEdgeTone.Structure,
+  animated = false,
+): Edge => {
+  const edgeData: SchemaEdgeData = { label, tone };
+  const color = schemaEdgeColors[tone];
+
+  return {
+    id,
+    source,
+    target,
+    type: WorkflowEdgeType.SchemaRelation,
+    animated,
+    data: edgeData,
+    markerEnd: { type: MarkerType.ArrowClosed, color },
+    style: { stroke: color, strokeWidth: animated ? 2 : 1.8 },
+  };
+};
+
+export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
   const nodes: WorkflowGraphNode[] = [];
   const edges: Edge[] = [];
+  let organizationCursorY = START_Y;
 
   nodes.push(
-    createNode(TEAM_NODE_ID, 40, 120, {
-      kind: 'team',
-      nodeName: schema.team_name ?? schema.team_id,
-      roleName: 'Team',
-      detail: schema.team_id,
-      accent: 'var(--team-accent)',
+    createNode(GOAL_NODE_ID, GOAL_X, START_Y, {
+      kind: GraphNodeKind.Goal,
+      nodeName: 'Goal Input',
+      roleName: 'Team Schema Input',
+      detail: schema.team_name ?? schema.team_id,
+      accent: 'var(--goal-accent)',
     }),
   );
 
-  schema.departments.forEach((department, departmentIndex) => {
+  schema.departments.forEach((department) => {
     const departmentNodeId = `department:${department.department_id}`;
-    const departmentY = 40 + departmentIndex * 180;
+    const resolvedAgents = department.agents
+      .map((agentId) => schema.agents.find((candidate) => candidate.agent_id === agentId))
+      .filter((agent): agent is AgentDocument => agent !== undefined);
+    const groupHeight = Math.max(MIN_DEPARTMENT_GROUP_HEIGHT, resolvedAgents.length * AGENT_GAP_Y);
+    const departmentY = organizationCursorY + Math.max(0, (resolvedAgents.length - 1) * (AGENT_GAP_Y / 2));
 
     nodes.push(
-      createNode(departmentNodeId, 340, departmentY, {
-        kind: 'department',
+      createNode(departmentNodeId, DEPARTMENT_X, departmentY, {
+        kind: GraphNodeKind.Department,
         nodeName: department.name,
         roleName: 'Department',
         detail: department.department_id,
         accent: 'var(--department-accent)',
+        department,
       }),
     );
 
-    edges.push(createEdge(`team-department:${department.department_id}`, TEAM_NODE_ID, departmentNodeId, 'owns'));
-
-    department.agents.forEach((agentId, agentIndex) => {
-      const agent = schema.agents.find((candidate) => candidate.agent_id === agentId);
-
-      if (agent === undefined) {
-        return;
-      }
-
+    resolvedAgents.forEach((agent, agentIndex) => {
       const agentNodeId = `agent:${agent.agent_id}`;
 
       nodes.push(
-        createNode(agentNodeId, 680, departmentY + agentIndex * 140, {
-          kind: 'agent',
+        createNode(agentNodeId, AGENT_X, organizationCursorY + agentIndex * AGENT_GAP_Y, {
+          kind: GraphNodeKind.Agent,
           nodeName: agent.metadata?.name ?? agent.agent_id,
           roleName: agent.role,
           departmentName: department.name,
           detail: agent.agent_id,
           accent: 'var(--agent-accent)',
+          agent,
         }),
       );
 
       edges.push(createEdge(`department-agent:${department.department_id}:${agent.agent_id}`, departmentNodeId, agentNodeId, agent.role));
     });
+
+    organizationCursorY += groupHeight;
+
+    edges.push(createEdge(`goal-department:${department.department_id}`, GOAL_NODE_ID, departmentNodeId, 'input'));
   });
 
+  const governanceY = Math.max(START_Y, Math.round((organizationCursorY - START_Y - GOVERNANCE_GAP_Y * 2) / 2));
+
   nodes.push(
-    createNode(DISCUSSION_NODE_ID, 340, 520, {
-      kind: 'discussion',
+    createNode(DISCUSSION_NODE_ID, GOVERNANCE_X, governanceY, {
+      kind: GraphNodeKind.Discussion,
       nodeName: 'Discussion Policy',
       roleName: 'Governance',
-      detail: `${schema.discussion_policy.mode} / ${schema.discussion_policy.max_rounds} rounds`,
+      detail: `${schema.discussion_policy?.mode ?? 'none'} / ${schema.discussion_policy?.max_rounds ?? 0} rounds`,
       accent: 'var(--discussion-accent)',
+      discussionPolicy: schema.discussion_policy,
     }),
   );
-  edges.push(createEdge('team-discussion', TEAM_NODE_ID, DISCUSSION_NODE_ID, 'governs'));
 
-  nodes.push(
-    createNode(PIPELINE_NODE_ID, 340, 660, {
-      kind: 'pipeline',
-      nodeName: 'Pipeline Policy',
-      roleName: 'Workflow',
-      detail: schema.pipeline_policy.review_before_handoff ? 'review before handoff' : 'direct handoff',
-      accent: 'var(--pipeline-accent)',
-    }),
-  );
-  edges.push(createEdge('team-pipeline', TEAM_NODE_ID, PIPELINE_NODE_ID, 'executes'));
-
-  nodes.push(
-    createNode(REVIEW_NODE_ID, 340, 800, {
-      kind: 'review',
-      nodeName: 'Review Policy',
-      roleName: 'Quality Gate',
-      detail: schema.review_policy.allowed_results.join(' / '),
-      accent: 'var(--review-accent)',
-    }),
-  );
-  edges.push(createEdge('team-review', TEAM_NODE_ID, REVIEW_NODE_ID, 'checks'));
+  edges.push(createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', SchemaEdgeTone.Governance));
 
   if (schema.memory_policy !== undefined) {
     nodes.push(
-      createNode(MEMORY_NODE_ID, 680, 800, {
-        kind: 'memory',
-        nodeName: 'Memory Policy',
-        roleName: 'Retrieval',
-        detail: schema.memory_policy.retrieval_mode,
+      createNode(DISCUSSION_MEMORY_NODE_ID, MEMORY_X, governanceY, {
+        kind: GraphNodeKind.Memory,
+        nodeName: 'Discussion Memory',
+        roleName: 'Retriever',
+        detail: 'Discussion retrieval and conflict routing',
+        memoryScope: MemoryScope.Discussion,
+        memoryPolicy: schema.memory_policy,
         accent: 'var(--memory-accent)',
       }),
     );
-    edges.push(createEdge('team-memory', TEAM_NODE_ID, MEMORY_NODE_ID, 'retrieves'));
+
+    nodes.push(
+      createNode(SESSION_MEMORY_NODE_ID, MEMORY_X, governanceY + GOVERNANCE_GAP_Y, {
+        kind: GraphNodeKind.Memory,
+        nodeName: 'Session Memory',
+        roleName: 'Retriever',
+        detail: 'Execution retrieval and evidence packaging',
+        memoryScope: MemoryScope.Session,
+        memoryPolicy: schema.memory_policy,
+        accent: 'var(--memory-accent)',
+      }),
+    );
+
+    edges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
+    edges.push(createEdge('discussion-memory-session', DISCUSSION_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
   }
 
   if (schema.discussion_policy.supervisor_agent_id !== undefined) {
@@ -133,7 +166,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { readonly nodes: Workfl
     const hasSupervisorNode = nodes.some((node) => node.id === supervisorNodeId);
 
     if (hasSupervisorNode) {
-      edges.push(createEdge('discussion-supervisor', DISCUSSION_NODE_ID, supervisorNodeId, 'supervisor', true));
+      edges.push(createEdge('discussion-supervisor', DISCUSSION_NODE_ID, supervisorNodeId, 'supervisor', SchemaEdgeTone.Governance, true));
     }
   }
 

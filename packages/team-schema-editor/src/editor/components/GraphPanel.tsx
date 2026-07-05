@@ -1,27 +1,51 @@
-import { useState, type ReactElement } from 'react';
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
-import { Background, Controls, MiniMap, ReactFlow } from '@xyflow/react';
-import type { Connection, Edge, NodeTypes, OnNodesChange } from '@xyflow/react';
+import { useMemo, type ReactElement, type ReactNode } from 'react';
+import { Box } from '@mui/material';
+import type { Connection, Edge, EdgeTypes, NodeTypes, OnEdgesChange, OnNodesChange } from '@xyflow/react';
 
-import type { EditorMode, TeamSchemaDocument, WorkflowEdgeMode, WorkflowGraphNode } from '../model/types';
+import { EditorMode, WorkflowEdgeMode, WorkflowEdgeType } from '../model/types';
+import type { TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
+import { SchemaRelationEdge } from '../customEdges/SchemaRelationEdge';
+import { WithAgentsEdge } from '../customEdges/WithAgents';
+import { WithDepartmentsEdge } from '../customEdges/WithDepartments';
+import { WithDepartmentsAndDiscussEdge } from '../customEdges/WithDepartmentsAndDiscuss';
 import { WorkflowNode } from './WorkflowNode';
+import { EdgeConnectionSnackbar } from './graphPanel/EdgeConnectionSnackbar';
+import { GraphPanelHeader } from './graphPanel/GraphPanelHeader';
+import { LinkModeDialog } from './graphPanel/LinkModeDialog';
+import { WorkflowCanvas } from './graphPanel/WorkflowCanvas';
+import { WorkflowPalettePanel } from './graphPanel/WorkflowPalettePanel';
+import { useGraphPanelActions } from './graphPanel/hooks/useGraphPanelActions';
+import { GraphPanelProvider } from './graphPanel/hooks/useGraphPanelContext';
+import { useGraphPanelUiState } from './graphPanel/hooks/useGraphPanelUiState';
 
 const nodeTypes: NodeTypes = {
   workflow: WorkflowNode,
 };
 
+const edgeTypes: EdgeTypes = {
+  [WorkflowEdgeType.SchemaRelation]: SchemaRelationEdge,
+  [WorkflowEdgeType.DiscussAgents]: WithAgentsEdge,
+  [WorkflowEdgeType.DiscussBroadcast]: WithDepartmentsAndDiscussEdge,
+  [WorkflowEdgeType.PipelineHandoff]: WithDepartmentsEdge,
+};
+
 type GraphPanelProps = {
-  readonly schema: TeamSchemaDocument;
-  readonly mode: EditorMode;
-  readonly nodes: WorkflowGraphNode[];
-  readonly edges: Edge[];
-  readonly selectedWorkflowAgentId: string;
-  readonly onNodesChange: OnNodesChange<WorkflowGraphNode>;
-  readonly onNodeSelect: (nodeId: string | null) => void;
-  readonly onWorkflowAgentChange: (agentId: string) => void;
-  readonly onAddWorkflowAgentNode: (agentId: string) => void;
-  readonly onAddWorkflowPartNode: () => void;
-  readonly onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
+  schema: TeamSchemaDocument;
+  mode: EditorMode;
+  nodes: WorkflowGraphNode[];
+  edges: Edge[];
+  edgeConnectionError: string | null;
+  onNodesChange: OnNodesChange<WorkflowGraphNode>;
+  onEdgesChange: OnEdgesChange<Edge>;
+  onNodeSelect: (nodeId: string | null) => void;
+  onAddWorkflowAgentNode: () => void;
+  onAddWorkflowPartNode: () => void;
+  onAddWorkflowPipelineNode: () => void;
+  onWorkflowConnect: (connection: Connection, mode: WorkflowEdgeMode) => void;
+  onClearEdgeConnectionError: () => void;
+  highlightedNodeIds?: readonly string[];
+  highlightedEdgeIds?: readonly string[];
+  inspectorPanel?: ReactNode;
 };
 
 export const GraphPanel = ({
@@ -29,115 +53,192 @@ export const GraphPanel = ({
   mode,
   nodes,
   edges,
-  selectedWorkflowAgentId,
+  edgeConnectionError,
   onNodesChange,
+  onEdgesChange,
   onNodeSelect,
-  onWorkflowAgentChange,
   onAddWorkflowAgentNode,
   onAddWorkflowPartNode,
+  onAddWorkflowPipelineNode,
   onWorkflowConnect,
+  onClearEdgeConnectionError,
+  highlightedNodeIds = [],
+  highlightedEdgeIds = [],
+  inspectorPanel,
 }: GraphPanelProps): ReactElement => {
-  const [pendingConnection, setPendingConnection] = useState<Connection | null>(null);
-  const isEditing = mode === 'edit';
-  const firstAgentId = schema.agents[0]?.agent_id ?? '';
-  const selectedWorkflowAgentExists = schema.agents.some((agent) => agent.agent_id === selectedWorkflowAgentId);
-  const activeWorkflowAgentId = selectedWorkflowAgentExists ? selectedWorkflowAgentId : firstAgentId;
-  const hasSelectedAgent = activeWorkflowAgentId.length > 0 && schema.agents.some((agent) => agent.agent_id === activeWorkflowAgentId);
-  const agentOptions = schema.agents.map((agent) => (
-    <MenuItem key={agent.agent_id} value={agent.agent_id}>
-      {agent.metadata?.name ?? agent.agent_id}
-    </MenuItem>
-  ));
-  const handleConnect = (connection: Connection): void => {
-    if (!isEditing) {
-      return;
+  const {
+    pendingConnection,
+    linkSourceId,
+    linkTargetId,
+    linkMode,
+    updatePendingConnection,
+    updateLinkSourceId,
+    updateLinkTargetId,
+    updateLinkMode,
+  } = useGraphPanelUiState();
+  const isEditing = mode === EditorMode.Edit;
+  const hasRuntimeHighlights = !isEditing && (highlightedNodeIds.length > 0 || highlightedEdgeIds.length > 0);
+  const highlightedNodeIdSet = useMemo(() => new Set(highlightedNodeIds), [highlightedNodeIds]);
+  const highlightedEdgeIdSet = useMemo(() => new Set(highlightedEdgeIds), [highlightedEdgeIds]);
+  const graphNodes = useMemo(() => nodes.map((node) => {
+    const runtimeHighlighted = highlightedNodeIdSet.has(node.id);
+    const runtimeDimmed = hasRuntimeHighlights && !runtimeHighlighted;
+
+    if (node.data.runtimeHighlighted === runtimeHighlighted && node.data.runtimeDimmed === runtimeDimmed) {
+      return node;
     }
 
-    setPendingConnection(connection);
-  };
-  const handleConnectionModeSelect = (connectionMode: WorkflowEdgeMode): void => {
-    if (pendingConnection !== null) {
-      onWorkflowConnect(pendingConnection, connectionMode);
+    return {
+      ...node,
+      data: {
+        ...node.data,
+        runtimeHighlighted,
+        runtimeDimmed,
+      },
+    };
+  }), [hasRuntimeHighlights, highlightedNodeIdSet, nodes]);
+  const graphEdges = useMemo(() => edges.map((edge) => {
+    const runtimeHighlighted = highlightedEdgeIdSet.has(edge.id);
+    const runtimeDimmed = hasRuntimeHighlights && !runtimeHighlighted;
+    const currentData = (edge.data as Record<string, unknown> | undefined) ?? {};
+
+    if (currentData.runtimeHighlighted === runtimeHighlighted && currentData.runtimeDimmed === runtimeDimmed) {
+      return edge;
     }
 
-    setPendingConnection(null);
-  };
+    return {
+      ...edge,
+      data: {
+        ...currentData,
+        runtimeHighlighted,
+        runtimeDimmed,
+      },
+    };
+  }), [edges, hasRuntimeHighlights, highlightedEdgeIdSet]);
+  const hasInspectorPanel = isEditing && inspectorPanel !== undefined && inspectorPanel !== null;
+  const workflowDraftNodeCount = graphNodes.filter((node) => node.data.workflowNodeType !== undefined).length;
+  const {
+    onConnect,
+    onCreateEdge,
+    onDialogClose,
+    onSelectConnectionMode,
+    onWorkflowEditorKeyDown,
+    isTextInputTarget,
+  } = useGraphPanelActions({
+    isEditing,
+    nodes: graphNodes,
+    edges: graphEdges,
+    pendingConnection,
+    linkSourceId,
+    linkTargetId,
+    linkMode,
+    onNodesChange,
+    onEdgesChange,
+    onWorkflowConnect,
+    updatePendingConnection,
+    updateLinkSourceId,
+    updateLinkTargetId,
+  });
+
+  const contextValue = useMemo(() => ({
+    isEditing,
+    nodes: graphNodes,
+    edges: graphEdges,
+    linkSourceId,
+    linkTargetId,
+    linkMode,
+    pendingConnection,
+    edgeConnectionError,
+    onNodesChange,
+    onEdgesChange,
+    onNodeSelect,
+    onAddWorkflowAgentNode,
+    onAddWorkflowPartNode,
+    onAddWorkflowPipelineNode,
+    onLinkSourceIdChange: updateLinkSourceId,
+    onLinkTargetIdChange: updateLinkTargetId,
+    onLinkModeChange: updateLinkMode,
+    onConnect,
+    onCreateEdge,
+    onWorkflowEditorKeyDown,
+    isTextInputTarget,
+    onDialogClose,
+    onSelectConnectionMode,
+    onClearEdgeConnectionError,
+  }), [
+    edgeConnectionError,
+    graphEdges,
+    graphNodes,
+    isEditing,
+    isTextInputTarget,
+    linkMode,
+    linkSourceId,
+    linkTargetId,
+    onAddWorkflowAgentNode,
+    onAddWorkflowPartNode,
+    onAddWorkflowPipelineNode,
+    onClearEdgeConnectionError,
+    onConnect,
+    onCreateEdge,
+    onDialogClose,
+    onEdgesChange,
+    onNodeSelect,
+    onNodesChange,
+    onSelectConnectionMode,
+    onWorkflowEditorKeyDown,
+    pendingConnection,
+    updateLinkMode,
+    updateLinkSourceId,
+    updateLinkTargetId,
+  ]);
 
   return (
-    <Paper sx={{ p: 2.25, minHeight: 640 }}>
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', gap: 2, mb: 2 }}>
-        <Stack spacing={0.75}>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
-            Graph
-          </Typography>
-          <Typography variant="h5">{schema.team_name ?? schema.team_id}</Typography>
-        </Stack>
-        {isEditing ? (
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' }, maxWidth: 520 }}>
-            <TextField
-              select
-              size="small"
-              label="Workflow agent"
-              value={activeWorkflowAgentId}
-              onChange={(event) => onWorkflowAgentChange(event.target.value)}
-              sx={{ minWidth: 220 }}
-            >
-              {agentOptions}
-            </TextField>
-            <Button variant="outlined" color="secondary" onClick={() => onAddWorkflowAgentNode(activeWorkflowAgentId)} disabled={!hasSelectedAgent}>
-              Add Agent Node
-            </Button>
-            <Button variant="contained" color="secondary" onClick={onAddWorkflowPartNode}>
-              Add Part Node
-            </Button>
-          </Box>
-        ) : (
-          <Typography color="text.secondary" sx={{ maxWidth: 420, lineHeight: 1.5 }}>
-            Execution view is locked to the selected Team Schema.
-          </Typography>
-        )}
-      </Box>
+    <GraphPanelProvider value={contextValue}>
+      <Box sx={{ flex: '1 1 auto', minHeight: { xs: 640, xl: 'calc(100vh - 84px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <GraphPanelHeader
+          teamName={schema.team_name ?? schema.team_id}
+          departmentCount={schema.departments.length}
+          agentCount={schema.agents.length}
+          linkCount={graphEdges.length}
+          draftNodeCount={workflowDraftNodeCount}
+        />
 
-      <Paper
-        variant="outlined"
-        sx={{
-          height: { xs: 460, md: 560 },
-          overflow: 'hidden',
-          borderRadius: 1,
-          borderColor: 'rgba(46, 61, 54, 0.08)',
-          bgcolor: 'rgba(255,255,255,0.45)',
-        }}
-      >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
-          onNodeClick={(_event, node) => onNodeSelect(node.id)}
-          onConnect={handleConnect}
-          nodesConnectable={isEditing}
-          nodesDraggable={isEditing}
-          fitView
+        <Box
+          sx={{
+            flex: '1 1 auto',
+            minHeight: 0,
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              lg: hasInspectorPanel ? '260px minmax(0, 1fr) minmax(320px, 0.52fr)' : isEditing ? '260px minmax(0, 1fr)' : '1fr',
+            },
+            bgcolor: '#eef2f6',
+          }}
         >
-          <MiniMap pannable zoomable />
-          <Controls />
-          <Background gap={20} size={1} />
-        </ReactFlow>
-      </Paper>
+          {isEditing ? <WorkflowPalettePanel /> : null}
 
-      <Dialog open={pendingConnection !== null} onClose={() => setPendingConnection(null)} fullWidth maxWidth="xs">
-        <DialogTitle>Choose link mode</DialogTitle>
-        <DialogContent>
-          <Typography color="text.secondary" sx={{ lineHeight: 1.5 }}>
-            Discuss links use two arrowheads. Pipeline links use one arrowhead.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPendingConnection(null)}>Cancel</Button>
-          <Button color="secondary" onClick={() => handleConnectionModeSelect('discuss')}>Discuss</Button>
-          <Button variant="contained" color="secondary" onClick={() => handleConnectionModeSelect('pipeline')}>Pipeline</Button>
-        </DialogActions>
-      </Dialog>
-    </Paper>
+          <WorkflowCanvas nodeTypes={nodeTypes} edgeTypes={edgeTypes} />
+
+          {hasInspectorPanel ? (
+            <Box
+              sx={{
+                minWidth: 0,
+                minHeight: 0,
+                overflow: 'auto',
+                borderLeft: { xs: 0, lg: '1px solid #d7dde5' },
+                borderTop: { xs: '1px solid #d7dde5', lg: 0 },
+                bgcolor: '#fbfcfe',
+              }}
+            >
+              {inspectorPanel}
+            </Box>
+          ) : null}
+        </Box>
+
+        <LinkModeDialog />
+
+        <EdgeConnectionSnackbar />
+      </Box>
+    </GraphPanelProvider>
   );
 };

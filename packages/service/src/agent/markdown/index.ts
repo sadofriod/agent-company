@@ -13,6 +13,7 @@ export {
 } from './localFileService';
 export { createAgentMarkdownFileSummary } from './summary';
 export { fail, markdownIssue, ok } from './result';
+export { AgentMarkdownWriteMode } from './types';
 export type {
   AgentMarkdownDeleteResponse,
   AgentMarkdownFile,
@@ -23,7 +24,6 @@ export type {
   AgentMarkdownListResponse,
   AgentMarkdownValidationDetails,
   AgentMarkdownValidationResponse,
-  AgentMarkdownWriteMode,
 } from './types';
 export type {
   NormalizedAgentMarkdownPath,

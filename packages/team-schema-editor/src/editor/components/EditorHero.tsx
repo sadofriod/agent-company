@@ -1,34 +1,30 @@
 import type { MouseEvent, ReactElement } from 'react';
-import { Box, Button, Chip, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { BrainCog, Cpu, FileText, Pencil, Play, RefreshCw, RotateCw, Save, ServerCog, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 
 import type { EditorMode } from '../model/types';
-import type { SchemaLoadStatus } from '../state/core/editorShared';
-
-const schemaStatusLabels: Record<SchemaLoadStatus, string> = {
-  idle: 'Schema idle',
-  loading: 'Loading schema',
-  ready: 'Schema loaded',
-  error: 'Schema error',
-};
+import { SchemaLoadStatus } from '../state/core/editorShared';
+import { SchemaServiceStatus } from '../hooks/helper/teamEditor.types';
 
 type EditorHeroProps = {
-  readonly mode: EditorMode;
-  readonly addDepartment: () => void;
-  readonly reloadSchema: () => void;
-  readonly refreshSchemaRecords: () => void;
-  readonly validateSchema: () => void;
-  readonly saveSchema: () => void;
-  readonly deleteSchema: () => void;
-  readonly schemaLoadStatus: SchemaLoadStatus;
-  readonly schemaServiceStatus: 'idle' | 'loading' | 'saving' | 'deleting' | 'validating' | 'error';
-  readonly schemaServiceMessage: string | null;
-  readonly schemaServiceError: string | null;
-  readonly onModeChange: (mode: EditorMode) => void;
+  mode: EditorMode;
+  reloadSchema: () => void;
+  refreshSchemaRecords: () => void;
+  validateSchema: () => void;
+  saveSchema: () => void;
+  deleteSchema: () => void;
+  schemaLoadStatus: SchemaLoadStatus;
+  schemaServiceStatus: SchemaServiceStatus;
+  onModeChange: (mode: EditorMode) => void;
+  onOpenAgentMarkdown: () => void;
+  onOpenLlmGateway: () => void;
+  onOpenMcpServers: () => void;
+  onOpenTools: () => void;
+  onOpenSkills: () => void;
 };
 
 export const EditorHero = ({
   mode,
-  addDepartment,
   reloadSchema,
   refreshSchemaRecords,
   validateSchema,
@@ -36,13 +32,16 @@ export const EditorHero = ({
   deleteSchema,
   schemaLoadStatus,
   schemaServiceStatus,
-  schemaServiceMessage,
-  schemaServiceError,
   onModeChange,
+  onOpenAgentMarkdown,
+  onOpenLlmGateway,
+  onOpenMcpServers,
+  onOpenTools,
+  onOpenSkills,
 }: EditorHeroProps): ReactElement => {
-  const isSchemaReady = schemaLoadStatus === 'ready';
-  const isSchemaLoading = schemaLoadStatus === 'loading';
-  const isBusy = schemaServiceStatus !== 'idle';
+  const isSchemaReady = schemaLoadStatus === SchemaLoadStatus.Ready;
+  const isSchemaLoading = schemaLoadStatus === SchemaLoadStatus.Loading;
+  const isBusy = schemaServiceStatus !== SchemaServiceStatus.Idle;
   const handleModeChange = (_event: MouseEvent<HTMLElement>, nextMode: EditorMode | null): void => {
     if (nextMode !== null) {
       onModeChange(nextMode);
@@ -50,49 +49,90 @@ export const EditorHero = ({
   };
 
   return (
-    <Paper
-      sx={{
-        display: 'flex',
-        alignItems: { xs: 'flex-start', md: 'flex-end' },
-        justifyContent: 'space-between',
-        flexDirection: { xs: 'column', md: 'row' },
-        gap: 3,
-        p: { xs: 2.75, md: 4 },
-      }}
-    >
-      <Stack spacing={1}>
-        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
-          React Flow Team Schema Editor
-        </Typography>
-        <Typography variant="h1" sx={{ fontSize: { xs: '2rem', md: '3.6rem' }, maxWidth: 720 }}>
-          Build Team Schemas, edit workflows and run them.
-        </Typography>
-        <Box>
-          <Chip label={schemaStatusLabels[schemaLoadStatus]} color={schemaLoadStatus === 'error' ? 'error' : 'secondary'} variant="outlined" />
-        </Box>
-      </Stack>
-      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-        <ToggleButtonGroup value={mode} exclusive onChange={handleModeChange} size="small" color="secondary" aria-label="Editor mode">
-          <ToggleButton value="edit">Edit</ToggleButton>
-          <ToggleButton value="run">Run</ToggleButton>
-        </ToggleButtonGroup>
-        <Button variant="contained" onClick={addDepartment} disabled={!isSchemaReady || mode !== 'edit'}>Add Department</Button>
-        <Button variant="outlined" color="secondary" onClick={reloadSchema} disabled={isSchemaLoading}>Reload Schema</Button>
-        <Button variant="outlined" color="secondary" onClick={refreshSchemaRecords} disabled={isBusy}>Refresh Schemas</Button>
-        <Button variant="outlined" color="secondary" onClick={validateSchema} disabled={!isSchemaReady || isBusy}>Validate</Button>
-        <Button variant="contained" color="secondary" onClick={saveSchema} disabled={!isSchemaReady || isBusy}>Save</Button>
-        <Button variant="outlined" color="error" onClick={deleteSchema} disabled={!isSchemaReady || isBusy}>Delete</Button>
-      </Box>
-      {schemaServiceMessage === null ? null : (
-        <Typography color="text.secondary" sx={{ width: '100%', textAlign: { xs: 'left', md: 'right' } }}>
-          {schemaServiceMessage}
-        </Typography>
-      )}
-      {schemaServiceError === null ? null : (
-        <Typography color="error" sx={{ width: '100%', whiteSpace: 'pre-wrap', textAlign: { xs: 'left', md: 'right' } }}>
-          {schemaServiceError}
-        </Typography>
-      )}
-    </Paper>
+    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
+      <ToggleButtonGroup value={mode} exclusive onChange={handleModeChange} size="small" color="secondary" aria-label="Editor mode">
+        <Tooltip title="Edit mode">
+          <ToggleButton value="edit" aria-label="Edit mode">
+            <Pencil size={17} />
+          </ToggleButton>
+        </Tooltip>
+        <Tooltip title="Run mode">
+          <ToggleButton value="run" aria-label="Run mode">
+            <Play size={17} />
+          </ToggleButton>
+        </Tooltip>
+      </ToggleButtonGroup>
+
+      <Tooltip title="Agent markdown">
+        <span>
+          <IconButton color="secondary" onClick={onOpenAgentMarkdown} aria-label="Agent markdown">
+            <FileText size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="LLM gateway">
+        <span>
+          <IconButton color="secondary" onClick={onOpenLlmGateway} aria-label="LLM gateway">
+            <Cpu size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="MCP servers">
+        <span>
+          <IconButton color="secondary" onClick={onOpenMcpServers} aria-label="MCP servers">
+            <ServerCog size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Tools">
+        <span>
+          <IconButton color="secondary" onClick={onOpenTools} aria-label="Tools">
+            <Wrench size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Skills">
+        <span>
+          <IconButton color="secondary" onClick={onOpenSkills} aria-label="Skills">
+            <BrainCog size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Reload workspace">
+        <span>
+          <IconButton color="secondary" onClick={reloadSchema} disabled={isSchemaLoading} aria-label="Reload workspace">
+            <RefreshCw size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Refresh workspace list">
+        <span>
+          <IconButton color="secondary" onClick={refreshSchemaRecords} disabled={isBusy} aria-label="Refresh workspace list">
+            <RotateCw size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Validate schema">
+        <span>
+          <IconButton color="secondary" onClick={validateSchema} disabled={!isSchemaReady || isBusy} aria-label="Validate schema">
+            <ShieldCheck size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Save workspace">
+        <span>
+          <IconButton color="primary" onClick={saveSchema} disabled={!isSchemaReady || isBusy} aria-label="Save workspace">
+            <Save size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Delete workspace">
+        <span>
+          <IconButton color="error" onClick={deleteSchema} disabled={!isSchemaReady || isBusy} aria-label="Delete workspace">
+            <Trash2 size={18} />
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Box>
   );
 };

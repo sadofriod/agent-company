@@ -1,46 +1,101 @@
 import type { ReactElement } from 'react';
-import { Paper, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography } from '@mui/material';
 
 import { AgentSelectionView } from './selection/AgentSelectionView';
 import { DepartmentSelectionView } from './selection/DepartmentSelectionView';
 import { DiscussionSelectionView } from './selection/DiscussionSelectionView';
 import { MemoryPolicyView } from './selection/MemoryPolicyView';
-import { PipelinePolicyView } from './selection/PipelinePolicyView';
-import { ReviewPolicyView } from './selection/ReviewPolicyView';
 import { TeamSelectionView } from './selection/TeamSelectionView';
-import type { Selection, TeamSchemaDocument } from '../model/types';
+import { WorkflowNodeSelectionView } from './selection/WorkflowNodeSelectionView';
+import type { AgentLlmDocument, Selection, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
 import { useSelectionForm } from './selection/useSelectionForm';
+import type {
+  AgentField,
+  AgentListField,
+  AgentMetadataField,
+  AgentMetadataListField,
+  DepartmentField,
+  DepartmentListField,
+  DiscussionField,
+  MemoryPolicyField,
+  MemoryPolicyListField,
+  MemoryRetrievalProfileBooleanField,
+  MemoryRetrievalProfileField,
+  MemoryRetrievalProfileListField,
+  MemoryRetrievalProfileNumberField,
+  SchemaField,
+} from '../state/core/editorShared';
+import type { WorkflowMetadataField } from '../hooks/helper/teamEditor.types';
+
+const inspectorPanelSx = {
+  p: 1.5,
+  minHeight: { xs: 'auto', lg: '100%' },
+  maxHeight: { xs: 'none', lg: 'calc(100vh - 130px)' },
+  overflowY: 'auto',
+  boxSizing: 'border-box',
+} as const;
+const inspectorKickerSx = { letterSpacing: 0 } as const;
 
 type SelectionPanelProps = {
-  readonly schema: TeamSchemaDocument;
-  readonly selection: Selection;
-  readonly addDepartment: () => void;
-  readonly removeDepartment: (departmentId: string) => void;
-  readonly addAgent: (departmentId: string) => void;
-  readonly removeAgent: (agentId: string) => void;
-  readonly updateTeamField: (field: 'team_name' | 'team_id' | 'schema_version', value: string) => void;
-  readonly updateDepartmentField: (departmentId: string, field: 'name' | 'mission', value: string) => void;
-  readonly updateDepartmentList: (departmentId: string, field: 'decision_scope' | 'handoff_contracts', value: string) => void;
-  readonly updateAgentField: (agentId: string, field: 'role' | 'model' | 'description', value: string) => void;
-  readonly updateAgentList: (agentId: string, field: 'responsibilities' | 'skills' | 'tools' | 'mcp_servers', value: string) => void;
-  readonly updateDiscussionField: (field: 'mode' | 'conflict_resolution' | 'supervisor_agent_id', value: string) => void;
-  readonly updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
+  schema: TeamSchemaDocument;
+  nodes: WorkflowGraphNode[];
+  selection: Selection;
+  addDepartment: () => void;
+  removeDepartment: (departmentId: string) => void;
+  addAgent: (departmentId: string) => void;
+  removeAgent: (agentId: string) => void;
+  updateWorkflowAgentNode: (nodeId: string, agentId: string) => void;
+  updateWorkflowNodeMetadata: (nodeId: string, field: WorkflowMetadataField, value: string) => void;
+  removeWorkflowDraftNode: (nodeId: string) => void;
+  updateTeamField: (field: SchemaField, value: string) => void;
+  updateDepartmentField: (departmentId: string, field: DepartmentField, value: string) => void;
+  updateDepartmentList: (departmentId: string, field: DepartmentListField, value: string) => void;
+  updateAgentField: (agentId: string, field: AgentField, value: string) => void;
+  updateAgentLlmBinding: (agentId: string, llm: AgentLlmDocument | null) => void;
+  updateAgentList: (agentId: string, field: AgentListField, value: string) => void;
+  updateAgentMetadataField: (agentId: string, field: AgentMetadataField, value: string) => void;
+  updateAgentMetadataList: (agentId: string, field: AgentMetadataListField, value: string) => void;
+  updateDiscussionField: (field: DiscussionField, value: string) => void;
+  updateDiscussionNumber: (field: 'max_rounds', value: number) => void;
+  updateMemoryPolicyField: (field: MemoryPolicyField, value: string) => void;
+  updateMemoryPolicyList: (field: MemoryPolicyListField, value: string) => void;
+  addMemoryRetrievalProfile: () => void;
+  removeMemoryRetrievalProfile: (profileId: string) => void;
+  updateMemoryRetrievalProfileField: (profileId: string, field: MemoryRetrievalProfileField, value: string) => void;
+  updateMemoryRetrievalProfileList: (profileId: string, field: MemoryRetrievalProfileListField, value: string) => void;
+  updateMemoryRetrievalProfileNumber: (profileId: string, field: MemoryRetrievalProfileNumberField, value: number) => void;
+  updateMemoryRetrievalProfileBoolean: (profileId: string, field: MemoryRetrievalProfileBooleanField, value: boolean) => void;
 };
 
 export const SelectionPanel = ({
   schema,
+  nodes,
   selection,
   addDepartment,
   removeDepartment,
   addAgent,
   removeAgent,
+  updateWorkflowAgentNode,
+  updateWorkflowNodeMetadata,
+  removeWorkflowDraftNode,
   updateTeamField,
   updateDepartmentField,
   updateDepartmentList,
   updateAgentField,
+  updateAgentLlmBinding,
   updateAgentList,
+  updateAgentMetadataField,
+  updateAgentMetadataList,
   updateDiscussionField,
   updateDiscussionNumber,
+  updateMemoryPolicyField,
+  updateMemoryPolicyList,
+  addMemoryRetrievalProfile,
+  removeMemoryRetrievalProfile,
+  updateMemoryRetrievalProfileField,
+  updateMemoryRetrievalProfileList,
+  updateMemoryRetrievalProfileNumber,
+  updateMemoryRetrievalProfileBoolean,
 }: SelectionPanelProps): ReactElement => {
   const form = useSelectionForm(schema, selection);
 
@@ -50,40 +105,43 @@ export const SelectionPanel = ({
   const agent = selection.kind === 'agent'
     ? schema.agents.find((candidate) => candidate.agent_id === selection.agentId)
     : undefined;
+  const workflowNode = selection.kind === 'workflowNode'
+    ? nodes.find((candidate) => candidate.id === selection.nodeId)
+    : undefined;
 
   if (selection.kind === 'team') {
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
           </Stack>
           <TeamSelectionView form={form} addDepartment={addDepartment} updateTeamField={updateTeamField} />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'department') {
     if (department === undefined) {
       return (
-        <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-          <Stack spacing={2}>
-            <Typography variant="h5">Department</Typography>
+        <Box sx={inspectorPanelSx}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Department</Typography>
             <Typography color="text.secondary">Department not found.</Typography>
           </Stack>
-        </Paper>
+        </Box>
       );
     }
 
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -91,33 +149,34 @@ export const SelectionPanel = ({
           <DepartmentSelectionView
             form={form}
             department={department}
+            schema={schema}
             addAgent={addAgent}
             removeDepartment={removeDepartment}
             updateDepartmentField={updateDepartmentField}
             updateDepartmentList={updateDepartmentList}
           />
         </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   if (selection.kind === 'agent') {
     if (agent === undefined) {
       return (
-        <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-          <Stack spacing={2}>
-            <Typography variant="h5">Agent</Typography>
+        <Box sx={inspectorPanelSx}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Agent</Typography>
             <Typography color="text.secondary">Agent not found.</Typography>
           </Stack>
-        </Paper>
+        </Box>
       );
     }
 
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
@@ -125,78 +184,104 @@ export const SelectionPanel = ({
           <AgentSelectionView
             form={form}
             agent={agent}
+            schema={schema}
             removeAgent={removeAgent}
             updateAgentField={updateAgentField}
             updateAgentList={updateAgentList}
           />
         </Stack>
-      </Paper>
+      </Box>
+    );
+  }
+
+  if (selection.kind === 'workflowNode') {
+    if (workflowNode === undefined) {
+      return (
+        <Box sx={inspectorPanelSx}>
+          <Stack spacing={1.5}>
+            <Typography variant="h6">Workflow Node</Typography>
+            <Typography color="text.secondary">Workflow node not found.</Typography>
+          </Stack>
+        </Box>
+      );
+    }
+
+    return (
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
+              Inspector
+            </Typography>
+            <Typography variant="h5">Workflow Node</Typography>
+          </Stack>
+          <WorkflowNodeSelectionView
+            schema={schema}
+            workflowNode={workflowNode}
+            updateWorkflowAgentNode={updateWorkflowAgentNode}
+            updateWorkflowNodeMetadata={updateWorkflowNodeMetadata}
+            removeWorkflowDraftNode={removeWorkflowDraftNode}
+            updateAgentField={updateAgentField}
+            updateAgentLlmBinding={updateAgentLlmBinding}
+            updateAgentList={updateAgentList}
+            updateAgentMetadataField={updateAgentMetadataField}
+            updateAgentMetadataList={updateAgentMetadataList}
+            updateMemoryPolicyField={updateMemoryPolicyField}
+            updateMemoryPolicyList={updateMemoryPolicyList}
+            addMemoryRetrievalProfile={addMemoryRetrievalProfile}
+            removeMemoryRetrievalProfile={removeMemoryRetrievalProfile}
+            updateMemoryRetrievalProfileField={updateMemoryRetrievalProfileField}
+            updateMemoryRetrievalProfileList={updateMemoryRetrievalProfileList}
+            updateMemoryRetrievalProfileNumber={updateMemoryRetrievalProfileNumber}
+            updateMemoryRetrievalProfileBoolean={updateMemoryRetrievalProfileBoolean}
+          />
+        </Stack>
+      </Box>
     );
   }
 
   if (selection.kind === 'discussion') {
     return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+      <Box sx={inspectorPanelSx}>
+        <Stack spacing={1.5}>
+          <Stack spacing={0.5}>
+            <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
               Inspector
             </Typography>
             <Typography variant="h5">Selection</Typography>
           </Stack>
           <DiscussionSelectionView
             form={form}
+            schema={schema}
             updateDiscussionField={updateDiscussionField}
             updateDiscussionNumber={updateDiscussionNumber}
           />
         </Stack>
-      </Paper>
-    );
-  }
-
-  if (selection.kind === 'pipeline') {
-    return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
-              Inspector
-            </Typography>
-            <Typography variant="h5">Selection</Typography>
-          </Stack>
-          <PipelinePolicyView />
-        </Stack>
-      </Paper>
-    );
-  }
-
-  if (selection.kind === 'review') {
-    return (
-      <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-        <Stack spacing={2}>
-          <Stack spacing={0.75}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
-              Inspector
-            </Typography>
-            <Typography variant="h5">Selection</Typography>
-          </Stack>
-          <ReviewPolicyView schema={schema} />
-        </Stack>
-      </Paper>
+      </Box>
     );
   }
 
   return (
-    <Paper sx={{ p: 2.25, minHeight: { xs: 'auto', xl: 900 } }}>
-      <Stack spacing={2}>
-        <Stack spacing={0.75}>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.18em' }}>
+    <Box sx={inspectorPanelSx}>
+      <Stack spacing={1.5}>
+        <Stack spacing={0.5}>
+          <Typography variant="overline" color="text.secondary" sx={inspectorKickerSx}>
             Inspector
           </Typography>
           <Typography variant="h5">Selection</Typography>
         </Stack>
-        <MemoryPolicyView schema={schema} />
+        <MemoryPolicyView
+          schema={schema}
+          updateMemoryPolicyField={updateMemoryPolicyField}
+          updateMemoryPolicyList={updateMemoryPolicyList}
+          addMemoryRetrievalProfile={addMemoryRetrievalProfile}
+          removeMemoryRetrievalProfile={removeMemoryRetrievalProfile}
+          updateMemoryRetrievalProfileField={updateMemoryRetrievalProfileField}
+          updateMemoryRetrievalProfileList={updateMemoryRetrievalProfileList}
+          updateMemoryRetrievalProfileNumber={updateMemoryRetrievalProfileNumber}
+          updateMemoryRetrievalProfileBoolean={updateMemoryRetrievalProfileBoolean}
+        />
       </Stack>
-    </Paper>
+    </Box>
   );
 };

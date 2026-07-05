@@ -1,7 +1,7 @@
 export type AgentMarkdownDraft = {
-  readonly path: string;
-  readonly content: string;
-  readonly updatedAt: string;
+  path: string;
+  content: string;
+  updatedAt: string;
 };
 
 const STORAGE_KEY = 'agents-team.agent-markdown-drafts.v1';
@@ -51,7 +51,7 @@ const writeDraftIndex = (drafts: Record<string, AgentMarkdownDraft>): void => {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
 };
 
-export const listAgentMarkdownDraftPaths = (): readonly string[] =>
+export const listAgentMarkdownDraftPaths = (): string[] =>
   Object.keys(readDraftIndex()).sort((leftPath, rightPath) => leftPath.localeCompare(rightPath));
 
 export const readAgentMarkdownDraft = (path: string): AgentMarkdownDraft | null => readDraftIndex()[path] ?? null;

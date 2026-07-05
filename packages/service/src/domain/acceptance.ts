@@ -27,8 +27,20 @@ export type PipelineFixture = {
   /** 对应的 Pipeline 标识。 */
   readonly pipelineId: string;
   /** 预期结果。 */
-  readonly expectedOutcome: ReviewStatus | 'capability_missing' | 'pipeline_cycle_detected';
+  readonly expectedOutcome: ReviewStatus | PipelineFixtureExpectedOutcome;
 };
+
+export enum PipelineFixtureExpectedOutcome {
+  CapabilityMissing = 'capability_missing',
+  PipelineCycleDetected = 'pipeline_cycle_detected',
+}
+
+export enum MemoryFixtureExpectedOutcome {
+  Retrieved = 'retrieved',
+  Filtered = 'filtered',
+  MemoryConflict = 'memory_conflict',
+  PromotionDenied = 'promotion_denied',
+}
 
 /**
  * 表示记忆模块测试夹具。
@@ -41,12 +53,19 @@ export type MemoryFixture = {
   /** 夹具包含的记忆对象。 */
   readonly objects: readonly MemoryObject[];
   /** 预期结果。 */
-  readonly expectedOutcome:
-    | 'retrieved'
-    | 'filtered'
-    | 'memory_conflict'
-    | 'promotion_denied';
+  readonly expectedOutcome: MemoryFixtureExpectedOutcome;
 };
+
+export enum ReleaseChecklistArea {
+  Organization = 'organization',
+  Discussion = 'discussion',
+  Pipeline = 'pipeline',
+  Capability = 'capability',
+  Memory = 'memory',
+  Review = 'review',
+  Runtime = 'runtime',
+  Acceptance = 'acceptance',
+}
 
 /**
  * 表示一条 MVP 验收场景定义。
@@ -67,15 +86,7 @@ export type AcceptanceScenario = {
  */
 export type ReleaseChecklistItem = {
   /** 检查项所属领域。 */
-  readonly area:
-    | 'organization'
-    | 'discussion'
-    | 'pipeline'
-    | 'capability'
-    | 'memory'
-    | 'review'
-    | 'runtime'
-    | 'acceptance';
+  readonly area: ReleaseChecklistArea;
   /** 检查项描述。 */
   readonly description: string;
   /** 是否为必须满足项。 */

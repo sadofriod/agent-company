@@ -1,17 +1,27 @@
-import type { ReactElement } from 'react';
-import { TextField } from '@mui/material';
+import { type ReactElement, type ReactNode } from 'react';
+import { MenuItem, TextField } from '@mui/material';
 import { Controller } from 'react-hook-form';
 import type { UseFormReturn } from 'react-hook-form';
 
 import type { SelectionFormValues } from './selectionFormValues';
 
-type SelectionFormFieldProps = {
-  readonly form: UseFormReturn<SelectionFormValues>;
-  readonly name: string;
-  readonly label: string;
-  readonly multiline?: boolean;
-  readonly type?: 'text' | 'number';
-  readonly onValueChange: (value: string) => void;
+export enum SelectionFieldType {
+  Text = 'text',
+  Number = 'number',
+}
+
+export type SelectionFormFieldProps = {
+  form: UseFormReturn<SelectionFormValues>;
+  name: string;
+  label: string;
+  multiline?: boolean;
+  type?: SelectionFieldType;
+  select?: boolean;
+  multiple?: boolean;
+  options?: readonly string[];
+  helperText?: string;
+  onValueChange: (value: string) => void;
+  children?: ReactNode;
 };
 
 export const SelectionFormField = ({
@@ -19,28 +29,62 @@ export const SelectionFormField = ({
   name,
   label,
   multiline = false,
-  type = 'text',
+  type = SelectionFieldType.Text,
+  select = false,
+  multiple = false,
+  options,
+  helperText,
   onValueChange,
+  children,
 }: SelectionFormFieldProps): ReactElement => {
   return (
     <Controller
       control={form.control}
       name={name}
-      render={({ field }) => (
-        <TextField
-          {...field}
-          fullWidth
-          label={label}
-          type={type}
-          multiline={multiline}
-          minRows={multiline ? 4 : undefined}
-          value={field.value ?? ''}
-          onChange={(event) => {
-            field.onChange(event.target.value);
-            onValueChange(event.target.value);
-          }}
-        />
-      )}
+      render={({ field }) => {
+        let value: unknown = field.value ?? '';
+        if (multiple && select) {
+          value = typeof value === 'string'
+            ? value.split('\n').filter((item) => item.trim().length > 0)
+            : [];
+        }
+        return (
+          <TextField
+            {...field}
+            fullWidth
+            select={select}
+            label={label}
+            type={type}
+            multiline={multiline && !select}
+            minRows={multiline && !select ? 3 : undefined}
+            value={value as string | number | readonly string[]}
+            helperText={helperText}
+            slotProps={{
+              select: {
+                multiple: multiple,
+              },
+            }}
+            onChange={(event) => {
+              let newValue = event.target.value;
+              if (multiple && Array.isArray(newValue)) {
+                newValue = newValue.join('\n');
+              }
+              field.onChange(newValue);
+              onValueChange(newValue as string);
+            }}
+          >
+            {children
+              ? children
+              : select
+                ? options?.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))
+                : null}
+          </TextField>
+        );
+      }}
     />
   );
 };

@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 
-import { loadTeamSchema } from '../../../../schema/loadTeamSchema';
+import { teamSchema } from '../../../../schema/teamDefinitionSchema';
 import { isStoredTeamSchemaMissing, readTeamSchemaDocument } from '../../../../schema/teamSchemaDocument';
 import { sendData, sendErrorResponse, sendValidationResult } from '../../../_shared/response';
 
@@ -31,13 +31,12 @@ const handler: RequestHandler = async (request, response): Promise<void> => {
 		return;
 	}
 
-	const validation = loadTeamSchema(storedSchema.value);
+	const parsedTeam = teamSchema.safeParse(storedSchema.value);
 
-	if (!validation.ok) {
-		sendValidationResult(response, validation, {
-			status: 500,
+	if (!parsedTeam.success) {
+		sendErrorResponse(response, 400, {
 			code: 'schema_invalid',
-			message: 'Stored team schema is invalid.',
+			message: 'Stored team schema document has invalid structure.',
 		});
 		return;
 	}

@@ -110,17 +110,20 @@ export type DiscussionTurn = {
   readonly evidenceRefs: readonly EvidenceRef[];
 };
 
+export enum DiscussionConflictKind {
+  OwnerConflict = 'owner_conflict',
+  BoundaryConflict = 'boundary_conflict',
+  DependencyConflict = 'dependency_conflict',
+  MemoryConflict = 'memory_conflict',
+  UnresolvedDecision = 'unresolved_decision',
+}
+
 /**
  * 描述讨论阶段识别出的结构性冲突。
  */
 export type DiscussionConflict = {
   /** 冲突类别。 */
-  readonly kind:
-    | 'owner_conflict'
-    | 'boundary_conflict'
-    | 'dependency_conflict'
-    | 'memory_conflict'
-    | 'unresolved_decision';
+  readonly kind: DiscussionConflictKind;
   /** 冲突摘要。 */
   readonly summary: string;
   /** 涉及的 Owner 部门集合。 */

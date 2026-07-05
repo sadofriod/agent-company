@@ -57,12 +57,19 @@ export type ValidationResult<TValue> =
       readonly issues: readonly SchemaIssue[];
     };
 
+export enum SourceRefKind {
+  Memory = 'memory',
+  Document = 'document',
+  AuditEvent = 'audit_event',
+  StructuredObject = 'structured_object',
+}
+
 /**
  * 统一表示外部文档、记忆或结构化对象的来源引用。
  */
 export type SourceRef = {
   /** 来源类型。 */
-  readonly kind: 'memory' | 'document' | 'audit_event' | 'structured_object';
+  readonly kind: SourceRefKind;
   /** 来源对象的唯一标识。 */
   readonly id: string;
   /** 面向日志或 UI 展示的标签。 */

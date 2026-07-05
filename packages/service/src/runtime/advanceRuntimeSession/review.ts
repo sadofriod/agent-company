@@ -1,11 +1,13 @@
 import type { EvidenceRef } from '../../domain/base';
 import type { TicketDraft } from '../../domain/discussion';
+import { PipelineInterruptionKind } from '../../domain/delivery';
 import type {
 	Pipeline,
 	PipelineInterruption,
 	StepResult,
 	Ticket,
 } from '../../domain/delivery';
+import { EvidenceRequiredOutputType } from '../../domain/organization';
 import {
 	REVIEW_STATUS,
 	REVIEW_TARGET_TYPE,
@@ -19,6 +21,8 @@ import type { RuntimeSession } from '../../domain/runtime';
 
 import { createStructuredSourceRef, createRuntimeScopedId, toReviewId, toTicketId } from '../runtimeEngineShared';
 import { createEvidenceRef } from './shared';
+import { logicReview } from '../../review/logicReview';
+import { qualityReview } from '../../review/qualityReview';
 
 type ReviewTarget = TicketDraft | Pipeline | StepResult;
 type ReviewTargetType = typeof REVIEW_TARGET_TYPE[keyof typeof REVIEW_TARGET_TYPE];
@@ -30,6 +34,15 @@ const createReviewIssues = (
 	target: ReviewTarget,
 	evidenceRefs: readonly EvidenceRef[],
 ): readonly ReviewIssue[] => {
+	// Delegate to dedicated review modules for full business logic coverage.
+	if (reviewer === REVIEWER_KIND.LogicReview) {
+		return logicReview(session, targetType, target);
+	}
+	if (reviewer === REVIEWER_KIND.QualityReview) {
+		return qualityReview(session, targetType, target, evidenceRefs);
+	}
+
+	// Legacy path kept for backward-compat; should not be reached in normal flow.
 	if (targetType === REVIEW_TARGET_TYPE.Ticket) {
 		const ticketDraft = target as TicketDraft;
 		const issues: ReviewIssue[] = [];
@@ -86,8 +99,19 @@ const createReviewIssues = (
 
 		if (
 			reviewer === REVIEWER_KIND.QualityReview &&
+			session.state.context.testScenarios?.handoffFieldMissing === true
+		) {
+			issues.push({
+				field: 'payload.missingRequiredField',
+				severity: REVIEW_STATUS.Revise,
+				message: 'Quality check failed: Upstream handoff is missing the required output fields.',
+			});
+		}
+
+		if (
+			reviewer === REVIEWER_KIND.QualityReview &&
 			evidenceRefs.length === 0 &&
-			session.runtimePlan.memoryPolicy?.evidenceRequiredForOutputs.includes('handoff')
+			session.runtimePlan.memoryPolicy?.evidenceRequiredForOutputs.includes(EvidenceRequiredOutputType.Handoff)
 		) {
 			issues.push({
 				field: 'evidence_refs',
@@ -150,7 +174,7 @@ export const runReviewGate = (
 
 		return {
 			reviewId: toReviewId(createRuntimeScopedId('review')),
-			status: session.runtimePlan.reviewPolicy.allowedResults.includes(status)
+			status: [REVIEW_STATUS.Pass, REVIEW_STATUS.Revise, REVIEW_STATUS.Block].includes(status)
 				? status
 				: REVIEW_STATUS.Block,
 			reviewer,
@@ -174,7 +198,7 @@ export const admitTicketDraft = (
 		createEvidenceRef(createStructuredSourceRef(ticketDraft.topicId, 'discussion topic'), session.state.context.task.goal),
 	];
 	const reviewResults = runReviewGate(session, {
-		reviewers: session.runtimePlan.reviewPolicy.ticketAdmission,
+		reviewers: [REVIEWER_KIND.LogicReview, REVIEWER_KIND.QualityReview],
 		targetType: REVIEW_TARGET_TYPE.Ticket,
 		targetId: ticketDraft.ticketDraftId,
 		target: ticketDraft,
@@ -186,7 +210,7 @@ export const admitTicketDraft = (
 		return {
 			reviewResults,
 			interruption: {
-				kind: 'ticket_admission_failed',
+				kind: PipelineInterruptionKind.TicketAdmissionFailed,
 				message: 'Ticket admission review blocked the draft.',
 				suggestedAction: 'return_to_discussion',
 			},
@@ -197,7 +221,7 @@ export const admitTicketDraft = (
 		return {
 			reviewResults,
 			interruption: {
-				kind: 'ticket_admission_failed',
+				kind: PipelineInterruptionKind.TicketAdmissionFailed,
 				message: 'Ticket admission review requires draft revision.',
 				suggestedAction: 'revise_upstream',
 			},

@@ -1,4 +1,5 @@
 import type { EvidenceRef, SchemaIssue, SourceRef } from '../../domain/base';
+import { PipelineInterruptionKind } from '../../domain/delivery';
 import type {
 	Pipeline,
 	PipelineInterruption,
@@ -16,6 +17,7 @@ import {
 	createIssue,
 	createTimestamp,
 } from '../runtimeEngineShared';
+import { RUNTIME_EVENT_TYPE } from '../../domain/runtimeEvent';
 
 export type RuntimeStatePatch = Partial<Omit<RuntimeState, 'context'>> & {
 	readonly context?: Partial<ExecutionContext>;
@@ -99,7 +101,7 @@ export const applyInterruption = (
 	interruption: PipelineInterruption,
 ): RuntimeSession => {
 	const shouldReturnToDiscussion =
-		interruption.kind === 'return_to_discussion' || interruption.kind === 'ticket_admission_failed';
+			interruption.kind === PipelineInterruptionKind.ReturnToDiscussion || interruption.kind === PipelineInterruptionKind.TicketAdmissionFailed;
 
 	return updateRuntimeSession(
 		session,
@@ -113,7 +115,7 @@ export const applyInterruption = (
 			},
 		},
 		{
-			eventType: 'runtime.interrupted',
+			eventType: RUNTIME_EVENT_TYPE.RuntimeInterrupted,
 			reason: interruption.message,
 			metadata: {
 				kind: interruption.kind,

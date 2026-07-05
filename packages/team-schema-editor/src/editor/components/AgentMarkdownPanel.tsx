@@ -1,12 +1,21 @@
 import type { ReactElement } from 'react';
-import { Alert, Box, Button, Chip, Divider, List, ListItemButton, ListItemText, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Chip, Divider, List, ListItemButton, ListItemText, Paper, Stack, TextField, Typography } from '@mui/material';
 
+import { useAgentMarkdownNotification } from '../hooks/useAgentMarkdownNotification';
 import { useAgentMarkdownEditor } from '../hooks/useAgentMarkdownEditor';
 
 const formatIssuePath = (path: readonly string[]): string => (path.length === 0 ? 'root' : path.join('.'));
 
 export const AgentMarkdownPanel = (): ReactElement => {
   const editor = useAgentMarkdownEditor();
+  useAgentMarkdownNotification({
+    status: editor.status,
+    message: editor.message,
+    error: editor.error,
+    selectedPath: editor.selectedPath,
+    validationIssueCount: editor.validationIssues.length,
+    currentFileIssueCount: editor.currentFileValidationIssues.length,
+  });
   const fileItems = editor.files.map((file) => {
     const hasDraft = editor.draftPaths.includes(file.path);
     const validationLabel = file.validation.ok ? 'Valid' : 'Issue';
@@ -62,9 +71,19 @@ export const AgentMarkdownPanel = (): ReactElement => {
         </Box>
       </Box>
 
-      {editor.error === null ? null : <Alert severity="error" sx={{ mb: 1.5 }}>{editor.error}</Alert>}
-      {editor.message === null ? null : <Alert severity="info" sx={{ mb: 1.5 }}>{editor.message}</Alert>}
-      {currentFileIssueItems.length === 0 ? null : <Alert severity="warning" sx={{ mb: 1.5 }}>{currentFileIssueItems}</Alert>}
+      {currentFileIssueItems.length === 0 ? null : (
+        <Box
+          sx={{
+            mb: 1.5,
+            border: (theme) => `1px solid ${theme.palette.warning.main}`,
+            borderRadius: 1.5,
+            p: 1.25,
+            backgroundColor: (theme) => theme.palette.warning.main.concat('14'),
+          }}
+        >
+          {currentFileIssueItems}
+        </Box>
+      )}
 
       <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', lg: 'minmax(220px, 0.38fr) minmax(0, 1fr)' } }}>
         <Box sx={{ minWidth: 0 }}>
@@ -107,7 +126,18 @@ export const AgentMarkdownPanel = (): ReactElement => {
             }}
           />
 
-          {validationIssueItems.length === 0 ? null : <Alert severity="error">{validationIssueItems}</Alert>}
+          {validationIssueItems.length === 0 ? null : (
+            <Box
+              sx={{
+                border: (theme) => `1px solid ${theme.palette.error.main}`,
+                borderRadius: 1.5,
+                p: 1.25,
+                backgroundColor: (theme) => theme.palette.error.main.concat('14'),
+              }}
+            >
+              {validationIssueItems}
+            </Box>
+          )}
 
           <Divider />
 

@@ -7,12 +7,11 @@ import type {
   AgentMetadata,
   Department,
   DiscussionPolicy,
+  EvidenceRequiredOutputType,
   MemoryPolicy,
   MemoryRetrievalProfile,
-  PipelinePolicy,
   TeamDefinition,
 } from '../domain/organization';
-import type { ReviewPolicy } from '../domain/review';
 import {
   conflictResolutionSchema,
   discussionModeSchema,
@@ -167,23 +166,6 @@ const discussionPolicySchema = z
     }),
   );
 
-const pipelinePolicySchema = z
-  .object({
-    one_pipeline_per_ticket: z.literal(true),
-    dag_required: z.literal(true),
-    step_owner_required: z.boolean(),
-    review_before_handoff: z.boolean(),
-  })
-  .strict()
-  .transform(
-    (value): PipelinePolicy => ({
-      onePipelinePerTicket: value.one_pipeline_per_ticket,
-      dagRequired: value.dag_required,
-      stepOwnerRequired: value.step_owner_required,
-      reviewBeforeHandoff: value.review_before_handoff,
-    }),
-  );
-
 const memoryRetrievalProfileSchema = z
   .object({
     profile_id: nonEmptyStringSchema,
@@ -221,25 +203,62 @@ const memoryPolicySchema = z
       graphStore: value.graph_store,
       indexedObjectTypes: value.indexed_object_types,
       retrievalProfiles: value.retrieval_profiles,
-      evidenceRequiredForOutputs: value.evidence_required_for_outputs,
+      evidenceRequiredForOutputs: value.evidence_required_for_outputs as readonly EvidenceRequiredOutputType[],
       conflictStrategy: value.conflict_strategy,
     }),
   );
 
-const reviewPolicySchema = z
+type JsonPrimitive = string | number | boolean | null;
+type JsonValue = JsonPrimitive | readonly JsonValue[] | { readonly [key: string]: JsonValue };
+
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() => z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.array(jsonValueSchema),
+  z.record(jsonValueSchema),
+]));
+
+const workflowLayoutPositionSchema = z
   .object({
-    ticket_admission: z.array(reviewerKindSchema).min(1),
-    step_completion: z.array(reviewerKindSchema).min(1),
-    allowed_results: z.array(reviewStatusSchema),
+    x: z.number(),
+    y: z.number(),
   })
-  .strict()
-  .transform(
-    (value): ReviewPolicy => ({
-      ticketAdmission: value.ticket_admission,
-      stepCompletion: value.step_completion,
-      allowedResults: value.allowed_results,
-    }),
-  );
+  .strict();
+
+const workflowLayoutNodeSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    type: nonEmptyStringSchema.optional(),
+    position: workflowLayoutPositionSchema,
+    data: z.record(jsonValueSchema).optional(),
+    style: z.record(jsonValueSchema).optional(),
+  })
+  .strict();
+
+const workflowLayoutEdgeSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    source: nonEmptyStringSchema,
+    target: nonEmptyStringSchema,
+    sourceHandle: z.string().nullable().optional(),
+    targetHandle: z.string().nullable().optional(),
+    type: nonEmptyStringSchema.optional(),
+    animated: z.boolean().optional(),
+    data: z.record(jsonValueSchema).optional(),
+    markerStart: jsonValueSchema.optional(),
+    markerEnd: jsonValueSchema.optional(),
+    style: z.record(jsonValueSchema).optional(),
+  })
+  .strict();
+
+const workflowLayoutSchema = z
+  .object({
+    nodes: z.array(workflowLayoutNodeSchema),
+    edges: z.array(workflowLayoutEdgeSchema),
+  })
+  .strict();
 
 export const teamSchema = z
   .object({
@@ -249,9 +268,8 @@ export const teamSchema = z
     departments: z.array(departmentSchema).min(1),
     agents: z.array(agentSchema).min(1),
     discussion_policy: discussionPolicySchema,
-    pipeline_policy: pipelinePolicySchema,
     memory_policy: memoryPolicySchema.optional(),
-    review_policy: reviewPolicySchema,
+    layout: workflowLayoutSchema.optional(),
   })
   .strict()
   .transform(
@@ -262,8 +280,6 @@ export const teamSchema = z
       departments: value.departments,
       agents: value.agents,
       discussionPolicy: value.discussion_policy,
-      pipelinePolicy: value.pipeline_policy,
       memoryPolicy: value.memory_policy,
-      reviewPolicy: value.review_policy,
     }),
   );

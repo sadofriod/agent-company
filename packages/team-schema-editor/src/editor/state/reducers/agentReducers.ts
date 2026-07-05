@@ -1,27 +1,115 @@
 import type { CaseReducer, PayloadAction } from '@reduxjs/toolkit';
 
-import { createAgentId, ensureUniqueId, parseList, type AgentField, type AgentListField, type EditorState, updateAgent, withSchema } from '../core/editorShared';
+import type { AgentDocument, AgentLlmDocument, AgentMetadataDocument } from '../../model/types';
+import {
+  AgentField,
+  AgentMetadataField,
+  createAgentId,
+  ensureUniqueId,
+  parseList,
+  type AgentListField,
+  type AgentMetadataListField,
+  type EditorState,
+  updateAgent,
+  withSchema,
+} from '../core/editorShared';
+
+const createAgentMetadataBase = (agent: AgentDocument): AgentMetadataDocument => ({
+  name: agent.metadata?.name ?? agent.agent_id,
+  description: agent.metadata?.description ?? agent.description ?? 'Describe this agent.',
+  ...(agent.metadata ?? {}),
+});
 
 export const updateAgentField: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly agentId: string; readonly field: AgentField; readonly value: string }>
+  PayloadAction<{ agentId: string; field: AgentField; value: string }>
 > = (state, action): void => {
-  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
-    ...agent,
-    [action.payload.field]: action.payload.value,
-  }));
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
+    if (action.payload.field === AgentField.MemoryAccessPolicy) {
+      const value = action.payload.value.trim();
+
+      if (value.length === 0) {
+        const { memory_access_policy, ...agentWithoutMemoryProfile } = agent;
+        void memory_access_policy;
+
+        return agentWithoutMemoryProfile;
+      }
+
+      return { ...agent, memory_access_policy: value };
+    }
+
+    return { ...agent, [action.payload.field]: action.payload.value };
+  });
 
   Object.assign(state, withSchema(state, schema));
 };
 
 export const updateAgentList: CaseReducer<
   EditorState,
-  PayloadAction<{ readonly agentId: string; readonly field: AgentListField; readonly value: string }>
+  PayloadAction<{ agentId: string; field: AgentListField; value: string }>
 > = (state, action): void => {
   const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
     ...agent,
     [action.payload.field]: parseList(action.payload.value),
   }));
+
+  Object.assign(state, withSchema(state, schema));
+};
+
+export const updateAgentMetadataField: CaseReducer<
+  EditorState,
+  PayloadAction<{ agentId: string; field: AgentMetadataField; value: string }>
+> = (state, action): void => {
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
+    const metadata = createAgentMetadataBase(agent);
+
+    if (action.payload.field === AgentMetadataField.Profile || action.payload.field === AgentMetadataField.ToolPolicy) {
+      const value = action.payload.value.trim().length === 0 ? undefined : action.payload.value;
+      return { ...agent, metadata: { ...metadata, [action.payload.field]: value } };
+    }
+
+    return { ...agent, metadata: { ...metadata, [action.payload.field]: action.payload.value } };
+  });
+
+  Object.assign(state, withSchema(state, schema));
+};
+
+export const updateAgentMetadataList: CaseReducer<
+  EditorState,
+  PayloadAction<{ agentId: string; field: AgentMetadataListField; value: string }>
+> = (state, action): void => {
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => ({
+    ...agent,
+    metadata: {
+      ...createAgentMetadataBase(agent),
+      [action.payload.field]: parseList(action.payload.value),
+    },
+  }));
+
+  Object.assign(state, withSchema(state, schema));
+};
+
+export const updateAgentLlmBinding: CaseReducer<
+  EditorState,
+  PayloadAction<{ agentId: string; llm: AgentLlmDocument | null }>
+> = (state, action): void => {
+  const schema = updateAgent(state.schema, action.payload.agentId, (agent) => {
+    const metadata = createAgentMetadataBase(agent);
+
+    if (action.payload.llm === null) {
+      const { llm, ...metadataWithoutLlm } = metadata;
+      void llm;
+      return { ...agent, metadata: metadataWithoutLlm };
+    }
+
+    return {
+      ...agent,
+      metadata: {
+        ...metadata,
+        llm: action.payload.llm,
+      },
+    };
+  });
 
   Object.assign(state, withSchema(state, schema));
 };
@@ -56,7 +144,6 @@ export const addAgent: CaseReducer<EditorState, PayloadAction<string>> = (state,
         skills: [],
         mcp_servers: [],
         tools: [],
-        memory_access_policy: undefined,
         description: 'Describe the agent responsibilities.',
       },
     ],

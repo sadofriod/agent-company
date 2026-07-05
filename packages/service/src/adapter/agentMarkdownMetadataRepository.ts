@@ -1,7 +1,7 @@
 import type { Prisma, AgentMarkdown, PrismaClient } from '@prisma/client';
 
 import type { AgentMarkdownFileSummary, AgentMarkdownFrontMatter } from '../agent/markdown';
-import type { AgentMarkdownStorageProvider } from './agentMarkdownAdapter';
+import { AgentMarkdownStorageProvider } from './agentMarkdownAdapter';
 
 export type AgentMarkdownMetadataInput = {
   readonly path: string;
@@ -107,11 +107,11 @@ const createPersistenceData = (input: AgentMarkdownMetadataInput) => {
 };
 
 const parseStorageProvider = (value: string): AgentMarkdownStorageProvider => {
-  if (value === 'vercel_blob') {
-    return 'vercel_blob';
+  if (value === AgentMarkdownStorageProvider.VercelBlob) {
+    return AgentMarkdownStorageProvider.VercelBlob;
   }
 
-  return 'local';
+  return AgentMarkdownStorageProvider.Local;
 };
 
 const toMetadataRecord = (record: AgentMarkdown): AgentMarkdownMetadataRecord => ({
