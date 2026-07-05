@@ -45,7 +45,7 @@ const toModelList = (value: unknown): readonly string[] => {
   }, []);
 };
 
-const parseModelResponse = (payload: unknown): string[] => {
+const parseModelResponse = (payload: unknown): readonly string[] => {
   if (!isRecord(payload)) {
     return [];
   }
@@ -124,6 +124,9 @@ const tryDiscoverFromEndpoints = async (
   }
 
   const [endpoint, ...rest] = endpoints;
+  if (endpoint === undefined) {
+    return [];
+  }
   try {
     const response = await fetch(endpoint, { method: 'GET', headers });
     if (!response.ok) {

@@ -286,6 +286,9 @@ const executeSequentialHandoffTurns = async (
 		}
 
 		const [agent, ...rest] = remaining;
+		if (agent === undefined) {
+			return accumulated;
+		}
 		const systemPrompt = `You are ${agent.role}. Build upon the prior agent's analysis for this task.`;
 		const handoffContext = previousRecommendation.length > 0
 			? `\n\nPrevious agent's analysis:\n${previousRecommendation}`
@@ -464,6 +467,9 @@ const admitAllTicketDrafts = (
 	}
 
 	const [ticketDraft, ...rest] = ticketDrafts;
+	if (ticketDraft === undefined) {
+		return { status: 'completed', tickets: accumulated.tickets, reviewResults: accumulated.reviewResults };
+	}
 	const admission = admitTicketDraft(session, ticketDraft);
 	const updatedReviewResults = [...accumulated.reviewResults, ...admission.reviewResults];
 
