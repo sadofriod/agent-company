@@ -25,7 +25,7 @@ export const advanceRuntimeSession = async (
 	}
 
 	const workModeDecision = routeWorkMode(session.state);
-	let nextSession = updateRuntimeSession(
+	const sessionWithMode = updateRuntimeSession(
 		session,
 		{
 			workModeDecision,
@@ -43,15 +43,16 @@ export const advanceRuntimeSession = async (
 		},
 	);
 
-	if (
-		nextSession.state.activePipeline === undefined &&
-		nextSession.state.pendingTickets.length === 0 &&
-		nextSession.state.discussionResult !== undefined &&
-		nextSession.state.interruption === undefined &&
-		nextSession.state.completedTickets.length > 0
-	) {
-		nextSession = updateRuntimeSession(
-			nextSession,
+	const isComplete =
+		sessionWithMode.state.activePipeline === undefined &&
+		sessionWithMode.state.pendingTickets.length === 0 &&
+		sessionWithMode.state.discussionResult !== undefined &&
+		sessionWithMode.state.interruption === undefined &&
+		sessionWithMode.state.completedTickets.length > 0;
+
+	if (isComplete) {
+		const completedSession = updateRuntimeSession(
+			sessionWithMode,
 			{
 				nextAction: SESSION_COMPLETE_MESSAGE,
 			},
@@ -60,10 +61,10 @@ export const advanceRuntimeSession = async (
 				reason: SESSION_COMPLETE_MESSAGE,
 			},
 		);
-		return { ok: true, value: nextSession };
+		return { ok: true, value: completedSession };
 	}
 
 	return workModeDecision.mode === WORK_MODE.Discussion
-		? await executeDiscussionStage(nextSession)
-		: await executePipelineStage(nextSession, { stepRunner: options.stepRunner });
+		? await executeDiscussionStage(sessionWithMode)
+		: await executePipelineStage(sessionWithMode, { stepRunner: options.stepRunner });
 };

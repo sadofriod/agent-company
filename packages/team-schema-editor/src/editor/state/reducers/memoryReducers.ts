@@ -21,17 +21,14 @@ const toOptionalValue = (value: string): string | undefined => {
   return trimmedValue.length === 0 ? undefined : trimmedValue;
 };
 
+const findUniqueProfileId = (existingIds: readonly string[], suffix: number): string => {
+  const candidate = `memory_profile_${suffix}`;
+  return existingIds.includes(candidate) ? findUniqueProfileId(existingIds, suffix + 1) : candidate;
+};
+
 const ensureUniqueProfileId = (profiles: readonly MemoryRetrievalProfileDocument[]): string => {
   const existingIds = profiles.map((profile) => profile.profile_id);
-  let suffix = profiles.length + 1;
-  let candidate = `memory_profile_${suffix}`;
-
-  while (existingIds.includes(candidate)) {
-    suffix += 1;
-    candidate = `memory_profile_${suffix}`;
-  }
-
-  return candidate;
+  return findUniqueProfileId(existingIds, profiles.length + 1);
 };
 
 const removeAgentMemoryProfile = (agent: EditorState['schema']['agents'][number]): EditorState['schema']['agents'][number] => {
