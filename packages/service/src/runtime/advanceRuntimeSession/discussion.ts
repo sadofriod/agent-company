@@ -280,7 +280,7 @@ const executeSequentialHandoffTurns = async (
 		previousRecommendation: string,
 		accumulated: DiscussionTurn[],
 		index: number,
-	): Promise<readonly DiscussionTurn[]> => {
+	): Promise<DiscussionTurn[]> => {
 		if (remaining.length === 0) {
 			return accumulated;
 		}
@@ -450,8 +450,8 @@ const createDiscussionArtifacts = async (session: RuntimeSession): Promise<Discu
 };
 
 type TicketAdmissionAccumulator = {
-	readonly tickets: Ticket[];
-	readonly reviewResults: ReviewResult[];
+	tickets: Ticket[];
+	reviewResults: ReviewResult[];
 };
 
 type TicketAdmissionOutcome =
