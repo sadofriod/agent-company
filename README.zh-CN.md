@@ -76,6 +76,8 @@ pnpm dev:docker
 - 编辑器： http://127.0.0.1:5173
 - PostgreSQL： `localhost:5432`
 
+Docker 初始化会自动写入默认示例工作区（`current`、`software-delivery-team`、`mvp-rag-memory-toolcall-team`，以及 sequential / parallel 讨论模式变体），并在编辑器首次加载时提供 LLM / Skills / MCP / Tools 的完整示例目录，方便直接调试。
+
 ### 方式 B：本地运行
 
 1. 安装依赖

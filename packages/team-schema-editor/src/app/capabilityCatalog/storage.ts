@@ -5,6 +5,7 @@ import {
   type CapabilityCatalogDraft,
   type CapabilityCatalogKind,
 } from './types';
+import { DEFAULT_CAPABILITY_CATALOGS } from '../defaultCatalogs';
 
 const STORAGE_KEY_BY_KIND: Record<CapabilityCatalogKind, string> = {
   [CAPABILITY_CATALOG_KIND.McpServers]: 'agents-team.catalog.mcp-servers.v1',
@@ -36,7 +37,7 @@ const readRawConfigs = (kind: CapabilityCatalogKind): CapabilityCatalogConfig[] 
 
   const rawValue = window.localStorage.getItem(STORAGE_KEY_BY_KIND[kind]);
   if (rawValue === null) {
-    return [];
+    return [...DEFAULT_CAPABILITY_CATALOGS[kind]];
   }
 
   try {
