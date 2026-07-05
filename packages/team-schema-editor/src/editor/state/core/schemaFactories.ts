@@ -1,11 +1,8 @@
 import type { TeamSchemaDocument } from '../../model/types';
 
 import { SchemaLoadStatus } from './editorFields';
-import { createDefaultMemoryPolicy } from './memoryPolicyDefaults';
 import { validateEditorState } from './schemaHelpers';
 import type { EditorState } from './editorTypes';
-
-export { createDefaultMemoryPolicy, createDefaultMemoryProfile } from './memoryPolicyDefaults';
 
 export const createPendingTeamSchema = (): TeamSchemaDocument => ({
   schema_version: '0.1.0',
