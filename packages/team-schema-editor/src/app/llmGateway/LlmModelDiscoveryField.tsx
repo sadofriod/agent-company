@@ -41,7 +41,10 @@ const toModelList = (value: unknown): readonly string[] => {
 
   return value.reduce<string[]>((acc, entry) => {
     const name = toModelName(entry);
-    return name !== null ? [...acc, name] : acc;
+    if (name !== null) {
+      acc.push(name);
+    }
+    return acc;
   }, []);
 };
 

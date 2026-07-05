@@ -1,6 +1,7 @@
 import { loadTeamSchema } from '@agents-team/service/schema/loadTeamSchema';
 
 import type { AgentDocument, DepartmentDocument, MemoryPolicyDocument, TeamSchemaDocument, ValidationIssue } from '../../model/types';
+import { createDefaultMemoryPolicy } from './memoryPolicyDefaults';
 import type { EditorState } from './editorTypes';
 
 type ValidationResult = { ok: true } | { ok: false; issues: readonly ValidationIssue[] };
@@ -9,22 +10,6 @@ const findUniqueSuffix = (candidate: string, existingIds: readonly string[], suf
   existingIds.includes(`${candidate}_${suffix}`)
     ? findUniqueSuffix(candidate, existingIds, suffix + 1)
     : `${candidate}_${suffix}`;
-
-const createFallbackMemoryPolicy = (): MemoryPolicyDocument => ({
-  retrieval_mode: 'standard_rag',
-  indexed_object_types: ['memory_object', 'topic', 'decision', 'ticket'],
-  retrieval_profiles: [
-    {
-      profile_id: 'default_memory',
-      allowed_scopes: ['system', 'session', 'ticket'],
-      max_results: 8,
-      max_graph_hops: 1,
-      require_reviewed_memory: false,
-    },
-  ],
-  evidence_required_for_outputs: ['decision', 'ticket', 'handoff', 'review_result'],
-  conflict_strategy: 'prefer_reviewed_latest',
-});
 
 export const parseList = (value: string): string[] =>
   value
@@ -112,5 +97,5 @@ export const withMemoryPolicy = (
   recipe: (memoryPolicy: MemoryPolicyDocument) => MemoryPolicyDocument,
 ): TeamSchemaDocument => ({
   ...schema,
-  memory_policy: recipe(schema.memory_policy ?? createFallbackMemoryPolicy()),
+  memory_policy: recipe(schema.memory_policy ?? createDefaultMemoryPolicy()),
 });
