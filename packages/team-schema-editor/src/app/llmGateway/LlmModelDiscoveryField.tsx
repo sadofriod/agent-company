@@ -34,23 +34,18 @@ const toModelName = (value: unknown): string | null => {
   return null;
 };
 
-const toModelList = (value: unknown): string[] => {
+const toModelList = (value: unknown): readonly string[] => {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  const models: string[] = [];
-  for (const entry of value) {
+  return value.reduce<string[]>((acc, entry) => {
     const name = toModelName(entry);
-    if (name !== null) {
-      models.push(name);
-    }
-  }
-
-  return models;
+    return name !== null ? [...acc, name] : acc;
+  }, []);
 };
 
-const parseModelResponse = (payload: unknown): string[] => {
+const parseModelResponse = (payload: unknown): readonly string[] => {
   if (!isRecord(payload)) {
     return [];
   }
@@ -79,7 +74,7 @@ const tryCreateUrl = (base: string, relativePath: string): string | null => {
   }
 };
 
-const createCandidateModelEndpoints = (baseUrl: string, customPaths: readonly string[] = []): string[] => {
+const createCandidateModelEndpoints = (baseUrl: string, customPaths: readonly string[] = []): readonly string[] => {
   const normalizedBase = normalizeBaseUrl(baseUrl);
   if (normalizedBase.length === 0) {
     return [];
@@ -89,16 +84,12 @@ const createCandidateModelEndpoints = (baseUrl: string, customPaths: readonly st
   const candidatePaths = customPaths.length === 0
     ? defaultCandidates
     : [...customPaths, ...defaultCandidates.filter((path) => !customPaths.includes(path))];
-  const candidates = candidatePaths.map((path) => tryCreateUrl(normalizedBase, path));
 
-  const uniqueCandidates: string[] = [];
-  for (const candidate of candidates) {
-    if (candidate !== null && !uniqueCandidates.includes(candidate)) {
-      uniqueCandidates.push(candidate);
-    }
-  }
+  const candidates = candidatePaths
+    .map((path) => tryCreateUrl(normalizedBase, path))
+    .filter((candidate): candidate is string => candidate !== null);
 
-  return uniqueCandidates;
+  return [...new Set(candidates)];
 };
 
 const createHeaders = (apiKey: string, authMode: 'none' | 'bearer'): Record<string, string> => {
@@ -113,22 +104,40 @@ const createHeaders = (apiKey: string, authMode: 'none' | 'bearer'): Record<stri
   };
 };
 
-const createModelOptions = (models: readonly string[]): ReactElement[] => {
-  const options: ReactElement[] = [
-    <MenuItem key="manual" value="">
-      Keep manual input
-    </MenuItem>,
-  ];
+const createModelOptions = (models: readonly string[]): ReactElement[] => [
+  <MenuItem key="manual" value="">
+    Keep manual input
+  </MenuItem>,
+  ...models.map((modelName) => (
+    <MenuItem key={modelName} value={modelName}>
+      {modelName}
+    </MenuItem>
+  )),
+];
 
-  for (const modelName of models) {
-    options.push(
-      <MenuItem key={modelName} value={modelName}>
-        {modelName}
-      </MenuItem>,
-    );
+const tryDiscoverFromEndpoints = async (
+  endpoints: readonly string[],
+  headers: Record<string, string>,
+): Promise<readonly string[]> => {
+  if (endpoints.length === 0) {
+    return [];
   }
 
-  return options;
+  const [endpoint, ...rest] = endpoints;
+  if (endpoint === undefined) {
+    return [];
+  }
+  try {
+    const response = await fetch(endpoint, { method: 'GET', headers });
+    if (!response.ok) {
+      return tryDiscoverFromEndpoints(rest, headers);
+    }
+    const payload = (await response.json()) as unknown;
+    const models = parseModelResponse(payload);
+    return models.length > 0 ? models : tryDiscoverFromEndpoints(rest, headers);
+  } catch {
+    return tryDiscoverFromEndpoints(rest, headers);
+  }
 };
 
 export const LlmModelDiscoveryField = ({
@@ -162,28 +171,10 @@ export const LlmModelDiscoveryField = ({
     setLoading(true);
     setError(null);
 
-    let discoveredModels: string[] = [];
-
-    for (const endpoint of endpointCandidates) {
-      try {
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: createHeaders(apiKey.trim(), authMode),
-        });
-
-        if (!response.ok) {
-          continue;
-        }
-
-        const payload = (await response.json()) as unknown;
-        discoveredModels = parseModelResponse(payload);
-        if (discoveredModels.length > 0) {
-          break;
-        }
-      } catch {
-        continue;
-      }
-    }
+    const discoveredModels = await tryDiscoverFromEndpoints(
+      endpointCandidates,
+      createHeaders(apiKey.trim(), authMode),
+    );
 
     if (discoveredModels.length === 0) {
       setModels([]);

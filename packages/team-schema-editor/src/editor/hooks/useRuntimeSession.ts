@@ -365,6 +365,21 @@ const useRuntimeObservability = (
   return { runtimeActiveNodeIds, runtimeActiveEdgeIds, runtimeNodeInsights, runtimeEventFeed };
 };
 
+const runGoalAdvanceLoop = async (
+  currentSession: RuntimeSessionSnapshot,
+  count: number,
+  setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>,
+  advanceRuntimeSession: ReturnType<typeof useAdvanceRuntimeSessionMutation>[0],
+): Promise<{ session: RuntimeSessionSnapshot; count: number }> => {
+  if (isSessionFinished(currentSession) || count >= MAX_GOAL_ADVANCE_STEPS) {
+    return { session: currentSession, count };
+  }
+
+  const nextSession = await advanceRuntimeSession(currentSession.sessionId).unwrap();
+  setSession(nextSession);
+  return runGoalAdvanceLoop(nextSession, count + 1, setSession, advanceRuntimeSession);
+};
+
 const executeGoalRun = async (
   team: TeamSchemaDocument,
   taskDraft: RuntimeTaskDraft,
@@ -386,24 +401,23 @@ const executeGoalRun = async (
       throw createWorkflowNodeLlmValidationError(llmValidationFailures);
     }
 
-    let nextSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
-    setSession(nextSession);
-    let advanceCount = 0;
-
-    while (!isSessionFinished(nextSession) && advanceCount < MAX_GOAL_ADVANCE_STEPS) {
-      nextSession = await advanceRuntimeSession(nextSession.sessionId).unwrap();
-      setSession(nextSession);
-      advanceCount += 1;
-    }
+    const initialSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
+    setSession(initialSession);
+    const { session: finalSession, count: advanceCount } = await runGoalAdvanceLoop(
+      initialSession,
+      0,
+      setSession,
+      advanceRuntimeSession,
+    );
 
     setStatus(RuntimeSessionOperationStatus.Idle);
 
-    if (nextSession.state.interruption !== undefined) {
+    if (finalSession.state.interruption !== undefined) {
       setMessage(`Goal run paused with runtime interruption after ${advanceCount} execution step(s).`);
       return;
     }
 
-    if (advanceCount >= MAX_GOAL_ADVANCE_STEPS && !isSessionFinished(nextSession)) {
+    if (advanceCount >= MAX_GOAL_ADVANCE_STEPS && !isSessionFinished(finalSession)) {
       setMessage(`Goal run paused after ${MAX_GOAL_ADVANCE_STEPS} execution step(s).`);
       return;
     }

@@ -2,7 +2,7 @@ import type { Edge } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 
 import { GraphNodeKind, MemoryScope, SchemaEdgeTone, WorkflowEdgeType } from './types';
-import type { AgentDocument, GraphNodeData, SchemaEdgeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
+import type { AgentDocument, DepartmentDocument, GraphNodeData, SchemaEdgeData, TeamSchemaDocument, WorkflowGraphNode } from './types';
 
 export const GOAL_NODE_ID = 'goal';
 const DISCUSSION_NODE_ID = 'discussion';
@@ -60,80 +60,101 @@ const createEdge = (
   };
 };
 
-export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
-  const nodes: WorkflowGraphNode[] = [];
-  const edges: Edge[] = [];
-  let organizationCursorY = START_Y;
+type GraphAccumulator = {
+  readonly nodes: readonly WorkflowGraphNode[];
+  readonly edges: readonly Edge[];
+  readonly cursorY: number;
+};
 
-  nodes.push(
-    createNode(GOAL_NODE_ID, GOAL_X, START_Y, {
-      kind: GraphNodeKind.Goal,
-      nodeName: 'Goal Input',
-      roleName: 'Team Schema Input',
-      detail: schema.team_name ?? schema.team_id,
-      accent: 'var(--goal-accent)',
-    }),
-  );
+const buildDepartmentGraph = (
+  acc: GraphAccumulator,
+  department: DepartmentDocument,
+  schema: TeamSchemaDocument,
+): GraphAccumulator => {
+  const departmentNodeId = `department:${department.department_id}`;
+  const resolvedAgents = department.agents
+    .map((agentId) => schema.agents.find((candidate) => candidate.agent_id === agentId))
+    .filter((agent): agent is AgentDocument => agent !== undefined);
+  const groupHeight = Math.max(MIN_DEPARTMENT_GROUP_HEIGHT, resolvedAgents.length * AGENT_GAP_Y);
+  const departmentY = acc.cursorY + Math.max(0, (resolvedAgents.length - 1) * (AGENT_GAP_Y / 2));
 
-  schema.departments.forEach((department) => {
-    const departmentNodeId = `department:${department.department_id}`;
-    const resolvedAgents = department.agents
-      .map((agentId) => schema.agents.find((candidate) => candidate.agent_id === agentId))
-      .filter((agent): agent is AgentDocument => agent !== undefined);
-    const groupHeight = Math.max(MIN_DEPARTMENT_GROUP_HEIGHT, resolvedAgents.length * AGENT_GAP_Y);
-    const departmentY = organizationCursorY + Math.max(0, (resolvedAgents.length - 1) * (AGENT_GAP_Y / 2));
-
-    nodes.push(
-      createNode(departmentNodeId, DEPARTMENT_X, departmentY, {
-        kind: GraphNodeKind.Department,
-        nodeName: department.name,
-        roleName: 'Department',
-        detail: department.department_id,
-        accent: 'var(--department-accent)',
-        department,
-      }),
-    );
-
-    resolvedAgents.forEach((agent, agentIndex) => {
-      const agentNodeId = `agent:${agent.agent_id}`;
-
-      nodes.push(
-        createNode(agentNodeId, AGENT_X, organizationCursorY + agentIndex * AGENT_GAP_Y, {
-          kind: GraphNodeKind.Agent,
-          nodeName: agent.metadata?.name ?? agent.agent_id,
-          roleName: agent.role,
-          departmentName: department.name,
-          detail: agent.agent_id,
-          accent: 'var(--agent-accent)',
-          agent,
-        }),
-      );
-
-      edges.push(createEdge(`department-agent:${department.department_id}:${agent.agent_id}`, departmentNodeId, agentNodeId, agent.role));
-    });
-
-    organizationCursorY += groupHeight;
-
-    edges.push(createEdge(`goal-department:${department.department_id}`, GOAL_NODE_ID, departmentNodeId, 'input'));
+  const departmentNode = createNode(departmentNodeId, DEPARTMENT_X, departmentY, {
+    kind: GraphNodeKind.Department,
+    nodeName: department.name,
+    roleName: 'Department',
+    detail: department.department_id,
+    accent: 'var(--department-accent)',
+    department,
   });
 
-  const governanceY = Math.max(START_Y, Math.round((organizationCursorY - START_Y - GOVERNANCE_GAP_Y * 2) / 2));
-
-  nodes.push(
-    createNode(DISCUSSION_NODE_ID, GOVERNANCE_X, governanceY, {
-      kind: GraphNodeKind.Discussion,
-      nodeName: 'Discussion Policy',
-      roleName: 'Governance',
-      detail: `${schema.discussion_policy?.mode ?? 'none'} / ${schema.discussion_policy?.max_rounds ?? 0} rounds`,
-      accent: 'var(--discussion-accent)',
-      discussionPolicy: schema.discussion_policy,
+  const agentNodes = resolvedAgents.map((agent, agentIndex) =>
+    createNode(`agent:${agent.agent_id}`, AGENT_X, acc.cursorY + agentIndex * AGENT_GAP_Y, {
+      kind: GraphNodeKind.Agent,
+      nodeName: agent.metadata?.name ?? agent.agent_id,
+      roleName: agent.role,
+      departmentName: department.name,
+      detail: agent.agent_id,
+      accent: 'var(--agent-accent)',
+      agent,
     }),
   );
 
-  edges.push(createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', SchemaEdgeTone.Governance));
+  const agentEdges = resolvedAgents.map((agent) =>
+    createEdge(
+      `department-agent:${department.department_id}:${agent.agent_id}`,
+      departmentNodeId,
+      `agent:${agent.agent_id}`,
+      agent.role,
+    ),
+  );
+
+  const goalDepartmentEdge = createEdge(`goal-department:${department.department_id}`, GOAL_NODE_ID, departmentNodeId, 'input');
+
+  return {
+    nodes: [...acc.nodes, departmentNode, ...agentNodes],
+    edges: [...acc.edges, goalDepartmentEdge, ...agentEdges],
+    cursorY: acc.cursorY + groupHeight,
+  };
+};
+
+export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
+  const goalNode = createNode(GOAL_NODE_ID, GOAL_X, START_Y, {
+    kind: GraphNodeKind.Goal,
+    nodeName: 'Goal Input',
+    roleName: 'Team Schema Input',
+    detail: schema.team_name ?? schema.team_id,
+    accent: 'var(--goal-accent)',
+  });
+
+  const initial: GraphAccumulator = {
+    nodes: [goalNode],
+    edges: [],
+    cursorY: START_Y,
+  };
+
+  const { nodes: orgNodes, edges: orgEdges, cursorY: finalCursorY } = schema.departments.reduce(
+    (acc, department) => buildDepartmentGraph(acc, department, schema),
+    initial,
+  );
+
+  const governanceY = Math.max(START_Y, Math.round((finalCursorY - START_Y - GOVERNANCE_GAP_Y * 2) / 2));
+
+  const discussionNode = createNode(DISCUSSION_NODE_ID, GOVERNANCE_X, governanceY, {
+    kind: GraphNodeKind.Discussion,
+    nodeName: 'Discussion Policy',
+    roleName: 'Governance',
+    detail: `${schema.discussion_policy?.mode ?? 'none'} / ${schema.discussion_policy?.max_rounds ?? 0} rounds`,
+    accent: 'var(--discussion-accent)',
+    discussionPolicy: schema.discussion_policy,
+  });
+
+  const goalDiscussionEdge = createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', SchemaEdgeTone.Governance);
+
+  const memoryNodes: WorkflowGraphNode[] = [];
+  const memoryEdges: Edge[] = [];
 
   if (schema.memory_policy !== undefined) {
-    nodes.push(
+    memoryNodes.push(
       createNode(DISCUSSION_MEMORY_NODE_ID, MEMORY_X, governanceY, {
         kind: GraphNodeKind.Memory,
         nodeName: 'Discussion Memory',
@@ -145,7 +166,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
       }),
     );
 
-    nodes.push(
+    memoryNodes.push(
       createNode(SESSION_MEMORY_NODE_ID, MEMORY_X, governanceY + GOVERNANCE_GAP_Y, {
         kind: GraphNodeKind.Memory,
         nodeName: 'Session Memory',
@@ -157,18 +178,25 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
       }),
     );
 
-    edges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
-    edges.push(createEdge('discussion-memory-session', DISCUSSION_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
+    memoryEdges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
+    memoryEdges.push(createEdge('discussion-memory-session', DISCUSSION_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
   }
 
+  const supervisorEdges: Edge[] = [];
   if (schema.discussion_policy.supervisor_agent_id !== undefined) {
     const supervisorNodeId = `agent:${schema.discussion_policy.supervisor_agent_id}`;
-    const hasSupervisorNode = nodes.some((node) => node.id === supervisorNodeId);
+    const allNodes = [...orgNodes, discussionNode, ...memoryNodes];
+    const hasSupervisorNode = allNodes.some((node) => node.id === supervisorNodeId);
 
     if (hasSupervisorNode) {
-      edges.push(createEdge('discussion-supervisor', DISCUSSION_NODE_ID, supervisorNodeId, 'supervisor', SchemaEdgeTone.Governance, true));
+      supervisorEdges.push(
+        createEdge('discussion-supervisor', DISCUSSION_NODE_ID, supervisorNodeId, 'supervisor', SchemaEdgeTone.Governance, true),
+      );
     }
   }
 
-  return { nodes, edges };
+  return {
+    nodes: [...orgNodes, discussionNode, ...memoryNodes] as WorkflowGraphNode[],
+    edges: [...orgEdges, goalDiscussionEdge, ...memoryEdges, ...supervisorEdges],
+  };
 };

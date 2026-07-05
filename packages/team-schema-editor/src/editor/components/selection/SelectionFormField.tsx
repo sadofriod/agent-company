@@ -42,12 +42,10 @@ export const SelectionFormField = ({
       control={form.control}
       name={name}
       render={({ field }) => {
-        let value: unknown = field.value ?? '';
-        if (multiple && select) {
-          value = typeof value === 'string'
-            ? value.split('\n').filter((item) => item.trim().length > 0)
-            : [];
-        }
+        const rawValue = field.value ?? '';
+        const value: unknown = multiple && select
+          ? (typeof rawValue === 'string' ? rawValue.split('\n').filter((item) => item.trim().length > 0) : [])
+          : rawValue;
         return (
           <TextField
             {...field}
@@ -65,10 +63,9 @@ export const SelectionFormField = ({
               },
             }}
             onChange={(event) => {
-              let newValue = event.target.value;
-              if (multiple && Array.isArray(newValue)) {
-                newValue = newValue.join('\n');
-              }
+              const newValue = multiple && Array.isArray(event.target.value)
+                ? event.target.value.join('\n')
+                : event.target.value;
               field.onChange(newValue);
               onValueChange(newValue as string);
             }}

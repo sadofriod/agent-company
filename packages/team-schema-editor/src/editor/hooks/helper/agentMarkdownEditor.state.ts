@@ -92,14 +92,14 @@ export const initialState: AgentMarkdownEditorState = {
   draftPaths: [],
 };
 
+const findDefaultDraftSuffix = (existingPaths: ReadonlySet<string>, suffix: number): number =>
+  existingPaths.has(`engineering/NewAgent${suffix}.md`)
+    ? findDefaultDraftSuffix(existingPaths, suffix + 1)
+    : suffix;
+
 export const createDefaultDraftPath = (files: readonly AgentMarkdownFileSummary[]): string => {
   const existingPaths = new Set(files.map((file) => file.path));
-  let suffix = 1;
-
-  while (existingPaths.has(`engineering/NewAgent${suffix}.md`)) {
-    suffix += 1;
-  }
-
+  const suffix = findDefaultDraftSuffix(existingPaths, 1);
   return `engineering/NewAgent${suffix}.md`;
 };
 

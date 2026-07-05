@@ -20,28 +20,28 @@ export const pickWorkflowDraftNodes = (nodes: WorkflowGraphNode[]): WorkflowGrap
 
 export const pickWorkflowDraftEdges = (edges: Edge[]): Edge[] => edges.filter(isWorkflowDraftEdge);
 
+const findUniqueNodeId = (prefix: string, existingNodes: WorkflowGraphNode[], suffix: number): string => {
+  const candidate = `${prefix}${suffix}`;
+  return existingNodes.some((node) => node.id === candidate)
+    ? findUniqueNodeId(prefix, existingNodes, suffix + 1)
+    : candidate;
+};
+
 const createUniqueWorkflowNodeId = (prefix: string, existingNodes: WorkflowGraphNode[]): string => {
-  let suffix = existingNodes.filter((node) => node.id.startsWith(prefix)).length + 1;
-  let candidate = `${prefix}${suffix}`;
+  const initialSuffix = existingNodes.filter((node) => node.id.startsWith(prefix)).length + 1;
+  return findUniqueNodeId(prefix, existingNodes, initialSuffix);
+};
 
-  while (existingNodes.some((node) => node.id === candidate)) {
-    suffix += 1;
-    candidate = `${prefix}${suffix}`;
-  }
-
-  return candidate;
+const findUniqueEdgeId = (existingEdges: Edge[], suffix: number): string => {
+  const candidate = `${WORKFLOW_EDGE_PREFIX}${suffix}`;
+  return existingEdges.some((edge) => edge.id === candidate)
+    ? findUniqueEdgeId(existingEdges, suffix + 1)
+    : candidate;
 };
 
 const createUniqueWorkflowEdgeId = (existingEdges: Edge[]): string => {
-  let suffix = existingEdges.filter(isWorkflowDraftEdge).length + 1;
-  let candidate = `${WORKFLOW_EDGE_PREFIX}${suffix}`;
-
-  while (existingEdges.some((edge) => edge.id === candidate)) {
-    suffix += 1;
-    candidate = `${WORKFLOW_EDGE_PREFIX}${suffix}`;
-  }
-
-  return candidate;
+  const initialSuffix = existingEdges.filter(isWorkflowDraftEdge).length + 1;
+  return findUniqueEdgeId(existingEdges, initialSuffix);
 };
 
 export const createWorkflowAgentNode = (existingNodes: WorkflowGraphNode[]): WorkflowGraphNode => {
