@@ -1,5 +1,5 @@
 const lmStudioProvider = process.env.E2E_LMSTUDIO_PROVIDER?.trim() || 'lmstudio';
-const lmStudioModel = process.env.E2E_LMSTUDIO_MODEL?.trim() || 'google/gemma-4-12b';
+const lmStudioModel = process.env.E2E_LMSTUDIO_MODEL?.trim() || 'google/gemma-4-26b-a4b-qat';
 const lmStudioApiFormat = process.env.E2E_LMSTUDIO_API_FORMAT?.trim() || 'openai_chat';
 const lmStudioBaseUrl = process.env.E2E_LMSTUDIO_BASE_URL?.trim() || 'http://localhost:1234/v1';
 const lmStudioApiKey = process.env.E2E_LMSTUDIO_API_KEY?.trim() || '';

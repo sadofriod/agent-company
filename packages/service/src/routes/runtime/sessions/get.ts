@@ -1,10 +1,11 @@
 /**
  * GET /runtime/sessions
  *
- * Returns a paginated list of runtime session snapshots.
+ * Returns a paginated list of runtime session summaries.
  *
  * Query parameters:
  *   status   - filter by session status ('running' | 'paused' | 'terminated' | 'completed')
+ *   teamId   - filter by Team Schema workspace id
  *   cursor   - opaque cursor (sessionId) for next-page navigation
  *   limit    - page size (1–100, default 20)
  */
@@ -12,7 +13,7 @@ import type { RequestHandler } from 'express';
 
 import { sendData } from '../../_shared/response';
 import { resolveRuntimeSessionScheduler } from '../../_shared/runtimeSession';
-import { buildRuntimeSessionPayload } from '../../../runtime/buildRuntimeSessionPayload';
+import { buildRuntimeSessionListItemPayload } from '../../../runtime/buildRuntimeSessionPayload';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -26,11 +27,14 @@ const handler: RequestHandler = async (request, response): Promise<void> => {
 	const status = typeof request.query.status === 'string' && request.query.status.length > 0
 		? request.query.status
 		: undefined;
+	const teamId = typeof request.query.teamId === 'string' && request.query.teamId.length > 0
+		? request.query.teamId
+		: undefined;
 
-	const page = await resolveRuntimeSessionScheduler(request).listSessions({ status, cursor, limit });
+	const page = await resolveRuntimeSessionScheduler(request).listSessions({ status, teamId, cursor, limit });
 
 	sendData(response, {
-		items: page.items.map(buildRuntimeSessionPayload),
+		items: page.items.map(buildRuntimeSessionListItemPayload),
 		nextCursor: page.nextCursor,
 		total: page.total,
 		limit,

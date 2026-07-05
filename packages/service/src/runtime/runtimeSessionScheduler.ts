@@ -56,6 +56,7 @@ export type RuntimeSessionScheduler = {
 	readonly terminateSession: (sessionId: string) => Promise<ValidationResult<RuntimeSession>>;
 	readonly listSessions: (options: {
 		readonly status?: string;
+		readonly teamId?: string;
 		readonly cursor?: string;
 		readonly limit: number;
 	}) => Promise<{ readonly items: readonly RuntimeSession[]; readonly nextCursor?: string; readonly total: number }>;

@@ -41,6 +41,17 @@ export type RuntimeSessionPayload = {
 	};
 };
 
+export type RuntimeSessionListItemPayload = {
+	readonly sessionId: string;
+	readonly status: RuntimeSession['status'];
+	readonly createdAt: string;
+	readonly updatedAt: string;
+	readonly task?: {
+		readonly title: RuntimeTask['title'];
+		readonly goal: RuntimeTask['goal'];
+	};
+};
+
 const serializeRuntimePlan = (runtimeSession: RuntimeSession): SerializedRuntimePlan => ({
 	team: runtimeSession.runtimePlan.team,
 	departments: [...runtimeSession.runtimePlan.departmentsById.values()],
@@ -57,6 +68,27 @@ export const buildRuntimeSessionPayload = (runtimeSession: RuntimeSession): Runt
 	runtimePlan: serializeRuntimePlan(runtimeSession),
 	state: runtimeSession.state,
 });
+
+export const buildRuntimeSessionListItemPayload = (
+	runtimeSession: RuntimeSession,
+): RuntimeSessionListItemPayload => {
+	const task = runtimeSession.state.context.task;
+
+	return {
+		sessionId: runtimeSession.sessionId,
+		status: runtimeSession.status,
+		createdAt: runtimeSession.createdAt,
+		updatedAt: runtimeSession.updatedAt,
+		...(task === undefined
+			? {}
+			: {
+				task: {
+					title: task.title,
+					goal: task.goal,
+				},
+			}),
+	};
+};
 
 const restoreRuntimePlan = (runtimePlan: SerializedRuntimePlan): RuntimePlan => {
 	return createRuntimePlan(runtimePlan.team);

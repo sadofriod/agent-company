@@ -365,6 +365,56 @@ const useRuntimeObservability = (
   return { runtimeActiveNodeIds, runtimeActiveEdgeIds, runtimeNodeInsights, runtimeEventFeed };
 };
 
+const executeGoalRun = async (
+  team: TeamSchemaDocument,
+  taskDraft: RuntimeTaskDraft,
+  setStatus: Dispatch<SetStateAction<RuntimeSessionOperationStatus>>,
+  setError: Dispatch<SetStateAction<string | null>>,
+  setMessage: Dispatch<SetStateAction<string | null>>,
+  setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>,
+  startRuntimeSession: ReturnType<typeof useStartRuntimeSessionMutation>[0],
+  advanceRuntimeSession: ReturnType<typeof useAdvanceRuntimeSessionMutation>[0],
+): Promise<void> => {
+  setStatus(RuntimeSessionOperationStatus.RunningGoal);
+  setError(null);
+  setMessage(null);
+
+  try {
+    const llmValidationFailures = collectWorkflowNodeLlmValidationFailures(team);
+
+    if (llmValidationFailures.length > 0) {
+      throw createWorkflowNodeLlmValidationError(llmValidationFailures);
+    }
+
+    let nextSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
+    setSession(nextSession);
+    let advanceCount = 0;
+
+    while (!isSessionFinished(nextSession) && advanceCount < MAX_GOAL_ADVANCE_STEPS) {
+      nextSession = await advanceRuntimeSession(nextSession.sessionId).unwrap();
+      setSession(nextSession);
+      advanceCount += 1;
+    }
+
+    setStatus(RuntimeSessionOperationStatus.Idle);
+
+    if (nextSession.state.interruption !== undefined) {
+      setMessage(`Goal run paused with runtime interruption after ${advanceCount} execution step(s).`);
+      return;
+    }
+
+    if (advanceCount >= MAX_GOAL_ADVANCE_STEPS && !isSessionFinished(nextSession)) {
+      setMessage(`Goal run paused after ${MAX_GOAL_ADVANCE_STEPS} execution step(s).`);
+      return;
+    }
+
+    setMessage(`Goal completed after ${advanceCount} execution step(s).`);
+  } catch (mutationError: unknown) {
+    setStatus(RuntimeSessionOperationStatus.Error);
+    setError(formatError(mutationError));
+  }
+};
+
 const useSessionOperations = (
   session: RuntimeSessionSnapshot | null,
   taskDraft: RuntimeTaskDraft,
@@ -399,46 +449,8 @@ const useSessionOperations = (
   };
 
   return {
-    runGoal: async (team: TeamSchemaDocument): Promise<void> => {
-      setStatus(RuntimeSessionOperationStatus.RunningGoal);
-      setError(null);
-      setMessage(null);
-
-      try {
-        const llmValidationFailures = collectWorkflowNodeLlmValidationFailures(team);
-
-        if (llmValidationFailures.length > 0) {
-          throw createWorkflowNodeLlmValidationError(llmValidationFailures);
-        }
-
-        let nextSession = await startRuntimeSession({ task: taskDraft, team }).unwrap();
-        setSession(nextSession);
-        let advanceCount = 0;
-
-        while (!isSessionFinished(nextSession) && advanceCount < MAX_GOAL_ADVANCE_STEPS) {
-          nextSession = await advanceRuntimeSession(nextSession.sessionId).unwrap();
-          setSession(nextSession);
-          advanceCount += 1;
-        }
-
-        setStatus(RuntimeSessionOperationStatus.Idle);
-
-        if (nextSession.state.interruption !== undefined) {
-          setMessage(`Goal run paused with runtime interruption after ${advanceCount} execution step(s).`);
-          return;
-        }
-
-        if (advanceCount >= MAX_GOAL_ADVANCE_STEPS && !isSessionFinished(nextSession)) {
-          setMessage(`Goal run paused after ${MAX_GOAL_ADVANCE_STEPS} execution step(s).`);
-          return;
-        }
-
-        setMessage(`Goal completed after ${advanceCount} execution step(s).`);
-      } catch (mutationError: unknown) {
-        setStatus(RuntimeSessionOperationStatus.Error);
-        setError(formatError(mutationError));
-      }
-    },
+    runGoal: async (team: TeamSchemaDocument): Promise<void> =>
+      executeGoalRun(team, taskDraft, setStatus, setError, setMessage, setSession, startRuntimeSession, advanceRuntimeSession),
     loadSession: async (sessionId: string) =>
       runMutation(RuntimeSessionOperationStatus.Refreshing, () => loadRuntimeSession(sessionId).unwrap(), 'Runtime session loaded.'),
     refreshSession: async () =>

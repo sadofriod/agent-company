@@ -46,6 +46,7 @@ type GraphPanelProps = {
   highlightedNodeIds?: readonly string[];
   highlightedEdgeIds?: readonly string[];
   inspectorPanel?: ReactNode;
+  fillAvailableHeight?: boolean;
 };
 
 export const GraphPanel = ({
@@ -65,6 +66,7 @@ export const GraphPanel = ({
   highlightedNodeIds = [],
   highlightedEdgeIds = [],
   inspectorPanel,
+  fillAvailableHeight = false,
 }: GraphPanelProps): ReactElement => {
   const {
     pendingConnection,
@@ -194,7 +196,16 @@ export const GraphPanel = ({
 
   return (
     <GraphPanelProvider value={contextValue}>
-      <Box sx={{ flex: '1 1 auto', minHeight: { xs: 640, xl: 'calc(100vh - 84px)' }, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Box
+        sx={{
+          flex: '1 1 auto',
+          minHeight: fillAvailableHeight ? 0 : { xs: 640, xl: 'calc(100vh - 84px)' },
+          height: fillAvailableHeight ? '100%' : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         <GraphPanelHeader
           teamName={schema.team_name ?? schema.team_id}
           departmentCount={schema.departments.length}

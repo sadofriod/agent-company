@@ -6,10 +6,11 @@ const RUNTIME_SESSIONS_LIST = '/runtime/sessions';
 
 export const runtimeSessionApi = editorApi.injectEndpoints({
   endpoints: (builder) => ({
-    listRuntimeSessions: builder.query<RuntimeSessionListResponse, { status?: string; cursor?: string; limit?: number }>({
-      query: ({ status, cursor, limit = 20 } = {}) => {
+    listRuntimeSessions: builder.query<RuntimeSessionListResponse, { status?: string; teamId?: string; cursor?: string; limit?: number }>({
+      query: ({ status, teamId, cursor, limit = 20 } = {}) => {
         const params = new URLSearchParams();
         if (status !== undefined) params.set('status', status);
+        if (teamId !== undefined) params.set('teamId', teamId);
         if (cursor !== undefined) params.set('cursor', cursor);
         params.set('limit', String(limit));
         return `${RUNTIME_SESSIONS_LIST}?${params.toString()}`;

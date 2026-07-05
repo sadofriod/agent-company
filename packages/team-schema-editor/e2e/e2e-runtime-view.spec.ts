@@ -39,7 +39,12 @@ test.describe('PRD Aligned E2E - Runtime View Projection', () => {
       expect(startSessionResponse.ok()).toBeTruthy();
 
       await expect(page.getByText('No sessions yet. Run once to create a session.')).not.toBeVisible();
+      await expect(page.locator('[data-testid="session-list-item"]').filter({ hasText: 'Execute runtime view projection test goal' }).first()).toBeVisible();
       await expect(page.getByText(/^Status:\s+/)).toBeVisible();
+
+      const pageScrollHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+      const pageViewportHeight = await page.evaluate(() => window.innerHeight);
+      expect(pageScrollHeight).toBeLessThanOrEqual(pageViewportHeight + 8);
 
       const goalNode = page.locator('.react-flow__node[data-id="goal"]').first();
       await expect(goalNode).toBeVisible();

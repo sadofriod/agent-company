@@ -51,7 +51,7 @@ E2E 运行前通过 Playwright global setup 写入本地网关配置，默认使
 - Provider：`lmstudio`
 - API Format：`openai_chat`
 - 默认 Base URL：`http://localhost:1234/v1`
-- 默认模型：`google/gemma-4-12b`（建议在运行时通过环境变量覆盖）
+- 默认模型：`google/gemma-4-26b-a4b-qat`（建议在运行时通过环境变量覆盖）
 
 可用环境变量：
 

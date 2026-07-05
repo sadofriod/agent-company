@@ -237,8 +237,21 @@ export type RuntimeHandoff = {
   payload: Record<string, unknown>;
 };
 
+export type RuntimeSessionTaskSummary = {
+  title: string;
+  goal: string;
+};
+
+export type RuntimeSessionListItem = {
+  sessionId: string;
+  status: RuntimeSessionStatus;
+  createdAt: string;
+  updatedAt: string;
+  task?: RuntimeSessionTaskSummary;
+};
+
 export type RuntimeSessionListResponse = {
-  items: RuntimeSessionSnapshot[];
+  items: RuntimeSessionListItem[];
   nextCursor?: string;
   total: number;
   limit: number;

@@ -26,19 +26,12 @@ import type { RuntimeSessionModel } from '../../editor/hooks/useRuntimeSession';
 import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
 import type { RuntimeEventFeedItem } from '../../editor/hooks/helper/runtimeSession.types';
 import { useListRuntimeSessionsQuery } from '../../editor/api/runtimeSessionApi';
-import { EditorMode } from '../../editor/model/types';
+import { EditorMode, type RuntimeSessionListItem, type RuntimeSessionSnapshot } from '../../editor/model/types';
 import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
 
 type RuntimeWorkspacePageProps = {
   editor: TeamEditorModel;
   runtime: RuntimeSessionModel;
-};
-
-type RuntimeSessionListItem = {
-  sessionId: string;
-  status: string;
-  updatedAt: string;
-  createdAt: string;
 };
 
 const sortSessionList = (items: readonly RuntimeSessionListItem[]): RuntimeSessionListItem[] => [...items].sort((left, right) => (
@@ -55,6 +48,41 @@ const upsertSessionListItem = (
   ];
 
   return sortSessionList(next);
+};
+
+const toRuntimeSessionListItem = (session: RuntimeSessionSnapshot): RuntimeSessionListItem => {
+  const task = session.state.context?.task;
+
+  return {
+    sessionId: session.sessionId,
+    status: session.status,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    ...(task === undefined
+      ? {}
+      : {
+        task: {
+          title: task.title,
+          goal: task.goal,
+        },
+      }),
+  };
+};
+
+const resolveSessionListLabel = (item: RuntimeSessionListItem): string => {
+  const goal = item.task?.goal.trim();
+
+  if (goal !== undefined && goal.length > 0) {
+    return goal;
+  }
+
+  const title = item.task?.title.trim();
+
+  if (title !== undefined && title.length > 0) {
+    return title;
+  }
+
+  return item.sessionId;
 };
 
 const formatDateTime = (value: string): string => {
@@ -105,25 +133,26 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
   const { schemaKey } = useParams<{ schemaKey: string }>();
   const isSchemaReady = editor.schemaLoadStatus === SchemaLoadStatus.Ready;
   const workspaceName = editor.schema.team_name ?? editor.schema.team_id;
+  const workspaceTeamId = editor.schema.team_id;
   const [selectedRuntimeNodeId, setSelectedRuntimeNodeId] = useState<string | null>(null);
-  const [sessionList, setSessionList] = useState<readonly RuntimeSessionListItem[]>([]);
+  const activeSession = runtime.session?.state.context?.teamId === workspaceTeamId ? runtime.session : null;
+  const activeRuntimeNodeIds = activeSession === null ? [] : runtime.runtimeActiveNodeIds;
+  const activeRuntimeEdgeIds = activeSession === null ? [] : runtime.runtimeActiveEdgeIds;
+  const activeRuntimeNodeInsights = activeSession === null ? {} : runtime.runtimeNodeInsights;
+  const activeRuntimeEventFeed = activeSession === null ? [] : runtime.runtimeEventFeed;
 
   // Load historical sessions from backend
-  const { data: historicalSessions } = useListRuntimeSessionsQuery({ limit: 50 }, { skip: !isSchemaReady });
+  const { data: historicalSessions } = useListRuntimeSessionsQuery(
+    { teamId: workspaceTeamId, limit: 50 },
+    { skip: !isSchemaReady || workspaceTeamId.trim().length === 0 },
+  );
+  const sessionList = useMemo(() => {
+    const historicalItems = historicalSessions?.items ?? [];
 
-  useEffect(() => {
-    if (historicalSessions === undefined) return;
-    setSessionList((current) => {
-      const backendItems = historicalSessions.items.map((s) => ({
-        sessionId: s.sessionId,
-        status: s.status,
-        createdAt: s.createdAt,
-        updatedAt: s.updatedAt,
-      }));
-      const merged = [...backendItems, ...current.filter((c) => !backendItems.some((b) => b.sessionId === c.sessionId))];
-      return sortSessionList(merged);
-    });
-  }, [historicalSessions]);
+    return activeSession === null
+      ? sortSessionList(historicalItems)
+      : upsertSessionListItem(historicalItems, toRuntimeSessionListItem(activeSession));
+  }, [activeSession, historicalSessions]);
 
   useEffect(() => {
     if (schemaKey === undefined) {
@@ -137,27 +166,16 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
   }, [editor, navigate, schemaKey]);
 
   useEffect(() => {
-    const currentSession = runtime.session;
+    setSelectedRuntimeNodeId(null);
+  }, [schemaKey]);
 
-    if (currentSession === null) {
-      return;
-    }
-
-    setSessionList((current) => upsertSessionListItem(current, {
-      sessionId: currentSession.sessionId,
-      status: currentSession.status,
-      createdAt: currentSession.createdAt,
-      updatedAt: currentSession.updatedAt,
-    }));
-  }, [runtime.session]);
-
-  const canInteract = runtime.session !== null;
+  const canInteract = activeSession !== null;
   const isBusy = runtime.status !== 'idle';
-  const currentSessionId = runtime.session?.sessionId ?? null;
-  const selectedNodeInsight = selectedRuntimeNodeId === null ? null : runtime.runtimeNodeInsights[selectedRuntimeNodeId] ?? null;
+  const currentSessionId = activeSession?.sessionId ?? null;
+  const selectedNodeInsight = selectedRuntimeNodeId === null ? null : activeRuntimeNodeInsights[selectedRuntimeNodeId] ?? null;
   const selectedNodeFeed = useMemo(
-    () => selectedRuntimeNodeId === null ? [] : buildNodeEventFeed(selectedRuntimeNodeId, runtime.runtimeEventFeed),
-    [runtime.runtimeEventFeed, selectedRuntimeNodeId],
+    () => selectedRuntimeNodeId === null ? [] : buildNodeEventFeed(selectedRuntimeNodeId, activeRuntimeEventFeed),
+    [activeRuntimeEventFeed, selectedRuntimeNodeId],
   );
   const selectedNodeErrorEvents = selectedNodeFeed.filter((item) => item.level === 'error');
   const runCurrentGoal = (): void => {
@@ -191,7 +209,7 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
   };
 
   return (
-    <Box component="main" sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#eef2f6' }}>
+    <Box component="main" sx={{ height: '100dvh', minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', bgcolor: '#eef2f6' }}>
       <Box
         sx={{
           px: { xs: 1.25, md: 1.5 },
@@ -259,55 +277,77 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
             minHeight: 0,
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', lg: '280px minmax(0, 1fr)' },
+            gridTemplateRows: { xs: 'minmax(220px, 32dvh) minmax(0, 1fr)', lg: '1fr' },
             gap: 1.25,
             p: { xs: 1.25, md: 1.5 },
+            overflow: 'hidden',
           }}
         >
           <Box
             sx={{
               border: '1px solid #d7dde5',
               bgcolor: '#fbfcfe',
+              display: 'flex',
+              flexDirection: 'column',
               minHeight: 0,
-              overflow: 'auto',
+              overflow: 'hidden',
             }}
           >
             <Box sx={{ px: 1.25, py: 1, borderBottom: '1px solid #d7dde5' }}>
               <Typography variant="subtitle2">Run Sessions</Typography>
               <Typography variant="caption" color="text.secondary">Sessions executed in current workspace runtime</Typography>
             </Box>
-            <List disablePadding data-testid="session-list">
+            <List disablePadding data-testid="session-list" sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto' }}>
               {sessionList.length === 0 ? (
                 <Box sx={{ px: 1.25, py: 1.5 }}>
                   <Typography variant="body2" color="text.secondary">No sessions yet. Run once to create a session.</Typography>
                 </Box>
-              ) : sessionList.map((item) => (
-                <ListItemButton
-                  key={item.sessionId}
-                  selected={item.sessionId === currentSessionId}
-                  disabled={isBusy}
-                  data-testid="session-list-item"
-                  data-session-id={item.sessionId}
-                  data-session-status={item.status}
-                  onClick={() => {
-                    void runtime.loadSession(item.sessionId);
-                  }}
-                  sx={{ alignItems: 'flex-start', py: 1 }}
-                >
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
-                      {item.sessionId}
-                    </Typography>
-                    <Stack spacing={0.25} sx={{ mt: 0.4 }}>
-                      <Typography variant="caption" color="text.secondary">Status: {item.status}</Typography>
-                      <Typography variant="caption" color="text.secondary">Updated: {formatDateTime(item.updatedAt)}</Typography>
-                    </Stack>
-                  </Box>
-                </ListItemButton>
-              ))}
+              ) : sessionList.map((item) => {
+                const sessionLabel = resolveSessionListLabel(item);
+
+                return (
+                  <ListItemButton
+                    key={item.sessionId}
+                    selected={item.sessionId === currentSessionId}
+                    disabled={isBusy}
+                    data-testid="session-list-item"
+                    data-session-id={item.sessionId}
+                    data-session-status={item.status}
+                    data-session-goal={item.task?.goal ?? ''}
+                    onClick={() => {
+                      void runtime.loadSession(item.sessionId);
+                    }}
+                    sx={{ alignItems: 'flex-start', py: 1 }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        title={sessionLabel}
+                        sx={{
+                          display: '-webkit-box',
+                          overflow: 'hidden',
+                          wordBreak: 'break-word',
+                          WebkitBoxOrient: 'vertical',
+                          WebkitLineClamp: 2,
+                        }}
+                      >
+                        {sessionLabel}
+                      </Typography>
+                      <Stack spacing={0.25} sx={{ mt: 0.4 }}>
+                        <Typography variant="caption" color="text.secondary">Status: {item.status}</Typography>
+                        <Typography variant="caption" color="text.secondary">Updated: {formatDateTime(item.updatedAt)}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                          Session: {item.sessionId}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  </ListItemButton>
+                );
+              })}
             </List>
           </Box>
 
-          <Stack spacing={1.25} sx={{ minHeight: 0 }}>
+          <Stack spacing={1.25} sx={{ minHeight: 0, overflow: 'hidden' }}>
             <Box sx={{ border: '1px solid #d7dde5', bgcolor: '#fbfcfe', p: 1.25 }}>
               <Stack spacing={1}>
                 <Typography variant="subtitle2">Run Input</Typography>
@@ -347,25 +387,25 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                   <Button variant="outlined" color="secondary" disabled={!canInteract || isBusy} onClick={() => void runtime.refreshSession()}>
                     Refresh
                   </Button>
-                  <Button variant="outlined" color="secondary" disabled={!canInteract || isBusy || runtime.session?.status !== 'running'} onClick={() => void runtime.pauseSession()}>
+                  <Button variant="outlined" color="secondary" disabled={!canInteract || isBusy || activeSession?.status !== 'running'} onClick={() => void runtime.pauseSession()}>
                     Pause
                   </Button>
-                  <Button variant="outlined" color="secondary" disabled={!canInteract || isBusy || runtime.session?.status !== 'paused'} onClick={() => void runtime.resumeSession()}>
+                  <Button variant="outlined" color="secondary" disabled={!canInteract || isBusy || activeSession?.status !== 'paused'} onClick={() => void runtime.resumeSession()}>
                     Resume
                   </Button>
-                  <Button variant="outlined" color="error" disabled={!canInteract || isBusy || runtime.session?.status === 'terminated'} onClick={() => void runtime.terminateSession()}>
+                  <Button variant="outlined" color="error" disabled={!canInteract || isBusy || activeSession?.status === 'terminated'} onClick={() => void runtime.terminateSession()}>
                     Terminate
                   </Button>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                  <Chip label={runtime.session?.status ?? 'idle'} size="small" variant="outlined" />
-                  <Chip label={`nodes ${runtime.runtimeActiveNodeIds.length}`} size="small" variant="outlined" />
-                  <Chip label={`edges ${runtime.runtimeActiveEdgeIds.length}`} size="small" variant="outlined" />
+                  <Chip label={activeSession?.status ?? 'idle'} size="small" variant="outlined" />
+                  <Chip label={`nodes ${activeRuntimeNodeIds.length}`} size="small" variant="outlined" />
+                  <Chip label={`edges ${activeRuntimeEdgeIds.length}`} size="small" variant="outlined" />
                 </Box>
               </Stack>
             </Box>
 
-            <Box sx={{ flex: '1 1 auto', minHeight: 0 }}>
+            <Box sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
               <GraphPanel
                 schema={editor.schema}
                 mode={EditorMode.Run}
@@ -383,8 +423,9 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                 onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}
                 onWorkflowConnect={editor.addWorkflowEdge}
                 onClearEdgeConnectionError={editor.clearEdgeConnectionError}
-                highlightedNodeIds={runtime.runtimeActiveNodeIds}
-                highlightedEdgeIds={runtime.runtimeActiveEdgeIds}
+                highlightedNodeIds={activeRuntimeNodeIds}
+                highlightedEdgeIds={activeRuntimeEdgeIds}
+                fillAvailableHeight
               />
             </Box>
           </Stack>
@@ -430,25 +471,25 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
           )}
 
           {/* Discussion turns — shown on discussion node */}
-          {selectedRuntimeNodeId === 'discussion' && (runtime.session?.state.discussionResult?.turns?.length ?? 0) > 0 && (
+          {selectedRuntimeNodeId === 'discussion' && (activeSession?.state.discussionResult?.turns?.length ?? 0) > 0 && (
             <Box data-testid="discussion-turns-panel">
               <RuntimeDiscussionPanel
-                turns={runtime.session!.state.discussionResult!.turns!}
-                mode={runtime.session?.state.context?.currentMode}
+                turns={activeSession!.state.discussionResult!.turns!}
+                mode={activeSession?.state.context?.currentMode}
               />
             </Box>
           )}
 
           {/* Review results — shown globally when session has reviews */}
-          {(runtime.session?.state.reviewResults?.length ?? 0) > 0 && (
+          {(activeSession?.state.reviewResults?.length ?? 0) > 0 && (
             <Box data-testid="review-results-panel">
-              <RuntimeReviewPanel reviewResults={runtime.session!.state.reviewResults!} />
+              <RuntimeReviewPanel reviewResults={activeSession!.state.reviewResults!} />
             </Box>
           )}
 
           {/* Capability interruption — shown when session interrupted by denied capability */}
           {(() => {
-            const interruption = runtime.session?.state.interruption;
+            const interruption = activeSession?.state.interruption;
             if (interruption === undefined || (interruption.deniedCapabilityIds?.length ?? 0) === 0) return null;
             return (
               <Box data-testid="capability-denial-panel">

@@ -29,6 +29,7 @@ export type RuntimeObservabilityRepository = {
 	readonly listLatestSnapshots: () => Promise<readonly RuntimeSessionSnapshotRecord[]>;
 	readonly listSessionsPage: (options: {
 		readonly status?: string;
+		readonly teamId?: string;
 		readonly cursor?: string;
 		readonly limit: number;
 	}) => Promise<SessionListPage>;
@@ -107,6 +108,12 @@ const parseRuntimeSnapshot = (record: RuntimeSnapshot): RuntimeSessionSnapshotRe
 	sequence: record.sequence,
 });
 
+const toSessionUpdatedTimestamp = (record: RuntimeSessionSnapshotRecord): number => {
+	const timestamp = Date.parse(record.session.updatedAt);
+
+	return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
 export const createPrismaRuntimeObservabilityRepository = (
 	prisma: PrismaClient,
 ): RuntimeObservabilityRepository => ({
@@ -125,7 +132,7 @@ export const createPrismaRuntimeObservabilityRepository = (
 
 		return records.map(parseRuntimeSnapshot);
 	},
-	listSessionsPage: async ({ status, cursor, limit }) => {
+	listSessionsPage: async ({ status, teamId, cursor, limit }) => {
 		// Count total distinct sessions
 		const allSnapshots = await prisma.runtimeSnapshot.findMany({
 			distinct: ['sessionId'],
@@ -134,23 +141,27 @@ export const createPrismaRuntimeObservabilityRepository = (
 
 		const parsed = allSnapshots.map(parseRuntimeSnapshot);
 
-		// Apply status filter in-process (status lives in the snapshot JSON)
-		const filtered = status !== undefined
+		const statusFiltered = status !== undefined
 			? parsed.filter((item: RuntimeSessionSnapshotRecord) => (item.session as { status?: string }).status === status)
 			: parsed;
+		const filtered = teamId !== undefined
+			? statusFiltered.filter((item: RuntimeSessionSnapshotRecord) => item.session.state.context.teamId === teamId)
+			: statusFiltered;
+		const sorted = [...filtered].sort((left, right) => toSessionUpdatedTimestamp(right) - toSessionUpdatedTimestamp(left));
 
 		// Cursor-based pagination: cursor is a sessionId
-		const startIndex = cursor !== undefined
-			? filtered.findIndex((item: RuntimeSessionSnapshotRecord) => item.session.sessionId === cursor) + 1
-			: 0;
+		const cursorIndex = cursor === undefined
+			? -1
+			: sorted.findIndex((item: RuntimeSessionSnapshotRecord) => item.session.sessionId === cursor);
+		const startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
 
-		const page = filtered.slice(startIndex, startIndex + limit);
+		const page = sorted.slice(startIndex, startIndex + limit);
 		const lastItem = page.at(-1);
 		const nextCursor = page.length === limit && lastItem !== undefined
 			? lastItem.session.sessionId
 			: undefined;
 
-		return { items: page, nextCursor, total: filtered.length };
+		return { items: page, nextCursor, total: sorted.length };
 	},
 	loadSessionSnapshot: async (sessionId) => {
 		const record = await prisma.runtimeSnapshot.findFirst({

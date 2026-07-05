@@ -22,7 +22,7 @@ const normalizeBaseUrl = (config: FullConfig): string => {
 const buildLmStudioGatewayEntry = (): Record<string, unknown> => {
   const now = new Date().toISOString();
   const provider = process.env.E2E_LMSTUDIO_PROVIDER?.trim() || 'lmstudio';
-  const model = process.env.E2E_LMSTUDIO_MODEL?.trim() || 'google/gemma-4-12b';
+  const model = process.env.E2E_LMSTUDIO_MODEL?.trim() || 'google/gemma-4-26b-a4b-qat';
   const apiFormat = process.env.E2E_LMSTUDIO_API_FORMAT?.trim() || 'openai_chat';
   const baseUrl = process.env.E2E_LMSTUDIO_BASE_URL?.trim() || 'http://localhost:1234/v1';
   const apiKey = process.env.E2E_LMSTUDIO_API_KEY?.trim() || '';

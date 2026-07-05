@@ -24,7 +24,13 @@ test.describe('Session List API — GET /runtime/sessions', () => {
       : rawPayload;
 
     const listResponse = payload as {
-      items: Array<{ sessionId: string; status: string; createdAt: string; updatedAt: string }>;
+      items: Array<{
+        sessionId: string;
+        status: string;
+        createdAt: string;
+        updatedAt: string;
+        task?: { title: string; goal: string };
+      }>;
       total: number;
       limit: number;
       nextCursor?: string;
@@ -37,6 +43,8 @@ test.describe('Session List API — GET /runtime/sessions', () => {
     const sessionIds = listResponse.items.map((item) => item.sessionId);
     expect(sessionIds).toContain(session1.sessionId);
     expect(sessionIds).toContain(session2.sessionId);
+    expect(listResponse.items.find((item) => item.sessionId === session1.sessionId)?.task?.goal).toBe('E2E session list test A');
+    expect(listResponse.items.find((item) => item.sessionId === session2.sessionId)?.task?.goal).toBe('E2E session list test B');
 
     // Each item must have required fields
     for (const item of listResponse.items) {
