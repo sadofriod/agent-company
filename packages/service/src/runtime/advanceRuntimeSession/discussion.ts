@@ -278,9 +278,9 @@ const executeSequentialHandoffTurns = async (
 	const collectTurns = async (
 		remaining: readonly AgentDefinition[],
 		previousRecommendation: string,
-		accumulated: readonly DiscussionTurn[],
+		accumulated: DiscussionTurn[],
 		index: number,
-	): Promise<readonly DiscussionTurn[]> => {
+	): Promise<DiscussionTurn[]> => {
 		if (remaining.length === 0) {
 			return accumulated;
 		}
@@ -295,7 +295,8 @@ const executeSequentialHandoffTurns = async (
 			: '';
 		const userPrompt = `${taskCtx} Topic: ${topic.goal}.${handoffContext}\n\nProvide your recommendation for the next stage.`;
 		const turn = await callAgentTurn(session, agent, systemPrompt, userPrompt, index + 1, ownerDepartmentId, mode);
-		return collectTurns(rest, String(turn.structuredOutput.recommendation), [...accumulated, turn], index + 1);
+		accumulated.push(turn);
+		return collectTurns(rest, String(turn.structuredOutput.recommendation), accumulated, index + 1);
 	};
 
 	return collectTurns(orderedAgents, '', [], 0);
@@ -449,8 +450,8 @@ const createDiscussionArtifacts = async (session: RuntimeSession): Promise<Discu
 };
 
 type TicketAdmissionAccumulator = {
-	readonly tickets: readonly Ticket[];
-	readonly reviewResults: readonly ReviewResult[];
+	tickets: Ticket[];
+	reviewResults: ReviewResult[];
 };
 
 type TicketAdmissionOutcome =
@@ -462,30 +463,24 @@ const admitAllTicketDrafts = (
 	ticketDrafts: readonly TicketDraft[],
 	accumulated: TicketAdmissionAccumulator,
 ): TicketAdmissionOutcome => {
-	if (ticketDrafts.length === 0) {
-		return { status: 'completed', tickets: accumulated.tickets, reviewResults: accumulated.reviewResults };
+	for (const ticketDraft of ticketDrafts) {
+		const admission = admitTicketDraft(session, ticketDraft);
+		accumulated.reviewResults.push(...admission.reviewResults);
+
+		if (admission.interruption !== undefined) {
+			const sessionWithReviews = updateRuntimeSession(session, {
+				reviewResults: [...session.state.reviewResults, ...accumulated.reviewResults],
+				latestReviewResult: accumulated.reviewResults.at(-1),
+			});
+			return { status: 'interrupted', session: applyInterruption(sessionWithReviews, admission.interruption) };
+		}
+
+		if (admission.ticket !== undefined) {
+			accumulated.tickets.push(admission.ticket);
+		}
 	}
 
-	const [ticketDraft, ...rest] = ticketDrafts;
-	if (ticketDraft === undefined) {
-		return { status: 'completed', tickets: accumulated.tickets, reviewResults: accumulated.reviewResults };
-	}
-	const admission = admitTicketDraft(session, ticketDraft);
-	const updatedReviewResults = [...accumulated.reviewResults, ...admission.reviewResults];
-
-	if (admission.interruption !== undefined) {
-		const sessionWithReviews = updateRuntimeSession(session, {
-			reviewResults: [...session.state.reviewResults, ...updatedReviewResults],
-			latestReviewResult: updatedReviewResults.at(-1),
-		});
-		return { status: 'interrupted', session: applyInterruption(sessionWithReviews, admission.interruption) };
-	}
-
-	const updatedTickets = admission.ticket !== undefined
-		? [...accumulated.tickets, admission.ticket]
-		: accumulated.tickets;
-
-	return admitAllTicketDrafts(session, rest, { tickets: updatedTickets, reviewResults: updatedReviewResults });
+	return { status: 'completed', tickets: accumulated.tickets, reviewResults: accumulated.reviewResults };
 };
 
 export const executeDiscussionStage = async (session: RuntimeSession): Promise<ValidationResult<RuntimeSession>> => {
