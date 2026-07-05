@@ -4,6 +4,7 @@ import {
   type LlmGatewayConfig,
   type LlmGatewayDraft,
 } from './types';
+import { DEFAULT_LLM_GATEWAYS } from '../defaultCatalogs';
 
 const STORAGE_KEY = 'agents-team.llm-gateways.v1';
 
@@ -23,7 +24,7 @@ const readRawConfigs = (): LlmGatewayConfig[] => {
 
   const rawValue = window.localStorage.getItem(STORAGE_KEY);
   if (rawValue === null) {
-    return [];
+    return [...DEFAULT_LLM_GATEWAYS];
   }
 
   try {
