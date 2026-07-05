@@ -71,6 +71,53 @@ const readDerivedTeamSchemaFixture = async ({
     && !Array.isArray(schemaRecord.discussion_policy)
       ? (schemaRecord.discussion_policy as Record<string, unknown>)
       : {};
+  const agents = Array.isArray(schemaRecord.agents)
+    ? schemaRecord.agents.map((agent) => {
+      if (typeof agent !== 'object' || agent === null || Array.isArray(agent)) {
+        return agent;
+      }
+
+      const agentRecord = agent as Record<string, unknown>;
+      const metadata =
+        typeof agentRecord.metadata === 'object'
+        && agentRecord.metadata !== null
+        && !Array.isArray(agentRecord.metadata)
+          ? (agentRecord.metadata as Record<string, unknown>)
+          : undefined;
+      const llm =
+        metadata !== undefined
+        && typeof metadata.llm === 'object'
+        && metadata.llm !== null
+        && !Array.isArray(metadata.llm)
+          ? (metadata.llm as Record<string, unknown>)
+          : undefined;
+      const headers =
+        llm !== undefined
+        && typeof llm.headers === 'object'
+        && llm.headers !== null
+        && !Array.isArray(llm.headers)
+          ? (llm.headers as Record<string, unknown>)
+          : undefined;
+
+      if (headers?.['x-agent-team'] === undefined) {
+        return agent;
+      }
+
+      return {
+        ...agentRecord,
+        metadata: {
+          ...metadata,
+          llm: {
+            ...llm,
+            headers: {
+              ...headers,
+              'x-agent-team': teamId,
+            },
+          },
+        },
+      };
+    })
+    : schemaRecord.agents;
   const restDiscussionPolicy = { ...discussionPolicy };
   delete restDiscussionPolicy.supervisor_agent_id;
 
@@ -78,6 +125,7 @@ const readDerivedTeamSchemaFixture = async ({
     ...schemaRecord,
     team_id: teamId,
     team_name: teamName,
+    agents,
     discussion_policy: {
       ...restDiscussionPolicy,
       mode: derivedMode,

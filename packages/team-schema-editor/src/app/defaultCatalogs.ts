@@ -30,7 +30,6 @@ const createGatewayConfig = (
   model,
   apiFormat,
   baseUrl: 'https://gateway.internal.example/v1',
-  apiKey: 'AGENT_GATEWAY_KEY',
   createdAt: DEFAULT_TIMESTAMP,
   updatedAt: DEFAULT_TIMESTAMP,
 });
