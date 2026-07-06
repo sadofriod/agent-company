@@ -59,6 +59,158 @@ type ExecutePipelineStageOptions = {
 	readonly testScenarios?: RuntimeSession['state']['context']['testScenarios'];
 };
 
+const DISCUSSION_NODE_ID = 'discussion';
+const WORKFLOW_DISCUSSION_BROADCAST_EDGE_TYPE = 'discuss-broadcast';
+const WORKFLOW_PIPELINE_EDGE_TYPE = 'pipeline-handoff';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null;
+
+const asString = (value: unknown): string | undefined =>
+	typeof value === 'string' && value.length > 0 ? value : undefined;
+
+const isDiscussionBroadcastLayoutEdge = (edge: NonNullable<RuntimeSession['runtimePlan']['team']['layout']>['edges'][number]): boolean => {
+	const mode = isRecord(edge.data) ? asString(edge.data.mode) : undefined;
+	return edge.type === WORKFLOW_DISCUSSION_BROADCAST_EDGE_TYPE || mode === 'discuss_broadcast';
+};
+
+const isPipelineLayoutEdge = (edge: NonNullable<RuntimeSession['runtimePlan']['team']['layout']>['edges'][number]): boolean => {
+	const mode = isRecord(edge.data) ? asString(edge.data.mode) : undefined;
+	return edge.type === WORKFLOW_PIPELINE_EDGE_TYPE || mode === 'pipeline';
+};
+
+const resolveLayoutAgentId = (
+	session: RuntimeSession,
+	layoutNodesById: ReadonlyMap<string, NonNullable<RuntimeSession['runtimePlan']['team']['layout']>['nodes'][number]>,
+	nodeId: string,
+): RuntimeSession['runtimePlan']['team']['agents'][number]['agentId'] | undefined => {
+	if (nodeId.startsWith('agent:')) {
+		return nodeId.replace('agent:', '') as RuntimeSession['runtimePlan']['team']['agents'][number]['agentId'];
+	}
+
+	const layoutNode = layoutNodesById.get(nodeId);
+
+	if (layoutNode?.data?.workflowNodeType !== 'agent' || layoutNode.data.workflowAgentId === undefined) {
+		return undefined;
+	}
+
+	return layoutNode.data.workflowAgentId;
+};
+
+const resolveLayoutStepTitle = (
+	layoutNode: NonNullable<RuntimeSession['runtimePlan']['team']['layout']>['nodes'][number] | undefined,
+	agent: AgentAssembly['gateway'] extends never ? never : RuntimeSession['runtimePlan']['team']['agents'][number],
+): string => layoutNode?.data?.workflowMetadata?.name
+	?? layoutNode?.data?.nodeName
+	?? `${agent.role} step`;
+
+type LayoutPipelineDescriptor = {
+	readonly nodeId: string;
+	readonly agent: RuntimeSession['runtimePlan']['team']['agents'][number];
+	readonly dependsOnNodeIds: readonly string[];
+	readonly title: string;
+};
+
+const createLayoutPipelineDescriptors = (
+	session: RuntimeSession,
+): readonly LayoutPipelineDescriptor[] | null => {
+	const layout = session.runtimePlan.team.layout;
+
+	if (layout === undefined) {
+		return null;
+	}
+
+	const layoutNodesById = new Map(layout.nodes.map((node) => [node.id, node]));
+	const pipelineEdges = layout.edges.filter(isPipelineLayoutEdge);
+	const discussionRoots = uniqueValues(layout.edges.flatMap((edge) => {
+		if (!isDiscussionBroadcastLayoutEdge(edge)) {
+			return [];
+		}
+
+		if (edge.source === DISCUSSION_NODE_ID) {
+			return [edge.target];
+		}
+
+		if (edge.target === DISCUSSION_NODE_ID) {
+			return [edge.source];
+		}
+
+		return [];
+	}));
+
+	if (discussionRoots.length === 0) {
+		return null;
+	}
+
+	const selectedNodeIds = new Set<string>();
+	const pendingNodeIds = [...discussionRoots];
+
+	while (pendingNodeIds.length > 0) {
+		const nodeId = pendingNodeIds.pop();
+
+		if (nodeId === undefined || selectedNodeIds.has(nodeId)) {
+			continue;
+		}
+
+		selectedNodeIds.add(nodeId);
+
+		for (const edge of pipelineEdges) {
+			if (edge.source === nodeId && !selectedNodeIds.has(edge.target)) {
+				pendingNodeIds.push(edge.target);
+			}
+		}
+	}
+
+	const collectUpstreamExecutableNodeIds = (nodeId: string, seen: ReadonlySet<string> = new Set<string>()): readonly string[] => {
+		if (seen.has(nodeId)) {
+			return [];
+		}
+
+		const nextSeen = new Set(seen);
+		nextSeen.add(nodeId);
+		const incomingNodeIds = pipelineEdges
+			.filter((edge) => edge.target === nodeId && selectedNodeIds.has(edge.source))
+			.map((edge) => edge.source);
+		const executableNodeIds: string[] = [];
+
+		for (const incomingNodeId of incomingNodeIds) {
+			if (resolveLayoutAgentId(session, layoutNodesById, incomingNodeId) !== undefined) {
+				executableNodeIds.push(incomingNodeId);
+				continue;
+			}
+
+			executableNodeIds.push(...collectUpstreamExecutableNodeIds(incomingNodeId, nextSeen));
+		}
+
+		return uniqueValues(executableNodeIds);
+	};
+
+	const descriptors = [...selectedNodeIds]
+		.map((nodeId) => {
+			const agentId = resolveLayoutAgentId(session, layoutNodesById, nodeId);
+
+			if (agentId === undefined) {
+				return null;
+			}
+
+			const agent = session.runtimePlan.agentsById.get(agentId);
+
+			if (agent === undefined) {
+				return null;
+			}
+
+			return {
+				nodeId,
+				agent,
+				dependsOnNodeIds: collectUpstreamExecutableNodeIds(nodeId),
+				title: resolveLayoutStepTitle(layoutNodesById.get(nodeId), agent),
+			} satisfies LayoutPipelineDescriptor;
+		})
+		.filter((descriptor): descriptor is LayoutPipelineDescriptor => descriptor !== null);
+
+	return descriptors.length === 0 ? null : descriptors;
+};
+
 const appendReviewEvents = (
 	session: RuntimeSession,
 	pipeline: Pipeline,
@@ -194,29 +346,53 @@ const createPipelineForTicket = (session: RuntimeSession, ticket: Ticket): Valid
 	const shouldInjectCapabilityMissing = session.state.context.testScenarios?.capabilityMissing === true;
 	const shouldInjectPipelineCycle = session.state.context.testScenarios?.pipelineCycle === true;
 	const pipelineId = toPipelineId(createRuntimeScopedId('pipeline'));
-	const stepIds = orderedAgents.map(() => toPipelineStepId(createRuntimeScopedId('step')));
-	const steps: PipelineStep[] = orderedAgents.map((agent, index) => ({
-		stepId: stepIds[index] ?? toPipelineStepId(createRuntimeScopedId('step')),
-		ticketId: ticket.ticketId,
-		ownerAgentId: agent.agentId,
-		title: `${agent.role} step`,
-		dependsOn:
-			index === 0
-				? []
-				: [stepIds[index - 1]].filter(
-					(stepId): stepId is PipelineStep['stepId'] => stepId !== undefined,
-				),
-		inputContract: agent.inputContract,
-		outputContract: agent.outputContract,
-		allowedCapabilities: uniqueValues([
-			...agent.skillIds,
-			...agent.mcpServerIds,
-			...agent.toolIds,
-			...(shouldInjectCapabilityMissing && index === 0 ? ['__e2e_missing_capability__'] : []),
-		]),
-		reviewRequired: true,
-		failurePolicy: ticket.failurePolicy,
-	}));
+	const layoutDescriptors = createLayoutPipelineDescriptors(session);
+	const stepIds = (layoutDescriptors ?? orderedAgents).map(() => toPipelineStepId(createRuntimeScopedId('step')));
+	const stepIdsByLayoutNodeId = layoutDescriptors === null
+		? new Map<string, PipelineStep['stepId']>()
+		: new Map(layoutDescriptors.map((descriptor, index) => [descriptor.nodeId, stepIds[index] ?? toPipelineStepId(createRuntimeScopedId('step'))]));
+	const steps: PipelineStep[] = layoutDescriptors === null
+		? orderedAgents.map((agent, index) => ({
+			stepId: stepIds[index] ?? toPipelineStepId(createRuntimeScopedId('step')),
+			ticketId: ticket.ticketId,
+			ownerAgentId: agent.agentId,
+			title: `${agent.role} step`,
+			dependsOn:
+				index === 0
+					? []
+					: [stepIds[index - 1]].filter(
+						(stepId): stepId is PipelineStep['stepId'] => stepId !== undefined,
+					),
+			inputContract: agent.inputContract,
+			outputContract: agent.outputContract,
+			allowedCapabilities: uniqueValues([
+				...agent.skillIds,
+				...agent.mcpServerIds,
+				...agent.toolIds,
+				...(shouldInjectCapabilityMissing && index === 0 ? ['__e2e_missing_capability__'] : []),
+			]),
+			reviewRequired: true,
+			failurePolicy: ticket.failurePolicy,
+		}))
+		: layoutDescriptors.map((descriptor, index) => ({
+			stepId: stepIdsByLayoutNodeId.get(descriptor.nodeId) ?? toPipelineStepId(createRuntimeScopedId('step')),
+			ticketId: ticket.ticketId,
+			ownerAgentId: descriptor.agent.agentId,
+			title: descriptor.title,
+			dependsOn: descriptor.dependsOnNodeIds
+				.map((nodeId) => stepIdsByLayoutNodeId.get(nodeId))
+				.filter((stepId): stepId is PipelineStep['stepId'] => stepId !== undefined),
+			inputContract: descriptor.agent.inputContract,
+			outputContract: descriptor.agent.outputContract,
+			allowedCapabilities: uniqueValues([
+				...descriptor.agent.skillIds,
+				...descriptor.agent.mcpServerIds,
+				...descriptor.agent.toolIds,
+				...(shouldInjectCapabilityMissing && index === 0 ? ['__e2e_missing_capability__'] : []),
+			]),
+			reviewRequired: true,
+			failurePolicy: ticket.failurePolicy,
+		}));
 
 	if (shouldInjectPipelineCycle && steps.length > 1) {
 		const firstStep = steps[0];

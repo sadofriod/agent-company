@@ -78,7 +78,7 @@ This starts:
 - Team schema editor: http://127.0.0.1:5173
 - PostgreSQL: `localhost:5432`
 
-The compose setup will install dependencies (if needed), run DB bootstrap, seed the default example workspaces (`current`, `software-delivery-team`, `mvp-rag-memory-toolcall-team`, plus sequential / parallel discussion variants), then launch service + editor in dev mode. The editor also ships first-load example LLM / skill / MCP / tool catalogs for Docker-based debugging.
+The compose setup will install dependencies (if needed), run DB bootstrap, seed the default example workspaces (`current`, `discussion-blackboard-team`, `software-delivery-team`, `mvp-rag-memory-toolcall-team`, plus sequential / parallel discussion variants), then launch service + editor in dev mode. The editor also ships first-load example LLM / skill / MCP / tool catalogs for Docker-based debugging.
 
 ### Option B: Local development
 

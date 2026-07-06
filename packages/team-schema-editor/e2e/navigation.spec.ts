@@ -22,7 +22,7 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
     
     // Check for some Flow Editor elements or specific headings
     await expect(page.getByText('Flow Editor')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Software Delivery Team' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Discussion Blackboard Team' }).first()).toBeVisible();
 
     // 6. Navigate back to workspace list by going to '/'
     await page.goto('/');
@@ -45,7 +45,7 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
     await expect(page.getByText('Flow Editor')).toBeVisible();
   });
 
-  test('should click and inspect all types of seeded agent nodes successfully without crashing', async ({ page }) => {
+  test('should click and inspect all seeded discussion agent nodes successfully without crashing', async ({ page }) => {
     // 1. Visit the home page (Workspace List)
     await page.goto('/');
     await expect(page).toHaveTitle(/Team Schema Editor/);
@@ -83,22 +83,15 @@ test.describe('Workspace Navigation and Loading Loading State Coverage', () => {
     await expect(page.getByText('Name:').first()).toBeVisible();
     await expect(page.getByText('CEO').first()).toBeVisible();
 
-    // --- 6. Click and inspect FullStackEngineer node ---
-    const fullStackNode = page.locator('.react-flow__node').filter({ hasText: 'FullStackEngineer' }).first();
-    await expect(fullStackNode).toBeVisible();
-    await fullStackNode.click();
+    // --- 6. Click and inspect Content Leader node ---
+    const contentLeaderNode = page.locator('.react-flow__node').filter({ hasText: 'Content Leader' }).first();
+    await expect(contentLeaderNode).toBeVisible();
+    await contentLeaderNode.click();
 
     // Verify Inspector details are loaded safely config
-    await expect(page.getByRole('heading', { name: 'FullStackEngineer', exact: true })).toBeVisible();
-    await expect(page.getByLabel('Role')).toHaveValue('Pipeline Step Executor');
+    await expect(page.getByRole('heading', { name: 'Content Leader', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Role')).toHaveValue('Department Owner');
     await expect(page.getByText('Name:').first()).toBeVisible();
-    await expect(page.getByText('FullStackEngineer').first()).toBeVisible();
-
-    const fullStackToolsInput = page.getByRole('combobox', { name: 'Tools' });
-    await expect(fullStackToolsInput).toBeVisible();
-    await expect(fullStackToolsInput).toContainText('search');
-    await expect(fullStackToolsInput).toContainText('read_file');
-    await expect(fullStackToolsInput).toContainText('edit_file');
-    await expect(fullStackToolsInput).toContainText('run_tests');
+    await expect(page.getByText('Content Leader').first()).toBeVisible();
   });
 });

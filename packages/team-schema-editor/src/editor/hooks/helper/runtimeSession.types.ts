@@ -50,6 +50,8 @@ export type RuntimeNodeInsight = {
   updatedAt: string;
   summary: string;
   conclusion?: string;
+  readTargetIds: readonly string[];
+  writeTargetIds: readonly string[];
   toolCalls: readonly RuntimeEventToolCall[];
 };
 
@@ -62,6 +64,8 @@ export type RuntimeEventFeedItem = {
   nodeIds: readonly string[];
   edgeIds: readonly string[];
   conclusion?: string;
+  readTargetIds: readonly string[];
+  writeTargetIds: readonly string[];
   toolCalls: readonly RuntimeEventToolCall[];
 };
 

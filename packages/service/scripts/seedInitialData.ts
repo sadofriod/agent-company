@@ -14,15 +14,16 @@ import { createPrismaTeamSchemaRepository } from '../src/adapter/teamSchemaRepos
 import { listAgentMarkdownFiles, resolveAgentMarkdownPath } from '../src/agent/markdown';
 
 const TEAM_SCHEMA_KEY = 'current';
-const DEFAULT_TEAM_SCHEMA_FILE = 'mvp-rag-memory-toolcall-team.json';
+const DEFAULT_TEAM_SCHEMA_FILE = 'discussion-blackboard-team.json';
 const DEFAULT_EXAMPLE_TEAM_NAME = 'MVP RAG Memory Tool Call Team';
 const TEAM_SCHEMA_FIXTURES = [
   { key: TEAM_SCHEMA_KEY, fileName: DEFAULT_TEAM_SCHEMA_FILE },
+  { key: 'discussion-blackboard-team', fileName: DEFAULT_TEAM_SCHEMA_FILE },
   { key: 'software-delivery-team', fileName: 'software-delivery-team.json' },
-  { key: 'mvp-rag-memory-toolcall-team', fileName: DEFAULT_TEAM_SCHEMA_FILE },
+  { key: 'mvp-rag-memory-toolcall-team', fileName: 'mvp-rag-memory-toolcall-team.json' },
   {
     key: 'mvp-sequential-handoff-team',
-    fileName: DEFAULT_TEAM_SCHEMA_FILE,
+    fileName: 'mvp-rag-memory-toolcall-team.json',
     derivedMode: 'sequential_handoff',
     teamId: 'mvp-sequential-handoff-team',
     teamName: `${DEFAULT_EXAMPLE_TEAM_NAME} · Sequential Handoff`,
@@ -30,7 +31,7 @@ const TEAM_SCHEMA_FIXTURES = [
   },
   {
     key: 'mvp-parallel-review-team',
-    fileName: DEFAULT_TEAM_SCHEMA_FILE,
+    fileName: 'mvp-rag-memory-toolcall-team.json',
     derivedMode: 'parallel_review',
     teamId: 'mvp-parallel-review-team',
     teamName: `${DEFAULT_EXAMPLE_TEAM_NAME} · Parallel Review`,

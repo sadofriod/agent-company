@@ -92,6 +92,49 @@ export type TicketDraft = {
   readonly requiredCapabilities: readonly string[];
 };
 
+export const DISCUSSION_CONNECTED_TARGET_KIND = {
+  Agent: 'agent',
+  Department: 'department',
+  Pipeline: 'pipeline',
+} as const;
+
+export type DiscussionConnectedTargetKind =
+  typeof DISCUSSION_CONNECTED_TARGET_KIND[keyof typeof DISCUSSION_CONNECTED_TARGET_KIND];
+
+export type DiscussionConnectedTarget = {
+  readonly targetId: string;
+  readonly kind: DiscussionConnectedTargetKind;
+  readonly label: string;
+  readonly detail: string;
+  readonly readableByAgentIds: readonly AgentId[];
+  readonly writableByAgentIds: readonly AgentId[];
+  readonly capabilityIds: readonly string[];
+  readonly inputContract?: string;
+  readonly outputContract?: string;
+  readonly downstreamTargetIds?: readonly string[];
+};
+
+export type DiscussionBlackboardInput = {
+  readonly inputId: string;
+  readonly source: string;
+  readonly summary: string;
+};
+
+export type DiscussionBlackboardEntry = {
+  readonly entryId: string;
+  readonly round: number;
+  readonly authorAgentId: AgentId;
+  readonly sourceTargetIds: readonly string[];
+  readonly summary: string;
+};
+
+export type DiscussionBlackboard = {
+  readonly upstreamInputs: readonly DiscussionBlackboardInput[];
+  readonly connectedTargets: readonly DiscussionConnectedTarget[];
+  readonly entries: readonly DiscussionBlackboardEntry[];
+  readonly latestSummary: string;
+};
+
 /**
  * 记录一次讨论轮次中某个 Agent 的结构化产出。
  */
@@ -158,6 +201,10 @@ export type DiscussionResult = {
   readonly ticketDrafts: readonly TicketDraft[];
   /** 讨论轮次明细。 */
   readonly turns: readonly DiscussionTurn[];
+  /** 讨论阶段可读写的连接目标。 */
+  readonly connectedTargets: readonly DiscussionConnectedTarget[];
+  /** 讨论阶段共享黑板状态。 */
+  readonly blackboard: DiscussionBlackboard;
   /** 已识别的冲突。 */
   readonly conflicts: readonly DiscussionConflict[];
   /** 尚未解决的待办项。 */

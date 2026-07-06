@@ -38,6 +38,7 @@ type GraphPanelProps = {
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onEdgesChange: OnEdgesChange<Edge>;
   onNodeSelect: (nodeId: string | null) => void;
+  onEdgeSelect: (edgeId: string | null) => void;
   onAddWorkflowAgentNode: () => void;
   onAddWorkflowPartNode: () => void;
   onAddWorkflowPipelineNode: () => void;
@@ -58,6 +59,7 @@ export const GraphPanel = ({
   onNodesChange,
   onEdgesChange,
   onNodeSelect,
+  onEdgeSelect,
   onAddWorkflowAgentNode,
   onAddWorkflowPartNode,
   onAddWorkflowPipelineNode,
@@ -141,7 +143,6 @@ export const GraphPanel = ({
     updateLinkSourceId,
     updateLinkTargetId,
   });
-
   const contextValue = useMemo(() => ({
     isEditing,
     nodes: graphNodes,
@@ -154,6 +155,7 @@ export const GraphPanel = ({
     onNodesChange,
     onEdgesChange,
     onNodeSelect,
+    onEdgeSelect,
     onAddWorkflowAgentNode,
     onAddWorkflowPartNode,
     onAddWorkflowPipelineNode,
@@ -184,6 +186,7 @@ export const GraphPanel = ({
     onCreateEdge,
     onDialogClose,
     onEdgesChange,
+    onEdgeSelect,
     onNodeSelect,
     onNodesChange,
     onSelectConnectionMode,

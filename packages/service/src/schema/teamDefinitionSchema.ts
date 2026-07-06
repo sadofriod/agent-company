@@ -281,5 +281,6 @@ export const teamSchema = z
       agents: value.agents,
       discussionPolicy: value.discussion_policy,
       memoryPolicy: value.memory_policy,
+			layout: value.layout as TeamDefinition['layout'],
     }),
   );

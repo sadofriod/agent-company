@@ -5,6 +5,15 @@ export enum SchemaLoadStatus {
   Error = 'error',
 }
 
+export enum SchemaServiceStatus {
+  Idle = 'idle',
+  Loading = 'loading',
+  Saving = 'saving',
+  Deleting = 'deleting',
+  Validating = 'validating',
+  Error = 'error',
+}
+
 export enum SchemaField {
   TeamName = 'team_name',
   TeamId = 'team_id',

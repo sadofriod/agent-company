@@ -36,8 +36,12 @@ export type RuntimeSessionSnapshot = {
       requiredObjects?: string[];
     };
     pendingTickets?: unknown[];
+    activeTicket?: RuntimeActiveTicket;
     completedTickets?: unknown[];
+    activePipeline?: RuntimeActivePipeline;
+    latestStepResult?: RuntimeStepResult;
     completedStepResults?: RuntimeStepResult[];
+    latestReviewResult?: RuntimeReviewResult;
     reviewResults?: RuntimeReviewResult[];
     generatedHandoffs?: RuntimeHandoff[];
     discussionResult?: {
@@ -45,6 +49,8 @@ export type RuntimeSessionSnapshot = {
       decisions?: Array<{ decisionId: string; conclusion: string; rationale: string }>;
       ticketDrafts?: Array<{ ticketDraftId: string; title: string; ownerAgentId: string }>;
       turns?: RuntimeDiscussionTurn[];
+      connectedTargets?: RuntimeDiscussionConnectedTarget[];
+      blackboard?: RuntimeDiscussionBlackboard;
       conflicts?: Array<{ summary: string; kind: string }>;
       pendingItems?: Array<{ summary: string; blockingReason?: string }>;
       maxRoundsReached?: boolean;
@@ -53,6 +59,8 @@ export type RuntimeSessionSnapshot = {
       kind: string;
       message: string;
       suggestedAction?: string;
+      pipelineId?: string;
+      stepId?: string;
       deniedCapabilityIds?: string[];
     };
     nextAction?: string;
@@ -108,18 +116,104 @@ export type RuntimeDiscussionTurn = {
   promptSummary: string;
   structuredOutput: {
     recommendation?: string;
+    blackboardWrite?: string;
     ownerDepartmentId?: string;
     mode?: string;
+    readTargetIds?: string[];
+    writeTargetIds?: string[];
     [key: string]: unknown;
   };
+};
+
+export type RuntimeDiscussionConnectedTarget = {
+  targetId: string;
+  kind: 'agent' | 'department' | 'pipeline';
+  label: string;
+  detail: string;
+  readableByAgentIds: string[];
+  writableByAgentIds: string[];
+  capabilityIds: string[];
+  inputContract?: string;
+  outputContract?: string;
+  downstreamTargetIds?: string[];
+};
+
+export type RuntimeDiscussionBlackboardInput = {
+  inputId: string;
+  source: string;
+  summary: string;
+};
+
+export type RuntimeDiscussionBlackboardEntry = {
+  entryId: string;
+  round: number;
+  authorAgentId: string;
+  sourceTargetIds: string[];
+  summary: string;
+};
+
+export type RuntimeDiscussionBlackboard = {
+  upstreamInputs: RuntimeDiscussionBlackboardInput[];
+  connectedTargets: RuntimeDiscussionConnectedTarget[];
+  entries: RuntimeDiscussionBlackboardEntry[];
+  latestSummary: string;
+};
+
+export type RuntimeAgentExecutionSummary = {
+  runner?: string;
+  agentId?: string;
+  role?: string;
+  model?: string;
+  gatewayProvider?: string;
+  promptSummary?: string;
+  responseSummary?: string;
+  memoryIds?: string[];
+  consumedHandoffIds?: string[];
+  toolCalls?: unknown[];
+};
+
+export type RuntimeStepOutput = Record<string, unknown> & {
+  summary?: string;
+  goal?: string;
+  inputContract?: string;
+  outputContract?: string;
+  agentExecution?: RuntimeAgentExecutionSummary;
 };
 
 export type RuntimeStepResult = {
   stepId: string;
   ticketId: string;
   ownerAgentId: string;
-  output: Record<string, unknown>;
+  output: RuntimeStepOutput;
   generatedAt: string;
+};
+
+export type RuntimeActiveTicket = {
+  ticketId: string;
+  ownerAgentId: string;
+  title: string;
+  goal: string;
+  inputContract: string;
+  outputContract: string;
+};
+
+export type RuntimeActivePipelineStep = {
+  stepId: string;
+  ticketId: string;
+  ownerAgentId: string;
+  title: string;
+  dependsOn: string[];
+  inputContract: string;
+  outputContract: string;
+  allowedCapabilities: string[];
+  reviewRequired: boolean;
+  failurePolicy: string;
+};
+
+export type RuntimeActivePipeline = {
+  pipelineId: string;
+  ticketId: string;
+  steps: RuntimeActivePipelineStep[];
 };
 
 export type RuntimeHandoff = {

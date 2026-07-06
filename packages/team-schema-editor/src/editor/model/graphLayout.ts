@@ -6,6 +6,8 @@ import type { AgentDocument, DepartmentDocument, GraphNodeData, SchemaEdgeData, 
 
 export const GOAL_NODE_ID = 'goal';
 const DISCUSSION_NODE_ID = 'discussion';
+const PIPELINE_NODE_ID = 'pipeline';
+const REVIEW_NODE_ID = 'review';
 const DISCUSSION_MEMORY_NODE_ID = 'memory:discussion';
 const SESSION_MEMORY_NODE_ID = 'memory:session';
 
@@ -148,7 +150,25 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
     discussionPolicy: schema.discussion_policy,
   });
 
+  const pipelineNode = createNode(PIPELINE_NODE_ID, GOVERNANCE_X, governanceY + GOVERNANCE_GAP_Y, {
+    kind: GraphNodeKind.Pipeline,
+    nodeName: 'Pipeline Execution',
+    roleName: 'Execution',
+    detail: 'Admitted tickets execute through the runtime DAG.',
+    accent: 'var(--pipeline-accent)',
+  });
+
+  const reviewNode = createNode(REVIEW_NODE_ID, GOVERNANCE_X, governanceY + GOVERNANCE_GAP_Y * 2, {
+    kind: GraphNodeKind.Review,
+    nodeName: 'Review Gate',
+    roleName: 'Logic + Quality',
+    detail: 'Review can pass, revise, or block downstream execution.',
+    accent: 'var(--review-accent)',
+  });
+
   const goalDiscussionEdge = createEdge('goal-discussion', GOAL_NODE_ID, DISCUSSION_NODE_ID, 'clarify', SchemaEdgeTone.Governance);
+  const discussionPipelineEdge = createEdge('discussion-pipeline', DISCUSSION_NODE_ID, PIPELINE_NODE_ID, 'promote', SchemaEdgeTone.Governance, true);
+  const pipelineReviewEdge = createEdge('pipeline-review', PIPELINE_NODE_ID, REVIEW_NODE_ID, 'review', SchemaEdgeTone.Governance);
 
   const memoryNodes: WorkflowGraphNode[] = [];
   const memoryEdges: Edge[] = [];
@@ -180,6 +200,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
 
     memoryEdges.push(createEdge('discussion-memory-discussion', DISCUSSION_NODE_ID, DISCUSSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
     memoryEdges.push(createEdge('discussion-memory-session', DISCUSSION_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
+    memoryEdges.push(createEdge('pipeline-memory-session', PIPELINE_NODE_ID, SESSION_MEMORY_NODE_ID, 'retrieve', SchemaEdgeTone.Memory));
   }
 
   const supervisorEdges: Edge[] = [];
@@ -196,7 +217,7 @@ export const buildGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNo
   }
 
   return {
-    nodes: [...orgNodes, discussionNode, ...memoryNodes] as WorkflowGraphNode[],
-    edges: [...orgEdges, goalDiscussionEdge, ...memoryEdges, ...supervisorEdges],
+    nodes: [...orgNodes, discussionNode, pipelineNode, reviewNode, ...memoryNodes] as WorkflowGraphNode[],
+    edges: [...orgEdges, goalDiscussionEdge, discussionPipelineEdge, pipelineReviewEdge, ...memoryEdges, ...supervisorEdges],
   };
 };

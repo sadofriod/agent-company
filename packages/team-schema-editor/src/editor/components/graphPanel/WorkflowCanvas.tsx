@@ -21,6 +21,7 @@ export const WorkflowCanvas = ({
     onNodesChange,
     onEdgesChange,
     onNodeSelect,
+    onEdgeSelect,
     onConnect,
     onWorkflowEditorKeyDown,
     isTextInputTarget,
@@ -67,7 +68,21 @@ export const WorkflowCanvas = ({
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onNodeClick={(_event, node) => onNodeSelect(node.id)}
+        onPaneClick={(event) => {
+          if (event.target instanceof Element && event.target.closest('.react-flow__edge, .react-flow__node') !== null) {
+            return;
+          }
+
+          onNodeSelect(null);
+        }}
+        onNodeClick={(event, node) => {
+          event.stopPropagation();
+          onNodeSelect(node.id);
+        }}
+        onEdgeClick={(event, edge) => {
+          event.stopPropagation();
+          onEdgeSelect(edge.id);
+        }}
         onConnect={onConnect}
         nodesConnectable={isEditing}
         nodesDraggable={isEditing}

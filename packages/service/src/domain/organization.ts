@@ -129,6 +129,53 @@ export type AgentMetadata = {
   readonly llm?: AgentLlmBinding;
 };
 
+export type WorkflowLayoutNodeData = {
+  readonly kind?: string;
+  readonly nodeName?: string;
+  readonly roleName?: string;
+  readonly departmentName?: string;
+  readonly detail?: string;
+  readonly accent?: string;
+  readonly workflowNodeType?: string;
+  readonly workflowAgentId?: AgentId;
+  readonly workflowMetadata?: {
+    readonly name?: string;
+    readonly description?: string;
+  };
+  readonly memoryScope?: string;
+  readonly [key: string]: unknown;
+};
+
+export type WorkflowLayoutNode = {
+  readonly id: string;
+  readonly type?: string;
+  readonly position: {
+    readonly x: number;
+    readonly y: number;
+  };
+  readonly data?: WorkflowLayoutNodeData;
+  readonly style?: Readonly<Record<string, unknown>>;
+};
+
+export type WorkflowLayoutEdge = {
+  readonly id: string;
+  readonly source: string;
+  readonly target: string;
+  readonly sourceHandle?: string | null;
+  readonly targetHandle?: string | null;
+  readonly type?: string;
+  readonly animated?: boolean;
+  readonly data?: Readonly<Record<string, unknown>>;
+  readonly markerStart?: unknown;
+  readonly markerEnd?: unknown;
+  readonly style?: Readonly<Record<string, unknown>>;
+};
+
+export type WorkflowLayout = {
+  readonly nodes: readonly WorkflowLayoutNode[];
+  readonly edges: readonly WorkflowLayoutEdge[];
+};
+
 /**
  * 描述团队中的部门边界和协作约束。
  */
@@ -256,4 +303,6 @@ export type TeamDefinition = {
   readonly discussionPolicy: DiscussionPolicy;
   /** 可选的记忆治理策略。 */
   readonly memoryPolicy?: MemoryPolicy;
+	/** 可选的 workflow / discussion layout。 */
+	readonly layout?: WorkflowLayout;
 };

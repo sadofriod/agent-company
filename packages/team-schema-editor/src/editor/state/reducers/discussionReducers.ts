@@ -33,3 +33,16 @@ export const updateDiscussionNumber: CaseReducer<
 
   Object.assign(state, withSchema(state, schema));
 };
+
+export const clearDiscussionSupervisor: CaseReducer<EditorState> = (state): void => {
+  const { supervisor_agent_id, ...discussionPolicyWithoutSupervisor } = state.schema.discussion_policy;
+  void supervisor_agent_id;
+
+  const schema = {
+    ...state.schema,
+    discussion_policy: discussionPolicyWithoutSupervisor,
+  };
+
+  Object.assign(state, withSchema(state, schema));
+  state.selection = { kind: 'team' };
+};

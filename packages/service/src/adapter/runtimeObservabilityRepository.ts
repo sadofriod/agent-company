@@ -50,23 +50,37 @@ const isJsonPrimitive = (value: unknown): value is JsonPrimitive =>
 	|| typeof value === 'number'
 	|| typeof value === 'boolean';
 
-const toJsonValue = (value: unknown): Prisma.JsonValue => {
+const toJsonValue = (value: unknown): Prisma.JsonValue | undefined => {
+	if (value === undefined) {
+		return undefined;
+	}
+
 	if (isJsonPrimitive(value)) {
 		return value;
 	}
 
 	if (Array.isArray(value)) {
-		return value.map((entry) => toJsonValue(entry));
+		return value
+			.map((entry) => toJsonValue(entry))
+			.filter((entry): entry is Prisma.JsonValue => entry !== undefined);
 	}
 
 	if (typeof value === 'object' && value !== null) {
-		return Object.entries(value).reduce<Record<string, Prisma.JsonValue>>((result, [key, entry]) => ({
-			...result,
-			[key]: toJsonValue(entry),
-		}), {}) as Prisma.JsonValue;
+		return Object.entries(value).reduce<Record<string, Prisma.JsonValue>>((result, [key, entry]) => {
+			const jsonEntry = toJsonValue(entry);
+
+			if (jsonEntry === undefined) {
+				return result;
+			}
+
+			return {
+				...result,
+				[key]: jsonEntry,
+			};
+		}, {}) as Prisma.JsonValue;
 	}
 
-	return String(value);
+	return undefined;
 };
 
 const toJsonObject = (value: unknown): Prisma.InputJsonObject => {

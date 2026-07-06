@@ -3,8 +3,7 @@ import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/
 import { BrainCog, Cpu, FileText, Pencil, Play, RefreshCw, RotateCw, Save, ServerCog, ShieldCheck, Trash2, Wrench } from 'lucide-react';
 
 import type { EditorMode } from '../model/types';
-import { SchemaLoadStatus } from '../state/core/editorShared';
-import { SchemaServiceStatus } from '../hooks/helper/teamEditor.types';
+import { SchemaLoadStatus, SchemaServiceStatus } from '../state/core/editorShared';
 
 type EditorHeroProps = {
   mode: EditorMode;

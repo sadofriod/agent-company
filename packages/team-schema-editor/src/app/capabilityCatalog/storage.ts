@@ -5,7 +5,7 @@ import {
   type CapabilityCatalogDraft,
   type CapabilityCatalogKind,
 } from './types';
-import { DEFAULT_CAPABILITY_CATALOGS } from '../defaultCatalogs';
+import { DEFAULT_CAPABILITY_CATALOGS, TOOL_CATALOG_INCREMENTAL_DEFAULT_KEYS } from '../defaultCatalogs';
 
 const STORAGE_KEY_BY_KIND: Record<CapabilityCatalogKind, string> = {
   [CAPABILITY_CATALOG_KIND.McpServers]: 'agents-team.catalog.mcp-servers.v1',
@@ -29,6 +29,28 @@ const normalizeCatalogKey = (value: string): string =>
     .replace(/[^a-z0-9-_]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+
+const incrementalToolCatalogKeySet = new Set<string>(TOOL_CATALOG_INCREMENTAL_DEFAULT_KEYS);
+
+const appendMissingIncrementalToolDefaults = (configs: readonly CapabilityCatalogConfig[]): CapabilityCatalogConfig[] => {
+  const existingIds = new Set(configs.map((item) => item.id));
+  const existingKeys = new Set(configs.map((item) => item.key));
+  const nextConfigs = [...configs];
+
+  for (const defaultConfig of DEFAULT_CAPABILITY_CATALOGS[CAPABILITY_CATALOG_KIND.Tools]) {
+    if (!incrementalToolCatalogKeySet.has(defaultConfig.key)) {
+      continue;
+    }
+
+    if (existingIds.has(defaultConfig.id) || existingKeys.has(defaultConfig.key)) {
+      continue;
+    }
+
+    nextConfigs.push(defaultConfig);
+  }
+
+  return nextConfigs;
+};
 
 const readRawConfigs = (kind: CapabilityCatalogKind): CapabilityCatalogConfig[] => {
   if (!canUseLocalStorage()) {
@@ -76,7 +98,7 @@ const readRawConfigs = (kind: CapabilityCatalogKind): CapabilityCatalogConfig[] 
       });
     }
 
-    return configs;
+    return kind === CAPABILITY_CATALOG_KIND.Tools ? appendMissingIncrementalToolDefaults(configs) : configs;
   } catch {
     return [];
   }

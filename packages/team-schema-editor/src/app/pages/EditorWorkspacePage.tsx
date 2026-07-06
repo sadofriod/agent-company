@@ -123,6 +123,7 @@ export const EditorWorkspacePage = ({ editor }: EditorWorkspacePageProps): React
           onNodesChange={editor.onNodesChange}
           onEdgesChange={editor.onEdgesChange}
           onNodeSelect={editor.onNodeSelect}
+          onEdgeSelect={editor.onEdgeSelect}
           onAddWorkflowAgentNode={editor.addWorkflowAgentNode}
           onAddWorkflowPartNode={editor.addWorkflowPartNode}
           onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}

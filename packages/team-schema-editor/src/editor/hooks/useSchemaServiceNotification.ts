@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 
 import { NotificationSeverity, useNotification, type NotificationPayload } from '../../app/notification/NotificationContext';
-import { SchemaServiceStatus } from './helper/teamEditor.types';
+import { SchemaServiceStatus } from '../state/core/editorShared';
 
 type UseSchemaServiceNotificationParams = {
   status: SchemaServiceStatus;

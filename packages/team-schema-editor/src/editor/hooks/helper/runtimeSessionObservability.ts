@@ -13,6 +13,33 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const asString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined;
 
+const asStringArray = (value: unknown): readonly string[] => Array.isArray(value)
+  ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+  : [];
+
+const toDiscussionTargetNodeIds = (targetIds: readonly string[]): readonly string[] => {
+  const nodeIds = new Set<string>();
+
+  for (const targetId of targetIds) {
+    if (targetId.startsWith('agent:') || targetId.startsWith('department:')) {
+      nodeIds.add(targetId);
+      continue;
+    }
+
+    if (targetId.startsWith('pipeline:')) {
+      nodeIds.add('pipeline');
+      nodeIds.add(targetId.slice('pipeline:'.length));
+      continue;
+    }
+
+    if (targetId.startsWith('discussion:')) {
+      nodeIds.add('discussion');
+    }
+  }
+
+  return [...nodeIds];
+};
+
 const toRuntimeNodeId = (
   eventType: string,
   payload: Readonly<Record<string, unknown>>,
@@ -45,7 +72,9 @@ const toConclusion = (
   fallbackSummary: string,
 ): string => {
   const conclusion =
-    asString(payload.conclusion)
+    asString(payload.blackboardWrite)
+    ?? asString(payload.recommendation)
+    ?? asString(payload.conclusion)
     ?? asString(payload.responseSummary)
     ?? asString(payload.summary)
     ?? asString(payload.reason)
@@ -117,6 +146,21 @@ const toRuntimeNodeIds = ({
     nodeIds.add(runtimeNodeId);
   }
 
+  const readTargetIds = asStringArray(payload.readTargetIds);
+  const writeTargetIds = asStringArray(payload.writeTargetIds);
+
+  for (const targetNodeId of toDiscussionTargetNodeIds([...readTargetIds, ...writeTargetIds])) {
+    nodeIds.add(targetNodeId);
+  }
+
+  if (eventType === 'runtime.interrupted' && (asString(payload.stepId) !== undefined || asString(payload.pipelineId) !== undefined)) {
+    nodeIds.add('pipeline');
+  }
+
+  if (eventType.startsWith('review.')) {
+    nodeIds.add('pipeline');
+  }
+
   if (eventType === 'runtime.work_mode_routed') {
     const mode = asString(payload.mode);
 
@@ -146,7 +190,15 @@ const toRuntimeEdgeIds = ({
   }
 
   if (eventType.startsWith('pipeline.')) {
-    edgeIds.add('goal-pipeline');
+    edgeIds.add('discussion-pipeline');
+  }
+
+  if (eventType === 'runtime.interrupted' && (asString(payload.stepId) !== undefined || asString(payload.pipelineId) !== undefined)) {
+    edgeIds.add('discussion-pipeline');
+  }
+
+  if (eventType.startsWith('review.')) {
+    edgeIds.add('pipeline-review');
   }
 
   if (eventType.startsWith('memory.')) {
@@ -205,8 +257,14 @@ export const deriveRuntimeObservabilityState = (
   readonly nodeInsights: Readonly<Record<string, RuntimeNodeInsight>>;
 } => {
   const payload = isRecord(event.payload) ? event.payload : {};
-  const summary = asString(payload.reason) ?? event.eventType;
+  const summary = asString(payload.blackboardWrite)
+    ?? asString(payload.recommendation)
+    ?? asString(payload.summary)
+    ?? asString(payload.reason)
+    ?? event.eventType;
   const conclusion = toConclusion(payload, summary);
+  const readTargetIds = asStringArray(payload.readTargetIds);
+  const writeTargetIds = asStringArray(payload.writeTargetIds);
   const toolCalls = toRuntimeToolCalls(payload);
   const highlightInput: RuntimeHighlightInput = {
     eventType: event.eventType,
@@ -225,6 +283,8 @@ export const deriveRuntimeObservabilityState = (
         updatedAt: event.ts,
         summary,
         conclusion,
+        readTargetIds,
+        writeTargetIds,
         toolCalls,
       } satisfies RuntimeNodeInsight,
     ]),
@@ -243,6 +303,8 @@ export const deriveRuntimeObservabilityState = (
       conclusion,
       nodeIds,
       edgeIds,
+      readTargetIds,
+      writeTargetIds,
       toolCalls,
     },
   };

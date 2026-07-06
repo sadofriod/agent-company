@@ -3,8 +3,8 @@ import { Box, Button, Chip, List, ListItemButton, ListItemText, Paper, Stack, Te
 import { Cpu, FolderOpen, Plus, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { SchemaServiceStatus, type TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
-import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
+import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
+import { SchemaLoadStatus, SchemaServiceStatus } from '../../editor/state/core/editorShared';
 
 type WorkspaceListPageProps = {
   editor: TeamEditorModel;

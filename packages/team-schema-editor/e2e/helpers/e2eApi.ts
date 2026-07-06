@@ -91,6 +91,16 @@ export const listSchemaKeys = async (request: APIRequestContext): Promise<string
   return data.schemas.map((entry) => entry.key);
 };
 
+export const getSchemaByKey = async (
+  request: APIRequestContext,
+  key: string,
+): Promise<JsonRecord> => {
+  const response = await request.get(`/team/schemas/${encodeURIComponent(key)}`);
+  const data = await readJsonResponse<{ schema: JsonRecord }>(response, `get schema ${key}`);
+
+  return data.schema;
+};
+
 export const upsertSchema = async (
   request: APIRequestContext,
   key: string,

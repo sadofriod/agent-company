@@ -169,3 +169,20 @@ export const updateMemoryRetrievalProfileBoolean: CaseReducer<
 
   Object.assign(state, withSchema(state, schema));
 };
+
+export const removeMemoryPolicy: CaseReducer<EditorState> = (state): void => {
+  if (state.schema.memory_policy === undefined) {
+    return;
+  }
+
+  const { memory_policy, ...schemaWithoutMemoryPolicy } = state.schema;
+  void memory_policy;
+
+  const schema = {
+    ...schemaWithoutMemoryPolicy,
+    agents: state.schema.agents.map(removeAgentMemoryProfile),
+  };
+
+  Object.assign(state, withSchema(state, schema));
+  state.selection = { kind: 'team' };
+};

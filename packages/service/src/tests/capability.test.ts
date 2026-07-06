@@ -205,6 +205,36 @@ describe('authorizeCapabilities', () => {
 
 		expect(result.deniedCapabilityIds.includes('tool-browser' as typeof result.deniedCapabilityIds[number])).toBe(true);
 	});
+
+	it('grants agent-declared pipeline capabilities even when department scope text does not match capability ids', () => {
+		const candidates = resolveCapabilities({
+			agent: makeAgent({
+				skillIds: ['requirements_breakdown'],
+				mcpServerIds: [],
+				toolIds: ['ticket_router', 'memory_policy_check'],
+			}),
+			department: makeDept({
+				decisionScope: ['requirements', 'topic', 'decision', 'ticket_draft', 'priority'],
+			}),
+			scope: CAPABILITY_SCOPE.PipelineStep,
+			requestedCapabilityIds: ['requirements_breakdown', 'ticket_router', 'memory_policy_check'],
+		});
+
+		const result = authorizeCapabilities({
+			agentId: 'agent-001' as AgentDefinition['agentId'],
+			scope: CAPABILITY_SCOPE.PipelineStep,
+			targetId: 'step-001',
+			departmentHasDecisionScope: true,
+			candidates,
+		});
+
+		expect(result.deniedCapabilityIds).toHaveLength(0);
+		expect(result.grants.map((grant) => grant.capabilityId)).toEqual([
+			'requirements_breakdown',
+			'ticket_router',
+			'memory_policy_check',
+		]);
+	});
 });
 
 // ---------------------------------------------------------------------------

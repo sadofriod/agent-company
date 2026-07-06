@@ -25,16 +25,8 @@ import type {
   MemoryRetrievalProfileNumberField,
   SchemaField,
   SchemaLoadStatus,
+  SchemaServiceStatus,
 } from '../../state/core/editorShared';
-
-export enum SchemaServiceStatus {
-  Idle = 'idle',
-  Loading = 'loading',
-  Saving = 'saving',
-  Deleting = 'deleting',
-  Validating = 'validating',
-  Error = 'error',
-}
 
 export type TeamSchemaServiceModel = {
   schemaServiceStatus: SchemaServiceStatus;
@@ -59,6 +51,7 @@ export type WorkflowGraphEditorModel = {
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onEdgesChange: OnEdgesChange<Edge>;
   onNodeSelect: (nodeId: string | null) => void;
+  onEdgeSelect: (edgeId: string | null) => void;
   addWorkflowAgentNode: () => void;
   addWorkflowPartNode: () => void;
   addWorkflowPipelineNode: () => void;
@@ -87,6 +80,7 @@ export type TeamEditorModel = {
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onEdgesChange: OnEdgesChange<Edge>;
   onNodeSelect: (nodeId: string | null) => void;
+  onEdgeSelect: (edgeId: string | null) => void;
   addWorkflowAgentNode: () => void;
   addWorkflowPartNode: () => void;
   addWorkflowPipelineNode: () => void;

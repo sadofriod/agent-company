@@ -16,6 +16,7 @@ type GraphPanelContextValue = {
   onNodesChange: OnNodesChange<WorkflowGraphNode>;
   onEdgesChange: OnEdgesChange<Edge>;
   onNodeSelect: (nodeId: string | null) => void;
+  onEdgeSelect: (edgeId: string | null) => void;
   onAddWorkflowAgentNode: () => void;
   onAddWorkflowPartNode: () => void;
   onAddWorkflowPipelineNode: () => void;

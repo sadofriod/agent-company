@@ -120,6 +120,8 @@ export const applyInterruption = (
 			metadata: {
 				kind: interruption.kind,
 				suggestedAction: interruption.suggestedAction,
+				...(interruption.pipelineId === undefined ? {} : { pipelineId: interruption.pipelineId }),
+				...(interruption.stepId === undefined ? {} : { stepId: interruption.stepId }),
 			},
 		},
 	);

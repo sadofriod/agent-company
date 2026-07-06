@@ -24,9 +24,15 @@ import { RuntimeCapabilityPanel } from '../../editor/components/RuntimeCapabilit
 import { RuntimeDiscussionPanel } from '../../editor/components/RuntimeDiscussionPanel';
 import type { RuntimeSessionModel } from '../../editor/hooks/useRuntimeSession';
 import type { TeamEditorModel } from '../../editor/hooks/helper/teamEditor.types';
-import type { RuntimeEventFeedItem } from '../../editor/hooks/helper/runtimeSession.types';
+import type { RuntimeEventFeedItem, RuntimeNodeInsight } from '../../editor/hooks/helper/runtimeSession.types';
 import { useListRuntimeSessionsQuery } from '../../editor/api/runtimeSessionApi';
-import { EditorMode, type RuntimeSessionListItem, type RuntimeSessionSnapshot } from '../../editor/model/types';
+import {
+  EditorMode,
+  WorkflowEdgeType,
+  WorkflowNodeType,
+  type RuntimeSessionListItem,
+  type RuntimeSessionSnapshot,
+} from '../../editor/model/types';
 import { SchemaLoadStatus } from '../../editor/state/core/editorShared';
 
 type RuntimeWorkspacePageProps = {
@@ -126,7 +132,181 @@ const formatNodeLabel = (nodeId: string): string => {
 const buildNodeEventFeed = (
   selectedNodeId: string,
   feed: readonly RuntimeEventFeedItem[],
-): readonly RuntimeEventFeedItem[] => feed.filter((item) => item.nodeIds.includes(selectedNodeId));
+  nodes: TeamEditorModel['nodes'],
+): readonly RuntimeEventFeedItem[] => {
+  const nodeAliases = new Set<string>([selectedNodeId]);
+  const selectedNode = nodes.find((candidate) => candidate.id === selectedNodeId);
+
+  if (selectedNode?.data.workflowNodeType === WorkflowNodeType.Agent && typeof selectedNode.data.workflowAgentId === 'string') {
+    nodeAliases.add(`agent:${selectedNode.data.workflowAgentId}`);
+  }
+
+  if (selectedNode?.data.workflowNodeType === WorkflowNodeType.Pipeline) {
+    nodeAliases.add('pipeline');
+  }
+
+  return feed.filter((item) => item.nodeIds.some((nodeId) => nodeAliases.has(nodeId)));
+};
+
+const resolveSelectedNodeInsight = (
+  selectedNodeId: string | null,
+  insights: Readonly<Record<string, RuntimeNodeInsight>>,
+  nodes: TeamEditorModel['nodes'],
+): RuntimeNodeInsight | null => {
+  if (selectedNodeId === null) {
+    return null;
+  }
+
+  const directInsight = insights[selectedNodeId];
+
+  if (directInsight !== undefined) {
+    return directInsight;
+  }
+
+  const selectedNode = nodes.find((candidate) => candidate.id === selectedNodeId);
+
+  if (selectedNode?.data.workflowNodeType === WorkflowNodeType.Agent && typeof selectedNode.data.workflowAgentId === 'string') {
+    return insights[`agent:${selectedNode.data.workflowAgentId}`] ?? null;
+  }
+
+  if (selectedNode?.data.workflowNodeType === WorkflowNodeType.Pipeline) {
+    return insights.pipeline ?? null;
+  }
+
+  return null;
+};
+
+const expandRuntimeGraphHighlights = (input: {
+  nodeIds: readonly string[];
+  edgeIds: readonly string[];
+  nodes: TeamEditorModel['nodes'];
+  edges: TeamEditorModel['edges'];
+}): {
+  readonly nodeIds: readonly string[];
+  readonly edgeIds: readonly string[];
+} => {
+  const expandedNodeIds = new Set(input.nodeIds);
+  const expandedEdgeIds = new Set(input.edgeIds);
+  const workflowAgentNodeIdsByAgentId = new Map<string, string[]>();
+  const workflowPipelineNodeIds: string[] = [];
+  const graphNodeIds = new Set(input.nodes.map((node) => node.id));
+
+  for (const node of input.nodes) {
+    if (node.data.workflowNodeType === WorkflowNodeType.Agent && typeof node.data.workflowAgentId === 'string') {
+      const existing = workflowAgentNodeIdsByAgentId.get(node.data.workflowAgentId) ?? [];
+      workflowAgentNodeIdsByAgentId.set(node.data.workflowAgentId, [...existing, node.id]);
+    }
+
+    if (node.data.workflowNodeType === WorkflowNodeType.Pipeline) {
+      workflowPipelineNodeIds.push(node.id);
+    }
+  }
+
+  const addWorkflowEdge = (edge: TeamEditorModel['edges'][number]): void => {
+    expandedEdgeIds.add(edge.id);
+    expandedNodeIds.add(edge.source);
+    expandedNodeIds.add(edge.target);
+  };
+
+  const addIncidentWorkflowEdges = (
+    nodeId: string,
+    predicate: (edge: TeamEditorModel['edges'][number]) => boolean,
+  ): void => {
+    for (const edge of input.edges) {
+      if ((edge.source !== nodeId && edge.target !== nodeId) || !predicate(edge)) {
+        continue;
+      }
+
+      addWorkflowEdge(edge);
+    }
+  };
+
+  for (const nodeId of input.nodeIds) {
+    if (graphNodeIds.has(nodeId)) {
+      addIncidentWorkflowEdges(nodeId, (edge) => (
+        edge.type === WorkflowEdgeType.DiscussAgents
+        || edge.type === WorkflowEdgeType.DiscussBroadcast
+        || edge.type === WorkflowEdgeType.PipelineHandoff
+      ));
+    }
+
+    if (nodeId.startsWith('agent:')) {
+      const workflowNodeIds = workflowAgentNodeIdsByAgentId.get(nodeId.replace('agent:', '')) ?? [];
+
+      for (const workflowNodeId of workflowNodeIds) {
+        expandedNodeIds.add(workflowNodeId);
+        addIncidentWorkflowEdges(workflowNodeId, (edge) => (
+          edge.type === WorkflowEdgeType.DiscussAgents
+          || edge.type === WorkflowEdgeType.DiscussBroadcast
+          || edge.type === WorkflowEdgeType.PipelineHandoff
+        ));
+      }
+    }
+
+    if (nodeId === 'discussion') {
+      addIncidentWorkflowEdges('discussion', (edge) => (
+        edge.type === WorkflowEdgeType.DiscussAgents || edge.type === WorkflowEdgeType.DiscussBroadcast
+      ));
+    }
+
+    if (nodeId === 'pipeline') {
+      for (const workflowNodeId of workflowPipelineNodeIds) {
+        expandedNodeIds.add(workflowNodeId);
+        addIncidentWorkflowEdges(workflowNodeId, (edge) => (
+          edge.type === WorkflowEdgeType.DiscussBroadcast || edge.type === WorkflowEdgeType.PipelineHandoff
+        ));
+      }
+    }
+  }
+
+  return {
+    nodeIds: [...expandedNodeIds],
+    edgeIds: [...expandedEdgeIds],
+  };
+};
+
+const isRuntimeSessionCompleted = (session: RuntimeSessionSnapshot): boolean => (
+  session.state.interruption === undefined
+  && session.state.activePipeline === undefined
+  && session.state.activeTicket === undefined
+  && (session.state.pendingTickets?.length ?? 0) === 0
+  && (session.state.completedTickets?.length ?? 0) > 0
+);
+
+const resolveRuntimeStatusLabel = (session: RuntimeSessionSnapshot | null): string => {
+  if (session === null) {
+    return 'idle';
+  }
+
+  return isRuntimeSessionCompleted(session) ? 'completed' : session.status;
+};
+
+const resolveLatestRuntimeSummary = (session: RuntimeSessionSnapshot | null): string | null => {
+  if (session === null) {
+    return null;
+  }
+
+  const latestStepSummary = session.state.latestStepResult?.output.summary;
+
+  if (typeof latestStepSummary === 'string' && latestStepSummary.trim().length > 0) {
+    return latestStepSummary.trim();
+  }
+
+  const latestAgentResponse = session.state.latestStepResult?.output.agentExecution?.responseSummary;
+
+  if (typeof latestAgentResponse === 'string' && latestAgentResponse.trim().length > 0) {
+    return latestAgentResponse.trim();
+  }
+
+  const discussionTurns = session.state.discussionResult?.turns ?? [];
+  const latestDiscussionRecommendation = discussionTurns.at(-1)?.structuredOutput.recommendation;
+
+  if (typeof latestDiscussionRecommendation === 'string' && latestDiscussionRecommendation.trim().length > 0) {
+    return latestDiscussionRecommendation.trim();
+  }
+
+  return null;
+};
 
 export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePageProps): ReactElement => {
   const navigate = useNavigate();
@@ -140,6 +320,14 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
   const activeRuntimeEdgeIds = activeSession === null ? [] : runtime.runtimeActiveEdgeIds;
   const activeRuntimeNodeInsights = activeSession === null ? {} : runtime.runtimeNodeInsights;
   const activeRuntimeEventFeed = activeSession === null ? [] : runtime.runtimeEventFeed;
+  const expandedRuntimeHighlights = useMemo(() => activeSession === null
+    ? { nodeIds: [], edgeIds: [] }
+    : expandRuntimeGraphHighlights({
+      nodeIds: activeRuntimeNodeIds,
+      edgeIds: activeRuntimeEdgeIds,
+      nodes: editor.nodes,
+      edges: editor.edges,
+    }), [activeRuntimeEdgeIds, activeRuntimeNodeIds, activeSession, editor.edges, editor.nodes]);
 
   // Load historical sessions from backend
   const { data: historicalSessions } = useListRuntimeSessionsQuery(
@@ -172,10 +360,18 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
   const canInteract = activeSession !== null;
   const isBusy = runtime.status !== 'idle';
   const currentSessionId = activeSession?.sessionId ?? null;
-  const selectedNodeInsight = selectedRuntimeNodeId === null ? null : activeRuntimeNodeInsights[selectedRuntimeNodeId] ?? null;
+  const activeSessionStatusLabel = resolveRuntimeStatusLabel(activeSession);
+  const activeInterruption = activeSession?.state.interruption;
+  const latestStepResult = activeSession?.state.latestStepResult;
+  const activeDiscussionResult = activeSession?.state.discussionResult;
+  const latestRuntimeSummary = resolveLatestRuntimeSummary(activeSession);
+  const selectedNodeInsight = useMemo(
+    () => resolveSelectedNodeInsight(selectedRuntimeNodeId, activeRuntimeNodeInsights, editor.nodes),
+    [activeRuntimeNodeInsights, editor.nodes, selectedRuntimeNodeId],
+  );
   const selectedNodeFeed = useMemo(
-    () => selectedRuntimeNodeId === null ? [] : buildNodeEventFeed(selectedRuntimeNodeId, activeRuntimeEventFeed),
-    [activeRuntimeEventFeed, selectedRuntimeNodeId],
+    () => selectedRuntimeNodeId === null ? [] : buildNodeEventFeed(selectedRuntimeNodeId, activeRuntimeEventFeed, editor.nodes),
+    [activeRuntimeEventFeed, editor.nodes, selectedRuntimeNodeId],
   );
   const selectedNodeErrorEvents = selectedNodeFeed.filter((item) => item.level === 'error');
   const runCurrentGoal = (): void => {
@@ -258,6 +454,17 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
 
       {editor.schemaLoadError === null ? null : <Alert severity="error" sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>{editor.schemaLoadError}</Alert>}
       {editor.validationIssues.length === 0 ? null : <Alert severity="warning" sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>Loaded schema has {editor.validationIssues.length} validation issue(s).</Alert>}
+      {runtime.message === null ? null : (
+        <Alert severity={activeSession !== null && isRuntimeSessionCompleted(activeSession) ? 'success' : 'info'} sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>
+          {runtime.message}
+        </Alert>
+      )}
+      {runtime.error === null ? null : <Alert severity="error" sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>{runtime.error}</Alert>}
+      {activeInterruption === undefined ? null : (
+        <Alert severity="warning" sx={{ m: { xs: 1.25, md: 1.5 }, mb: 0 }}>
+          {activeInterruption.message}
+        </Alert>
+      )}
 
       {isSchemaReady ? null : (
         <Box sx={{ m: { xs: 1.25, md: 1.5 }, p: 1.5, border: '1px solid #d7dde5', bgcolor: '#fbfcfe' }}>
@@ -304,6 +511,7 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                 </Box>
               ) : sessionList.map((item) => {
                 const sessionLabel = resolveSessionListLabel(item);
+                const sessionStatusLabel = item.sessionId === currentSessionId ? activeSessionStatusLabel : item.status;
 
                 return (
                   <ListItemButton
@@ -334,7 +542,7 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                         {sessionLabel}
                       </Typography>
                       <Stack spacing={0.25} sx={{ mt: 0.4 }}>
-                        <Typography variant="caption" color="text.secondary">Status: {item.status}</Typography>
+                        <Typography variant="caption" color="text.secondary">Status: {sessionStatusLabel}</Typography>
                         <Typography variant="caption" color="text.secondary">Updated: {formatDateTime(item.updatedAt)}</Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
                           Session: {item.sessionId}
@@ -398,12 +606,32 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                   </Button>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                  <Chip label={activeSession?.status ?? 'idle'} size="small" variant="outlined" />
+                  <Chip label={activeSessionStatusLabel} size="small" variant="outlined" />
                   <Chip label={`nodes ${activeRuntimeNodeIds.length}`} size="small" variant="outlined" />
                   <Chip label={`edges ${activeRuntimeEdgeIds.length}`} size="small" variant="outlined" />
                 </Box>
               </Stack>
             </Box>
+
+            {latestRuntimeSummary === null ? null : (
+              <Box sx={{ border: '1px solid #d7dde5', bgcolor: '#fbfcfe', p: 1.25, maxHeight: { xs: '28dvh', lg: '32dvh' }, overflow: 'auto' }} data-testid="runtime-latest-output">
+                <Stack spacing={0.75}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75, flexWrap: 'wrap' }}>
+                    <Typography variant="subtitle2">Latest Output</Typography>
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                      {latestStepResult === undefined ? null : <Chip label={latestStepResult.stepId} size="small" variant="outlined" />}
+                      {activeSession !== null && isRuntimeSessionCompleted(activeSession) ? <Chip label="Completed" size="small" color="success" variant="outlined" /> : null}
+                    </Box>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {latestStepResult === undefined ? 'Latest runtime conclusion' : `Updated ${formatDateTime(latestStepResult.generatedAt)}`}
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                    {latestRuntimeSummary}
+                  </Typography>
+                </Stack>
+              </Box>
+            )}
 
             <Box sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
               <GraphPanel
@@ -418,13 +646,14 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                   editor.onNodeSelect(nodeId);
                   setSelectedRuntimeNodeId(nodeId);
                 }}
+                onEdgeSelect={editor.onEdgeSelect}
                 onAddWorkflowAgentNode={editor.addWorkflowAgentNode}
                 onAddWorkflowPartNode={editor.addWorkflowPartNode}
                 onAddWorkflowPipelineNode={editor.addWorkflowPipelineNode}
                 onWorkflowConnect={editor.addWorkflowEdge}
                 onClearEdgeConnectionError={editor.clearEdgeConnectionError}
-                highlightedNodeIds={activeRuntimeNodeIds}
-                highlightedEdgeIds={activeRuntimeEdgeIds}
+                highlightedNodeIds={expandedRuntimeHighlights.nodeIds}
+                highlightedEdgeIds={expandedRuntimeHighlights.edgeIds}
                 fillAvailableHeight
               />
             </Box>
@@ -459,6 +688,12 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                 <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 0 }}>Latest Insight</Typography>
                 <Typography variant="body2">{selectedNodeInsight.summary}</Typography>
                 {selectedNodeInsight.conclusion === undefined ? null : <Typography variant="body2" color="text.secondary">{selectedNodeInsight.conclusion}</Typography>}
+                {selectedNodeInsight.readTargetIds.length === 0 ? null : (
+                  <Typography variant="caption" color="text.secondary">Read targets: {selectedNodeInsight.readTargetIds.join(', ')}</Typography>
+                )}
+                {selectedNodeInsight.writeTargetIds.length === 0 ? null : (
+                  <Typography variant="caption" color="text.secondary">Write targets: {selectedNodeInsight.writeTargetIds.join(', ')}</Typography>
+                )}
                 <Typography variant="caption" color="text.secondary">Updated: {formatDateTime(selectedNodeInsight.updatedAt)}</Typography>
               </Stack>
             </Box>
@@ -470,12 +705,18 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
             </Alert>
           )}
 
-          {/* Discussion turns — shown on discussion node */}
-          {selectedRuntimeNodeId === 'discussion' && (activeSession?.state.discussionResult?.turns?.length ?? 0) > 0 && (
+          {/* Discussion blackboard + turns — shown on discussion node */}
+          {selectedRuntimeNodeId === 'discussion' && (
+            (activeDiscussionResult?.turns?.length ?? 0) > 0
+            || (activeDiscussionResult?.connectedTargets?.length ?? 0) > 0
+            || activeDiscussionResult?.blackboard !== undefined
+          ) && (
             <Box data-testid="discussion-turns-panel">
               <RuntimeDiscussionPanel
-                turns={activeSession!.state.discussionResult!.turns!}
+                turns={activeDiscussionResult?.turns ?? []}
                 mode={activeSession?.state.context?.currentMode}
+                connectedTargets={activeDiscussionResult?.connectedTargets}
+                blackboard={activeDiscussionResult?.blackboard}
               />
             </Box>
           )}
@@ -526,6 +767,17 @@ export const RuntimeWorkspacePage = ({ editor, runtime }: RuntimeWorkspacePagePr
                   <Box key={item.eventId} sx={{ border: '1px solid #d7dde5', bgcolor: '#ffffff', p: 1 }}>
                     <Typography variant="caption" color="text.secondary">{item.eventType} · {formatDateTime(item.ts)}</Typography>
                     <Typography variant="body2" sx={{ mt: 0.45 }}>{item.summary}</Typography>
+                    {item.conclusion === undefined ? null : <Typography variant="body2" color="text.secondary" sx={{ mt: 0.45 }}>{item.conclusion}</Typography>}
+                    {item.readTargetIds.length === 0 ? null : (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 0.45, display: 'block' }}>
+                        Read targets: {item.readTargetIds.join(', ')}
+                      </Typography>
+                    )}
+                    {item.writeTargetIds.length === 0 ? null : (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        Write targets: {item.writeTargetIds.join(', ')}
+                      </Typography>
+                    )}
                     {item.toolCalls.length === 0 ? null : (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.45, display: 'block' }}>
                         Tool calls: {item.toolCalls.map((toolCall) => `${toolCall.capabilityId}(${toolCall.status})`).join(', ')}

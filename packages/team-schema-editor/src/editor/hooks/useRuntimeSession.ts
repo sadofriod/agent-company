@@ -123,16 +123,20 @@ const createWorkflowNodeLlmValidationError = (
   ...failures.map((failure) => `- ${failure.nodeName} (${failure.nodeId}): ${failure.reason}`),
 ].join('\n'));
 
+const isSessionCompleted = (session: RuntimeSessionSnapshot): boolean => (
+  session.state.interruption === undefined
+  && session.state.activePipeline === undefined
+  && session.state.activeTicket === undefined
+  && (session.state.pendingTickets?.length ?? 0) === 0
+  && (session.state.completedTickets?.length ?? 0) > 0
+);
+
 const isSessionFinished = (session: RuntimeSessionSnapshot): boolean => {
   if (session.status !== 'running') {
     return true;
   }
 
-  if (session.state.interruption !== undefined) {
-    return true;
-  }
-
-  return session.state.nextAction?.toLowerCase().includes('completed') === true;
+  return session.state.interruption !== undefined || isSessionCompleted(session);
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -231,6 +235,31 @@ type RuntimeObservabilityState = Pick<
   'runtimeActiveNodeIds' | 'runtimeActiveEdgeIds' | 'runtimeNodeInsights' | 'runtimeEventFeed'
 >;
 
+const EVENTS_THAT_SHOULD_NOT_RESET_RUNTIME_HIGHLIGHTS = new Set<string>([
+  'snapshot',
+  'snapshot_reset',
+  'metrics.updated',
+  'heartbeat',
+  'runtime.session_started',
+  'runtime.session_paused',
+  'runtime.session_resumed',
+  'runtime.session_advanced',
+  'runtime.session_completed',
+  'runtime.session_terminated',
+]);
+
+const shouldRefreshRuntimeHighlights = (
+  eventType: string,
+  nodeIds: readonly string[],
+  edgeIds: readonly string[],
+): boolean => {
+  if (EVENTS_THAT_SHOULD_NOT_RESET_RUNTIME_HIGHLIGHTS.has(eventType)) {
+    return false;
+  }
+
+  return nodeIds.length > 0 || edgeIds.length > 0;
+};
+
 const createRuntimeEventHandler = (input: {
   sessionRef: MutableRefObject<RuntimeSessionSnapshot | null>;
   setSession: Dispatch<SetStateAction<RuntimeSessionSnapshot | null>>;
@@ -260,8 +289,11 @@ const createRuntimeEventHandler = (input: {
     (agentId) => agentDepartmentMap.get(agentId),
   );
 
-  input.setRuntimeActiveNodeIds(observabilityState.nodeIds);
-  input.setRuntimeActiveEdgeIds(observabilityState.edgeIds);
+  if (shouldRefreshRuntimeHighlights(runtimeEvent.eventType, observabilityState.nodeIds, observabilityState.edgeIds)) {
+    input.setRuntimeActiveNodeIds(observabilityState.nodeIds);
+    input.setRuntimeActiveEdgeIds(observabilityState.edgeIds);
+  }
+
   input.setRuntimeNodeInsights((current) => ({
     ...current,
     ...observabilityState.nodeInsights,

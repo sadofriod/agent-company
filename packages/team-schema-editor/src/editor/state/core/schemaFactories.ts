@@ -1,6 +1,6 @@
 import type { TeamSchemaDocument } from '../../model/types';
 
-import { SchemaLoadStatus } from './editorFields';
+import { SchemaLoadStatus, SchemaServiceStatus } from './editorFields';
 import { validateEditorState } from './schemaHelpers';
 import type { EditorState } from './editorTypes';
 
@@ -50,5 +50,11 @@ export const initialState: EditorState = {
   ...validateEditorState(pendingTeamSchema),
   schemaLoadStatus: SchemaLoadStatus.Idle,
   schemaLoadError: null,
+  selectedSchemaKey: null,
+  draftSchemaKey: 'current',
+  resolvedInitialSchema: false,
+  schemaServiceStatus: SchemaServiceStatus.Idle,
+  schemaServiceError: null,
+  schemaServiceMessage: null,
   schemaDocumentRevision: 0,
 };

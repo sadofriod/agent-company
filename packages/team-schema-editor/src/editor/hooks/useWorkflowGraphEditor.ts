@@ -1,14 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
-import type { Connection, Edge, NodeChange, NodePositionChange, OnEdgesChange, OnNodesChange, XYPosition } from '@xyflow/react';
+import { useMemo } from 'react';
+import type { Connection, Edge, EdgeChange, NodeChange, NodePositionChange, OnEdgesChange, OnNodesChange, XYPosition } from '@xyflow/react';
 import { applyEdgeChanges, applyNodeChanges } from '@xyflow/react';
 
 import { GOAL_NODE_ID, buildGraph } from '../model/graphLayout';
 import { WorkflowEdgeMode, WorkflowNodeType } from '../model/types';
 import type { AgentDocument, TeamSchemaDocument, WorkflowGraphNode } from '../model/types';
-import { applyWorkflowLayoutDocument } from '../model/workflowLayout';
-import { selectNode } from '../state/core/editorSlice';
-import type { AppDispatch } from '../state/core/editorStore';
+import { applyWorkflowLayoutDocument, createWorkflowLayoutDocument } from '../model/workflowLayout';
+import { useAppSelector } from '../state/core/editorHooks';
+import { validateSchemaDocument } from '../state/core/editorShared';
+import {
+  clearDiscussionSupervisor,
+  removeAgent,
+  removeDepartment,
+  removeMemoryPolicy,
+  selectNode,
+  updateWorkflowLayout,
+} from '../state/core/editorSlice';
+import { editorStore, type AppDispatch } from '../state/core/editorStore';
+import {
+  setEdgeConnectionError as setGraphPanelEdgeConnectionError,
+  setSelectedEdgeIds,
+  setSelectedNodeIds,
+} from '../state/graphPanel/graphPanelUiSlice';
 import { type WorkflowGraphEditorModel, WorkflowMetadataField } from './helper/teamEditor.types';
 import {
   CreateWorkflowEdgeRejectionReason,
@@ -19,29 +32,60 @@ import {
   createWorkflowEdge,
   createWorkflowPartNode,
   createWorkflowPipelineNode,
-  pickWorkflowDraftEdges,
-  pickWorkflowDraftNodes,
+  isWorkflowDraftEdge,
 } from './helper/workflowGraphDraft';
 
-type SetWorkflowNodes = Dispatch<SetStateAction<WorkflowGraphNode[]>>;
-type SetWorkflowEdges = Dispatch<SetStateAction<Edge[]>>;
-type SetEdgeConnectionError = Dispatch<SetStateAction<string | null>>;
-type SchemaDocumentRevisionRef = { current: number | null };
 type CreateWorkflowNode = (currentNodes: WorkflowGraphNode[]) => WorkflowGraphNode;
 type NodePositionDelta = { readonly x: number; readonly y: number };
 type ParentNodeDelta = { readonly parentId: string; readonly delta: NodePositionDelta };
 type PositionedNodeChange = NodePositionChange & { readonly position: XYPosition };
+type SelectChange = { readonly id: string; readonly type: 'select'; readonly selected: boolean };
+type SchemaDeletionPlan = {
+  workflowNodeIds: string[];
+  workflowEdgeIds: string[];
+  departmentIds: Set<string>;
+  agentIds: Set<string>;
+  clearDiscussionSupervisor: boolean;
+  removeMemoryPolicy: boolean;
+};
 
-const mergeLayoutNodes = (layoutNodes: WorkflowGraphNode[], currentNodes: WorkflowGraphNode[]): WorkflowGraphNode[] =>
-  layoutNodes.map((node) => {
-    const existingNode = currentNodes.find((candidate) => candidate.id === node.id);
+const DISCUSSION_NODE_ID = 'discussion';
+const DISCUSSION_MEMORY_NODE_ID = 'memory:discussion';
+const SESSION_MEMORY_NODE_ID = 'memory:session';
+const GOAL_DISCUSSION_EDGE_ID = 'goal-discussion';
+const GOAL_DEPARTMENT_EDGE_PREFIX = 'goal-department:';
+const DEPARTMENT_AGENT_EDGE_PREFIX = 'department-agent:';
+const DISCUSSION_MEMORY_EDGE_IDS = new Set(['discussion-memory-discussion', 'discussion-memory-session']);
+const DISCUSSION_SUPERVISOR_EDGE_ID = 'discussion-supervisor';
 
-    return existingNode === undefined ? node : { ...node, position: existingNode.position };
-  });
+const isPersistableNodeChange = (change: NodeChange<WorkflowGraphNode>): boolean =>
+  change.type !== 'dimensions' && change.type !== 'select';
+
+const isPersistableEdgeChange = (change: EdgeChange<Edge>): boolean =>
+  change.type !== 'select';
 
 const isDepartmentNodeId = (nodeId: string): boolean => nodeId.startsWith('department:');
 
 const toDepartmentId = (nodeId: string): string => nodeId.replace('department:', '');
+
+const isWorkflowDraftNodeId = (nodeId: string): boolean =>
+  nodeId.startsWith(WORKFLOW_AGENT_NODE_PREFIX)
+  || nodeId.startsWith('workflow-part:')
+  || nodeId.startsWith(WORKFLOW_PIPELINE_NODE_PREFIX);
+
+const isAgentNodeId = (nodeId: string): boolean => nodeId.startsWith('agent:');
+
+const toAgentId = (nodeId: string): string => nodeId.replace('agent:', '');
+
+const isSelectChange = <T extends { readonly type: string }>(change: T): change is T & SelectChange =>
+  change.type === 'select';
+
+const isNodeRemoveChange = (
+  change: NodeChange<WorkflowGraphNode>,
+): change is Extract<NodeChange<WorkflowGraphNode>, { type: 'remove' }> => change.type === 'remove';
+
+const isEdgeRemoveChange = (change: EdgeChange<Edge>): change is Extract<EdgeChange<Edge>, { type: 'remove' }> =>
+  change.type === 'remove';
 
 const getEdgeMode = (edge: Edge): WorkflowEdgeMode | null => {
   const data = edge.data as { mode?: WorkflowEdgeMode } | undefined;
@@ -181,8 +225,295 @@ const applyUiParentNodeMovement = (
   });
 };
 
+const pruneDisconnectedEdges = (edges: Edge[], nodes: WorkflowGraphNode[]): Edge[] => {
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const nextEdges = edges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+
+  return nextEdges.length === edges.length ? edges : nextEdges;
+};
+
+const createSchemaDeletionPlan = (): SchemaDeletionPlan => ({
+  workflowNodeIds: [],
+  workflowEdgeIds: [],
+  departmentIds: new Set<string>(),
+  agentIds: new Set<string>(),
+  clearDiscussionSupervisor: false,
+  removeMemoryPolicy: false,
+});
+
+const hasSchemaDeletion = (plan: SchemaDeletionPlan): boolean =>
+  plan.departmentIds.size > 0
+  || plan.agentIds.size > 0
+  || plan.clearDiscussionSupervisor
+  || plan.removeMemoryPolicy;
+
+const hasExecutableDeletion = (plan: SchemaDeletionPlan): boolean =>
+  plan.workflowNodeIds.length > 0
+  || plan.workflowEdgeIds.length > 0
+  || hasSchemaDeletion(plan);
+
+const removeAgentMemoryAccessPolicy = (agent: TeamSchemaDocument['agents'][number]): TeamSchemaDocument['agents'][number] => {
+  const { memory_access_policy, ...agentWithoutMemoryPolicy } = agent;
+  void memory_access_policy;
+
+  return agentWithoutMemoryPolicy;
+};
+
+const clearDiscussionSupervisorInSchema = (schema: TeamSchemaDocument): TeamSchemaDocument => {
+  const { supervisor_agent_id, ...discussionPolicyWithoutSupervisor } = schema.discussion_policy;
+  void supervisor_agent_id;
+
+  return {
+    ...schema,
+    discussion_policy: discussionPolicyWithoutSupervisor,
+  };
+};
+
+const removeMemoryPolicyFromSchema = (schema: TeamSchemaDocument): TeamSchemaDocument => {
+  if (schema.memory_policy === undefined) {
+    return schema;
+  }
+
+  const { memory_policy, ...schemaWithoutMemoryPolicy } = schema;
+  void memory_policy;
+
+  return {
+    ...schemaWithoutMemoryPolicy,
+    agents: schema.agents.map(removeAgentMemoryAccessPolicy),
+  };
+};
+
+const removeAgentFromSchema = (schema: TeamSchemaDocument, agentId: string): TeamSchemaDocument => ({
+  ...schema,
+  departments: schema.departments.map((department) => ({
+    ...department,
+    agents: department.agents.filter((currentAgentId) => currentAgentId !== agentId),
+  })),
+  agents: schema.agents.filter((agent) => agent.agent_id !== agentId),
+  discussion_policy:
+    schema.discussion_policy.supervisor_agent_id === agentId
+      ? (() => {
+          const { supervisor_agent_id, ...discussionPolicyWithoutSupervisor } = schema.discussion_policy;
+          void supervisor_agent_id;
+          return discussionPolicyWithoutSupervisor;
+        })()
+      : schema.discussion_policy,
+});
+
+const removeDepartmentFromSchema = (schema: TeamSchemaDocument, departmentId: string): TeamSchemaDocument => {
+  const removedAgentIds = schema.agents
+    .filter((agent) => agent.department_id === departmentId)
+    .map((agent) => agent.agent_id);
+
+  const nextDiscussionPolicy = removedAgentIds.includes(schema.discussion_policy.supervisor_agent_id ?? '')
+    ? (() => {
+        const { supervisor_agent_id, ...discussionPolicyWithoutSupervisor } = schema.discussion_policy;
+        void supervisor_agent_id;
+        return discussionPolicyWithoutSupervisor;
+      })()
+    : schema.discussion_policy;
+
+  return {
+    ...schema,
+    departments: schema.departments.filter((department) => department.department_id !== departmentId),
+    agents: schema.agents.filter((agent) => agent.department_id !== departmentId),
+    discussion_policy: nextDiscussionPolicy,
+  };
+};
+
+const applySchemaDeletionPlanToSchema = (schema: TeamSchemaDocument, plan: SchemaDeletionPlan): TeamSchemaDocument => {
+  let nextSchema = schema;
+
+  if (plan.removeMemoryPolicy) {
+    nextSchema = removeMemoryPolicyFromSchema(nextSchema);
+  }
+
+  if (plan.clearDiscussionSupervisor) {
+    nextSchema = clearDiscussionSupervisorInSchema(nextSchema);
+  }
+
+  plan.departmentIds.forEach((departmentId) => {
+    nextSchema = removeDepartmentFromSchema(nextSchema, departmentId);
+  });
+
+  plan.agentIds.forEach((agentId) => {
+    nextSchema = removeAgentFromSchema(nextSchema, agentId);
+  });
+
+  return nextSchema;
+};
+
+const buildDeletionBlockedMessage = (nextSchema: TeamSchemaDocument): string => {
+  const validation = validateSchemaDocument(nextSchema);
+
+  if (validation.ok) {
+    return 'Deletion blocked: the selected graph element cannot be removed.';
+  }
+
+  const firstIssue = validation.issues[0];
+
+  if (firstIssue === undefined) {
+    return 'Deletion blocked: the resulting schema would be invalid.';
+  }
+
+  const path = firstIssue.path.length > 0 ? firstIssue.path.join('.') : 'root';
+
+  return `Deletion blocked: ${path} ${firstIssue.message}`;
+};
+
+const appendNodeDeletion = (plan: SchemaDeletionPlan, nodeId: string): void => {
+  if (isWorkflowDraftNodeId(nodeId)) {
+    plan.workflowNodeIds.push(nodeId);
+    return;
+  }
+
+  if (isDepartmentNodeId(nodeId)) {
+    plan.departmentIds.add(toDepartmentId(nodeId));
+    return;
+  }
+
+  if (isAgentNodeId(nodeId)) {
+    plan.agentIds.add(toAgentId(nodeId));
+    return;
+  }
+
+  if (nodeId === DISCUSSION_MEMORY_NODE_ID || nodeId === SESSION_MEMORY_NODE_ID) {
+    plan.removeMemoryPolicy = true;
+  }
+};
+
+const appendEdgeDeletion = (plan: SchemaDeletionPlan, edgeId: string): void => {
+  if (edgeId.startsWith('workflow-link:')) {
+    plan.workflowEdgeIds.push(edgeId);
+    return;
+  }
+
+  if (edgeId.startsWith(GOAL_DEPARTMENT_EDGE_PREFIX)) {
+    plan.departmentIds.add(edgeId.slice(GOAL_DEPARTMENT_EDGE_PREFIX.length));
+    return;
+  }
+
+  if (edgeId.startsWith(DEPARTMENT_AGENT_EDGE_PREFIX)) {
+    const edgeParts = edgeId.split(':');
+    const agentId = edgeParts.at(-1);
+
+    if (agentId !== undefined) {
+      plan.agentIds.add(agentId);
+    }
+    return;
+  }
+
+  if (edgeId === DISCUSSION_SUPERVISOR_EDGE_ID) {
+    plan.clearDiscussionSupervisor = true;
+    return;
+  }
+
+  if (DISCUSSION_MEMORY_EDGE_IDS.has(edgeId)) {
+    plan.removeMemoryPolicy = true;
+  }
+};
+
+const dispatchSchemaDeletionPlan = (dispatch: AppDispatch, plan: SchemaDeletionPlan): void => {
+  if (plan.removeMemoryPolicy) {
+    dispatch(removeMemoryPolicy());
+  }
+
+  if (plan.clearDiscussionSupervisor) {
+    dispatch(clearDiscussionSupervisor());
+  }
+
+  plan.departmentIds.forEach((departmentId) => {
+    dispatch(removeDepartment(departmentId));
+  });
+
+  plan.agentIds.forEach((agentId) => {
+    dispatch(removeAgent(agentId));
+  });
+};
+
+const createWorkflowNodeRemoveChange = (nodeId: string): Extract<NodeChange<WorkflowGraphNode>, { type: 'remove' }> => ({
+  id: nodeId,
+  type: 'remove',
+});
+
+const createWorkflowEdgeRemoveChange = (edgeId: string): Extract<EdgeChange<Edge>, { type: 'remove' }> => ({
+  id: edgeId,
+  type: 'remove',
+});
+
+const applySelectChanges = (
+  currentSelectedIds: readonly string[],
+  changes: readonly SelectChange[],
+  availableIds: ReadonlySet<string>,
+): string[] => {
+  const nextSelectedIds = new Set(currentSelectedIds);
+
+  changes.forEach((change) => {
+    if (change.selected) {
+      nextSelectedIds.add(change.id);
+      return;
+    }
+
+    nextSelectedIds.delete(change.id);
+  });
+
+  return Array.from(nextSelectedIds).filter((id) => availableIds.has(id));
+};
+
+const retainAvailableIds = (currentSelectedIds: readonly string[], availableIds: ReadonlySet<string>): string[] =>
+  currentSelectedIds.filter((id) => availableIds.has(id));
+
+const commitGraphSelection = (
+  dispatch: AppDispatch,
+  nextSelectedNodeIds: string[],
+  nextSelectedEdgeIds: string[],
+): void => {
+  dispatch(setSelectedNodeIds(nextSelectedNodeIds));
+  dispatch(setSelectedEdgeIds(nextSelectedEdgeIds));
+};
+
+const getCurrentGraphSelection = (): { selectedNodeIds: string[]; selectedEdgeIds: string[] } => {
+  const { selectedNodeIds, selectedEdgeIds } = editorStore.getState().graphPanelUi;
+
+  return { selectedNodeIds, selectedEdgeIds };
+};
+
+const syncSelectionAfterGraphChange = (
+  dispatch: AppDispatch,
+  nextNodes: WorkflowGraphNode[],
+  nextEdges: Edge[],
+  nodeSelectChanges: readonly SelectChange[],
+  edgeSelectChanges: readonly SelectChange[],
+): void => {
+  const { selectedNodeIds, selectedEdgeIds } = getCurrentGraphSelection();
+  const availableNodeIds = new Set(nextNodes.map((node) => node.id));
+  const availableEdgeIds = new Set(nextEdges.map((edge) => edge.id));
+
+  commitGraphSelection(
+    dispatch,
+    applySelectChanges(selectedNodeIds, nodeSelectChanges, availableNodeIds),
+    applySelectChanges(selectedEdgeIds, edgeSelectChanges, availableEdgeIds),
+  );
+};
+
 const createNodeSelectHandler = (dispatch: AppDispatch) => (nodeId: string | null): void => {
   dispatch(selectNode(nodeId));
+
+  if (nodeId === null) {
+    commitGraphSelection(dispatch, [], []);
+    return;
+  }
+
+  commitGraphSelection(dispatch, [nodeId], []);
+};
+
+const createEdgeSelectHandler = (dispatch: AppDispatch) => (edgeId: string | null): void => {
+  if (edgeId === null) {
+    commitGraphSelection(dispatch, [], []);
+    return;
+  }
+
+  commitGraphSelection(dispatch, [], [edgeId]);
 };
 
 const findAgentDepartmentName = (schema: TeamSchemaDocument, agent: AgentDocument | undefined): string | undefined => {
@@ -214,53 +545,168 @@ const refreshWorkflowDraftNodeData = (schema: TeamSchemaDocument, node: Workflow
   return node;
 };
 
-const syncWorkflowGraph = (
-  schema: TeamSchemaDocument,
-  schemaDocumentRevision: number,
-  appliedDocumentRevision: SchemaDocumentRevisionRef,
-  setNodes: SetWorkflowNodes,
-  setEdges: SetWorkflowEdges,
-): void => {
-  const graph = buildGraph(schema);
-  const shouldApplyStoredLayout = appliedDocumentRevision.current !== schemaDocumentRevision;
-  appliedDocumentRevision.current = schemaDocumentRevision;
+const getWorkflowGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
+  const graphWithLayout = applyWorkflowLayoutDocument(buildGraph(schema), schema.layout);
 
-  if (shouldApplyStoredLayout) {
-    const graphWithLayout = applyWorkflowLayoutDocument(graph, schema.layout);
-    setNodes(graphWithLayout.nodes.map((node) => refreshWorkflowDraftNodeData(schema, node)));
-    setEdges(graphWithLayout.edges);
+  return {
+    nodes: graphWithLayout.nodes.map((node) => refreshWorkflowDraftNodeData(schema, node)),
+    edges: graphWithLayout.edges,
+  };
+};
+
+const getCurrentWorkflowGraph = (): { nodes: WorkflowGraphNode[]; edges: Edge[] } =>
+  getWorkflowGraph(editorStore.getState().editor.schema);
+
+const getSelectedWorkflowGraph = (schema: TeamSchemaDocument): { nodes: WorkflowGraphNode[]; edges: Edge[] } => {
+  const graph = getWorkflowGraph(schema);
+  const { selectedNodeIds, selectedEdgeIds } = editorStore.getState().graphPanelUi;
+  const selectedNodeIdSet = new Set(selectedNodeIds);
+  const selectedEdgeIdSet = new Set(selectedEdgeIds);
+
+  return {
+    nodes: graph.nodes.map((node) => ({ ...node, selected: selectedNodeIdSet.has(node.id) })),
+    edges: graph.edges.map((edge) => ({ ...edge, selected: selectedEdgeIdSet.has(edge.id) })),
+  };
+};
+
+const commitWorkflowLayout = (
+  dispatch: AppDispatch,
+  nextNodes: WorkflowGraphNode[],
+  nextEdges: Edge[],
+): void => {
+  dispatch(updateWorkflowLayout(createWorkflowLayoutDocument(nextNodes, nextEdges)));
+};
+
+const createNodesChangeHandler = (
+  dispatch: AppDispatch,
+): OnNodesChange<WorkflowGraphNode> => (changes) => {
+  const persistedChanges = changes.filter(isPersistableNodeChange);
+  const selectChanges = changes.filter(isSelectChange);
+  const removeChanges = persistedChanges.filter(isNodeRemoveChange);
+  const nonRemovePersistedChanges = persistedChanges.filter((change) => change.type !== 'remove');
+
+  if (persistedChanges.length === 0 && selectChanges.length === 0) {
     return;
   }
 
-  setNodes((currentNodes) => mergeLayoutNodes(graph.nodes, currentNodes).concat(
-    pickWorkflowDraftNodes(currentNodes).map((node) => refreshWorkflowDraftNodeData(schema, node)),
-  ));
-  setEdges((currentEdges) => graph.edges.concat(pickWorkflowDraftEdges(currentEdges)));
+  const deletionPlan = createSchemaDeletionPlan();
+  removeChanges.forEach((change) => appendNodeDeletion(deletionPlan, change.id));
+
+  if (removeChanges.length > 0 && !hasExecutableDeletion(deletionPlan)) {
+    dispatch(setGraphPanelEdgeConnectionError('Selected graph node cannot be deleted from the canvas.'));
+    return;
+  }
+
+  if (hasSchemaDeletion(deletionPlan)) {
+    const nextSchema = applySchemaDeletionPlanToSchema(editorStore.getState().editor.schema, deletionPlan);
+    const validation = validateSchemaDocument(nextSchema);
+
+    if (!validation.ok) {
+      dispatch(setGraphPanelEdgeConnectionError(buildDeletionBlockedMessage(nextSchema)));
+      return;
+    }
+  }
+
+  if (hasExecutableDeletion(deletionPlan)) {
+    dispatch(setGraphPanelEdgeConnectionError(null));
+    dispatchSchemaDeletionPlan(dispatch, deletionPlan);
+  }
+
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const workflowRemoveChanges = deletionPlan.workflowNodeIds.map(createWorkflowNodeRemoveChange);
+  const graphChanges: NodeChange<WorkflowGraphNode>[] = [...nonRemovePersistedChanges, ...workflowRemoveChanges];
+
+  const nextGraph = (() => {
+    if (graphChanges.length === 0) {
+      return { nextNodes: currentNodes, nextEdges: currentEdges };
+    }
+
+    const parentDeltas = toParentNodeDeltas(graphChanges, currentNodes);
+    const changedNodes = applyNodeChanges(graphChanges, currentNodes);
+    const nextNodes = applyUiParentNodeMovement(changedNodes, currentEdges, parentDeltas);
+    const nextEdges = pruneDisconnectedEdges(currentEdges, nextNodes);
+
+    commitWorkflowLayout(dispatch, nextNodes, nextEdges);
+
+    return { nextNodes, nextEdges };
+  })();
+
+  syncSelectionAfterGraphChange(dispatch, nextGraph.nextNodes, nextGraph.nextEdges, selectChanges, []);
+
+  const { selection } = editorStore.getState().editor;
+
+  if (
+    selection.kind === 'workflowNode'
+    && !nextGraph.nextNodes.some((node) => node.id === selection.nodeId)
+  ) {
+    dispatch(selectNode('team'));
+  }
 };
 
-const createNodesChangeHandler = (setNodes: SetWorkflowNodes, edges: Edge[]): OnNodesChange<WorkflowGraphNode> => (changes) => {
-  setNodes((currentNodes) => {
-    const parentDeltas = toParentNodeDeltas(changes, currentNodes);
-    const changedNodes = applyNodeChanges(changes, currentNodes);
+const createEdgesChangeHandler = (
+  dispatch: AppDispatch,
+): OnEdgesChange<Edge> => (changes) => {
+  const persistedChanges = changes.filter(isPersistableEdgeChange);
+  const selectChanges = changes.filter(isSelectChange);
+  const removeChanges = persistedChanges.filter(isEdgeRemoveChange);
+  const nonRemovePersistedChanges = persistedChanges.filter((change) => change.type !== 'remove');
 
-    return applyUiParentNodeMovement(changedNodes, edges, parentDeltas);
-  });
-};
+  if (persistedChanges.length === 0 && selectChanges.length === 0) {
+    return;
+  }
 
-const createEdgesChangeHandler = (setEdges: SetWorkflowEdges): OnEdgesChange<Edge> => (changes) => {
-  setEdges((currentEdges) => applyEdgeChanges(changes, currentEdges));
+  const deletionPlan = createSchemaDeletionPlan();
+  removeChanges.forEach((change) => appendEdgeDeletion(deletionPlan, change.id));
+
+  if (removeChanges.length > 0 && !hasExecutableDeletion(deletionPlan)) {
+    dispatch(setGraphPanelEdgeConnectionError(
+      removeChanges.some((change) => change.id === GOAL_DISCUSSION_EDGE_ID)
+        ? 'The discussion root edge is required by the schema and cannot be deleted from the canvas.'
+        : 'Selected graph edge cannot be deleted from the canvas.',
+    ));
+    return;
+  }
+
+  if (hasSchemaDeletion(deletionPlan)) {
+    const nextSchema = applySchemaDeletionPlanToSchema(editorStore.getState().editor.schema, deletionPlan);
+    const validation = validateSchemaDocument(nextSchema);
+
+    if (!validation.ok) {
+      dispatch(setGraphPanelEdgeConnectionError(buildDeletionBlockedMessage(nextSchema)));
+      return;
+    }
+  }
+
+  if (hasExecutableDeletion(deletionPlan)) {
+    dispatch(setGraphPanelEdgeConnectionError(null));
+    dispatchSchemaDeletionPlan(dispatch, deletionPlan);
+  }
+
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const workflowRemoveChanges = deletionPlan.workflowEdgeIds.map(createWorkflowEdgeRemoveChange);
+  const graphChanges: EdgeChange<Edge>[] = [...nonRemovePersistedChanges, ...workflowRemoveChanges];
+
+  const nextEdges = graphChanges.length === 0
+    ? currentEdges
+    : applyEdgeChanges(graphChanges, currentEdges);
+
+  if (graphChanges.length > 0) {
+    commitWorkflowLayout(dispatch, currentNodes, nextEdges);
+  }
+
+  syncSelectionAfterGraphChange(dispatch, currentNodes, nextEdges, [], selectChanges);
 };
 
 const createWorkflowNodeAppender = (
   dispatch: AppDispatch,
-  setNodes: SetWorkflowNodes,
 ) => (createNode: CreateWorkflowNode): void => {
-  setNodes((currentNodes) => {
-    const node = createNode(currentNodes);
-    dispatch(selectNode(node.id));
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const node = createNode(currentNodes);
+  const nextNodes = currentNodes.concat(node);
 
-    return currentNodes.concat(node);
-  });
+  commitWorkflowLayout(dispatch, nextNodes, currentEdges);
+  commitGraphSelection(dispatch, [node.id], []);
+  dispatch(selectNode(node.id));
 };
 
 const removeWorkflowAgentId = (data: WorkflowGraphNode['data']): WorkflowGraphNode['data'] => {
@@ -303,12 +749,15 @@ const updateWorkflowAgentNodeData = (
 };
 
 const createWorkflowAgentNodeUpdater = (
-  schema: TeamSchemaDocument,
-  setNodes: SetWorkflowNodes,
+  dispatch: AppDispatch,
 ) => (nodeId: string, agentId: string): void => {
-  setNodes((currentNodes) => currentNodes.map((node) => (
-    node.id === nodeId ? updateWorkflowAgentNodeData(schema, node, agentId) : node
-  )));
+  const currentSchema = editorStore.getState().editor.schema;
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const nextNodes = currentNodes.map((node) => (
+    node.id === nodeId ? updateWorkflowAgentNodeData(currentSchema, node, agentId) : node
+  ));
+
+  commitWorkflowLayout(dispatch, nextNodes, currentEdges);
 };
 
 const updateWorkflowNodeMetadataData = (
@@ -339,67 +788,69 @@ const updateWorkflowNodeMetadataData = (
 };
 
 const createWorkflowNodeMetadataUpdater = (
-  schema: TeamSchemaDocument,
-  setNodes: SetWorkflowNodes,
+  dispatch: AppDispatch,
 ) => (nodeId: string, field: WorkflowMetadataField, value: string): void => {
-  setNodes((currentNodes) => currentNodes.map((node) => (
-    node.id === nodeId ? updateWorkflowNodeMetadataData(schema, node, field, value) : node
-  )));
+  const currentSchema = editorStore.getState().editor.schema;
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const nextNodes = currentNodes.map((node) => (
+    node.id === nodeId ? updateWorkflowNodeMetadataData(currentSchema, node, field, value) : node
+  ));
+
+  commitWorkflowLayout(dispatch, nextNodes, currentEdges);
 };
 
 const createWorkflowDraftNodeRemover = (
   dispatch: AppDispatch,
-  setNodes: SetWorkflowNodes,
-  setEdges: SetWorkflowEdges,
 ) => (nodeId: string): void => {
-  setNodes((currentNodes) => currentNodes.filter((node) => node.id !== nodeId));
-  setEdges((currentEdges) => currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const nextNodes = currentNodes.filter((node) => node.id !== nodeId);
+  const nextEdges = currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+
+  commitWorkflowLayout(dispatch, nextNodes, nextEdges);
+  commitGraphSelection(dispatch, [], []);
   dispatch(selectNode('team'));
 };
 
 const createWorkflowEdgeAdder = (
-  setEdges: SetWorkflowEdges,
-  setEdgeConnectionError: SetEdgeConnectionError,
+  dispatch: AppDispatch,
 ) => (connection: Connection, mode: WorkflowEdgeMode): void => {
-  setEdges((currentEdges) => {
-    const result = createWorkflowEdge(connection, mode, currentEdges);
+  const { nodes: currentNodes, edges: currentEdges } = getCurrentWorkflowGraph();
+  const result = createWorkflowEdge(connection, mode, currentEdges);
 
-    if (result.status === CreateWorkflowEdgeStatus.Rejected) {
-      setEdgeConnectionError(
-        result.reason === CreateWorkflowEdgeRejectionReason.PipelineCycle
-          ? 'Pipeline edge rejected: it would create a cycle. Pipeline children must form a DAG.'
-          : 'Connection rejected: missing source or target.',
-      );
-      return currentEdges;
-    }
+  if (result.status === CreateWorkflowEdgeStatus.Rejected) {
+    dispatch(setGraphPanelEdgeConnectionError(
+      result.reason === CreateWorkflowEdgeRejectionReason.PipelineCycle
+        ? 'Pipeline edge rejected: it would create a cycle. Pipeline children must form a DAG.'
+        : 'Connection rejected: missing source or target.',
+    ));
+    return;
+  }
 
-    setEdgeConnectionError(null);
-    return currentEdges.concat(result.edge);
-  });
+  dispatch(setGraphPanelEdgeConnectionError(null));
+  commitWorkflowLayout(dispatch, currentNodes, currentEdges.concat(result.edge));
 };
 
 export const useWorkflowGraphEditor = (
   schema: TeamSchemaDocument,
   dispatch: AppDispatch,
-  schemaDocumentRevision: number,
 ): WorkflowGraphEditorModel => {
-  const [nodes, setNodes] = useState<WorkflowGraphNode[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-  const [edgeConnectionError, setEdgeConnectionError] = useState<string | null>(null);
-  const appliedDocumentRevision = useRef<number | null>(null);
+  const selectedNodeIds = useAppSelector((state) => state.graphPanelUi.selectedNodeIds);
+  const selectedEdgeIds = useAppSelector((state) => state.graphPanelUi.selectedEdgeIds);
+  const { nodes, edges } = useMemo(
+    () => getSelectedWorkflowGraph(schema),
+    [schema, selectedEdgeIds, selectedNodeIds],
+  );
+  const edgeConnectionError = useAppSelector((state) => state.graphPanelUi.edgeConnectionError);
 
-  useEffect(() => {
-    syncWorkflowGraph(schema, schemaDocumentRevision, appliedDocumentRevision, setNodes, setEdges);
-  }, [schema, schemaDocumentRevision]);
-
-  const onNodesChange = createNodesChangeHandler(setNodes, edges);
-  const onEdgesChange = createEdgesChangeHandler(setEdges);
-  const onNodeSelect = createNodeSelectHandler(dispatch);
-  const appendWorkflowNode = createWorkflowNodeAppender(dispatch, setNodes);
-  const updateWorkflowAgentNode = createWorkflowAgentNodeUpdater(schema, setNodes);
-  const updateWorkflowNodeMetadata = createWorkflowNodeMetadataUpdater(schema, setNodes);
-  const removeWorkflowDraftNode = createWorkflowDraftNodeRemover(dispatch, setNodes, setEdges);
-  const addWorkflowEdge = createWorkflowEdgeAdder(setEdges, setEdgeConnectionError);
+  const onNodesChange = useMemo(() => createNodesChangeHandler(dispatch), [dispatch]);
+  const onEdgesChange = useMemo(() => createEdgesChangeHandler(dispatch), [dispatch]);
+  const onNodeSelect = useMemo(() => createNodeSelectHandler(dispatch), [dispatch]);
+  const onEdgeSelect = useMemo(() => createEdgeSelectHandler(dispatch), [dispatch]);
+  const appendWorkflowNode = useMemo(() => createWorkflowNodeAppender(dispatch), [dispatch]);
+  const updateWorkflowAgentNode = useMemo(() => createWorkflowAgentNodeUpdater(dispatch), [dispatch]);
+  const updateWorkflowNodeMetadata = useMemo(() => createWorkflowNodeMetadataUpdater(dispatch), [dispatch]);
+  const removeWorkflowDraftNode = useMemo(() => createWorkflowDraftNodeRemover(dispatch), [dispatch]);
+  const addWorkflowEdge = useMemo(() => createWorkflowEdgeAdder(dispatch), [dispatch]);
 
   const addWorkflowAgentNode = (): void => {
     appendWorkflowNode(createWorkflowAgentNode);
@@ -413,7 +864,9 @@ export const useWorkflowGraphEditor = (
     appendWorkflowNode(createWorkflowPipelineNode);
   };
 
-  const clearEdgeConnectionError = (): void => setEdgeConnectionError(null);
+  const clearEdgeConnectionError = (): void => {
+    dispatch(setGraphPanelEdgeConnectionError(null));
+  };
 
   return {
     nodes,
@@ -421,6 +874,7 @@ export const useWorkflowGraphEditor = (
     onNodesChange,
     onEdgesChange,
     onNodeSelect,
+    onEdgeSelect,
     addWorkflowAgentNode,
     addWorkflowPartNode,
     addWorkflowPipelineNode,

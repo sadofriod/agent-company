@@ -56,6 +56,11 @@ const buildDenialReason = (vote: CandidateVote, capabilityId: string): string =>
 	return `Department decision scope does not cover capability '${capabilityId}'.`;
 };
 
+const isPipelineDepartmentAuthorized = (
+	scope: CapabilityScope,
+	vote: CandidateVote,
+): boolean => scope === CAPABILITY_SCOPE.PipelineStep && vote.agentHas && vote.stepAllows;
+
 export const authorizeCapabilities = (input: AuthorizeCapabilityInput): AuthorizeCapabilityResult => {
 	const grants: CapabilityGrant[] = [];
 	const deniedCapabilityIds: CapabilityId[] = [];
@@ -63,8 +68,13 @@ export const authorizeCapabilities = (input: AuthorizeCapabilityInput): Authoriz
 
 	for (const [rawId, vote] of input.candidates) {
 		const capabilityId = toCapabilityId(rawId);
-		// Dept source fallback: if dept has no configured scope, treat as permissive.
-		const deptOk = !input.departmentHasDecisionScope || vote.deptAllows;
+		// Pipeline steps already execute within a department-owned ticket and agent boundary.
+		// Treat agent-declared, step-requested capabilities as department-authorized here,
+		// while still denying undeclared or out-of-step capability requests.
+		const deptOk =
+			!input.departmentHasDecisionScope
+			|| vote.deptAllows
+			|| isPipelineDepartmentAuthorized(input.scope, vote);
 		const allowed = vote.agentHas && deptOk && vote.modeAllows && vote.stepAllows;
 
 		if (allowed) {

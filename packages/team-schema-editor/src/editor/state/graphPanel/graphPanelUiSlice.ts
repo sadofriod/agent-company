@@ -8,6 +8,9 @@ type GraphPanelUiState = {
   linkSourceId: string;
   linkTargetId: string;
   linkMode: WorkflowEdgeMode;
+  edgeConnectionError: string | null;
+  selectedNodeIds: string[];
+  selectedEdgeIds: string[];
 };
 
 const initialState: GraphPanelUiState = {
@@ -15,6 +18,9 @@ const initialState: GraphPanelUiState = {
   linkSourceId: '',
   linkTargetId: '',
   linkMode: WorkflowEdgeMode.Pipeline,
+  edgeConnectionError: null,
+  selectedNodeIds: [],
+  selectedEdgeIds: [],
 };
 
 const graphPanelUiSlice = createSlice({
@@ -33,8 +39,25 @@ const graphPanelUiSlice = createSlice({
     setLinkMode: (state, action: PayloadAction<WorkflowEdgeMode>) => {
       state.linkMode = action.payload;
     },
+    setEdgeConnectionError: (state, action: PayloadAction<string | null>) => {
+      state.edgeConnectionError = action.payload;
+    },
+    setSelectedNodeIds: (state, action: PayloadAction<string[]>) => {
+      state.selectedNodeIds = action.payload;
+    },
+    setSelectedEdgeIds: (state, action: PayloadAction<string[]>) => {
+      state.selectedEdgeIds = action.payload;
+    },
   },
 });
 
-export const { setPendingConnection, setLinkMode, setLinkSourceId, setLinkTargetId } = graphPanelUiSlice.actions;
+export const {
+  setEdgeConnectionError,
+  setPendingConnection,
+  setLinkMode,
+  setLinkSourceId,
+  setLinkTargetId,
+  setSelectedNodeIds,
+  setSelectedEdgeIds,
+} = graphPanelUiSlice.actions;
 export const graphPanelUiReducer = graphPanelUiSlice.reducer;
